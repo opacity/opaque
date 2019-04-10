@@ -25,7 +25,11 @@ export function generateFileKeys() {
 
   const handle = Forge.util.bytesToHex(hash) + Forge.util.bytesToHex(key);
 
-  return { hash, key, handle }
+  return {
+    hash: Forge.util.bytesToHex(hash),
+    key,
+    handle
+  }
 }
 
 // Return datamap hash and encryption key from handle
@@ -85,10 +89,7 @@ export function getFileData(file, nameFallback = "file") {
 
 // get true upload size, accounting for encryption overhead
 export function getUploadSize(size, params) {
-  const dataPerBlock = params.blockSize - BLOCK_OVERHEAD;
-  const blockCount = Math.ceil(size / dataPerBlock);
-
+  const blockCount = Math.ceil(size / params.blockSize);
   return size + blockCount * BLOCK_OVERHEAD;
 }
-
 
