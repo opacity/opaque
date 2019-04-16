@@ -7,5 +7,6 @@
     "forceConsistentCasingInFileNames": true,
     "module": "esnext",
     "moduleResolution": "node"
-  }
+  },
+  "files": ["src/types/**/*.d.ts"]
 }

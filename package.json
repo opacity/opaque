@@ -8,5 +8,9 @@
     "fuse-box": "^3.7.1",
     "terser": "^3.17.0",
     "typescript": "^3.4.3"
+  },
+  "dependencies": {
+    "bip39": "^3.0.1",
+    "hdkey": "^1.1.1"
   }
 }
