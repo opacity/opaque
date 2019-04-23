@@ -5,7 +5,11 @@ import isBuffer from "is-buffer";
 import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import mime from "mime/lite";
-import { FILENAME_MAX_LENGTH, BLOCK_OVERHEAD } from "./constants";
+import {
+  FILENAME_MAX_LENGTH,
+  DEFAULT_BLOCK_SIZE,
+  BLOCK_OVERHEAD
+} from "./constants";
 
 const Forge = { md: ForgeMd, random: ForgeRandom, util: ForgeUtil };
 const ByteBuffer = Forge.util.ByteBuffer;
@@ -35,13 +39,13 @@ export function generateFileKeys() {
 // Return datamap hash and encryption key from handle
 // TODO: Decide on format and derivation
 export function keysFromHandle(handle) {
-  const bytes = Forge.utils.binary.hex.decode(handle);
+  const bytes = Forge.util.binary.hex.decode(handle);
   const buf = new ByteBuffer(bytes);
   const hash = buf.getBytes(32);
   const key = buf.getBytes(32);
 
   return {
-    hash: new ByteBuffer(hash),
+    hash: Forge.util.bytesToHex(hash),
     key: new ByteBuffer(key),
     handle
   }
@@ -61,7 +65,6 @@ export function sanitizeFilename(filename) {
 // Rudimentary format normalization
 export function getFileData(file, nameFallback = "file") {
   if(isBuffer(file)) {
-    console.log("buffer");
     const buf = file;
 
     file = {
@@ -72,24 +75,21 @@ export function getFileData(file, nameFallback = "file") {
       reader: BufferSourceStream
     }
   } else if(file && file.data && isBuffer(file.data)) {
-    console.log("buffer with object");
     file.size = file.data.length;
     file.name = file.name || nameFallback;
     file.type = file.type || mime.getType(file.name) || "application/octet-stream";
     file.reader = BufferSourceStream
   } else {
-    console.log("file");
     file.reader = FileSourceStream;
   }
-
-  console.log("file", file);
 
   return file;
 }
 
 // get true upload size, accounting for encryption overhead
 export function getUploadSize(size, params) {
-  const blockCount = Math.ceil(size / params.blockSize);
+  const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;
 }
 

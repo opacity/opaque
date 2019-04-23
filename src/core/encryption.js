@@ -6,6 +6,7 @@ import ForgeRandom from "node-forge/lib/random";
 import { IV_BYTE_LENGTH, TAG_BYTE_LENGTH, TAG_BIT_LENGTH, BLOCK_OVERHEAD } from "./constants";
 
 const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil, random: ForgeRandom };
+const ByteBuffer = Forge.util.ByteBuffer;
 
 // Encryption
 export function encrypt(key, byteBuffer) {
@@ -63,10 +64,11 @@ export function decrypt(key, byteBuffer) {
   }
 }
 
-export function decryptBytes(key, byteBuffer) {
-  const output = decrypt(key, byteBuffer);
+export function decryptBytes(key, bytes) {
+  const buf = new ByteBuffer(bytes);
+  const output = decrypt(key, buf);
   if (output) {
-    return Forge.util.binary.raw.decode(output.bytes());
+    return Forge.util.binary.raw.decode(output.getBytes());
   } else {
     return false;
   }
@@ -91,8 +93,7 @@ export function decryptMetadata(key, data) {
 export function versionTrytes() {
   const typedVersion = new DataView(new ArrayBuffer(4));
   typedVersion.setUint32(0, CURRENT_VERSION);
-  const buf = new Forge.util.ByteBuffer(typedVersion.buffer);
-  return iota.utils.toTrytes(buf.bytes());
+  return typedVersion;
 }
 
 export const validateKeys = (obj, keys) => {
