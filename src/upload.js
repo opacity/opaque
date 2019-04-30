@@ -49,7 +49,7 @@ export default class Upload extends EventEmitter {
     }
   }
 
-  async startUpload(session) {
+  async startUpload() {
     try {
       await this.uploadMetadata();
       await this.uploadFile();
@@ -79,10 +79,10 @@ export default class Upload extends EventEmitter {
       headers: data.getHeaders()
     })
     .then(res => {
-      this.emit("metadata", )
+      this.emit("metadata", meta);
     })
-    .catch(err => {
-      console.log("METADATA ERROR", err.message || err);
+    .catch(error => {
+      this.propagateError(error);
     })
   }
 
@@ -93,7 +93,13 @@ export default class Upload extends EventEmitter {
     this.encryptStream = new EncryptStream(this.key, this.options.params);
     this.uploadStream = new UploadStream(this.account, this.hash, this.uploadSize, this.options.endpoint, this.options.params);
 
-    this.uploadStream.on("progress", this.uploadProgress);
+    this.uploadStream.on("progress", progress => {
+      this.emit("upload-progress", {
+        target: this,
+        handle: this.handle,
+        progress
+      });
+    });
 
     pipeline(
       this.readStream,
@@ -103,18 +109,16 @@ export default class Upload extends EventEmitter {
     )
   }
 
-  // TODO: Proper progress logic
-  async uploadProgress(event) {
-    this.emit("progress", event);
-  }
-
   async finishUpload(error) {
     if(error) {
-      return;
+      this.propagateError(error);
+    } else {
+      this.emit("finish", {
+        target: this,
+        handle: this.handle,
+        metadata: this.metadata
+      });
     }
-
-    this.emit("upload-finished", { target: this, handle: this.handle });
-    this.emit("finish");
   }
 
 

@@ -20,11 +20,13 @@ export default class UploadStream extends Writable {
     this.hash = hash;
     this.endpoint = endpoint;
     this.options = opts;
+    this.size = size;
     this.endIndex = Math.ceil(size / opts.partSize);
 
     console.log(`Uploading new file with ${this.endIndex} parts.`);
 
     // Internal
+    this.bytesUploaded = 0;
     this.blockBuffer = [];
     this.partBuffer = [];
     this.bufferSize = 0;
@@ -32,7 +34,6 @@ export default class UploadStream extends Writable {
     this.retries = 0;
     this.partIndex = 0;
     this.finalCallback = null;
-    this.uploaded = 0;
   }
 
   _write(data, encoding, callback) {
@@ -110,7 +111,6 @@ export default class UploadStream extends Writable {
       knownLength: part.data.length
     });
 
-    console.log(`Uploading part ${part.partIndex} of ${this.endIndex} - length: ${part.data.length} bytes.`);
     const upload = Axios.put(this.endpoint + "/upload/file", data, {
       headers: data.getHeaders(),
       onUploadProgress: (event) => {
@@ -121,18 +121,16 @@ export default class UploadStream extends Writable {
       this._afterUpload(part);
     })
     .catch(error => {
-      console.log("error", error, upload)
       this._uploadError(error, part);
     });
   }
 
   _afterUpload(part) {
     this.ongoingUploads--;
-    this.uploaded += part.data.length;
-
-    console.log(`Finished upload of part ${part.partIndex}`);
+    this.bytesUploaded += part.data.length;
 
     // TODO: Progress
+    this.emit("progress", this.bytesUploaded / this.size);
 
     // Upload until done
     if (this.partBuffer.length > 0) {
