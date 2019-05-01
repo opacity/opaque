@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "build": "node fuse dev",
+    "build:watch": "node fuse dev:watch",
+    "dist": "node fuse dist"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.4",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.4.4",
+    "fuse-box": "^3.7.1",
+    "terser": "^3.17.0",
+    "typescript": "^3.4.3"
+  },
+  "dependencies": {
+    "axios": "^0.18.0",
+    "form-data": "^2.3.3",
+    "mime": "^2.4.2",
+    "node-forge": "^0.8.2",
+    "readable-stream": "^3.3.0"
+  }
+}
