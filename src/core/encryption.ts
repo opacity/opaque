@@ -1,8 +1,4 @@
-
-import ForgeCipher from "node-forge/lib/cipher";
-import ForgeMd from "node-forge/lib/md";
-import ForgeUtil from "node-forge/lib/util";
-import ForgeRandom from "node-forge/lib/random";
+import { cipher as ForgeCipher, md as ForgeMd, util as ForgeUtil, random as ForgeRandom } from "node-forge"
 import { IV_BYTE_LENGTH, TAG_BYTE_LENGTH, TAG_BIT_LENGTH, BLOCK_OVERHEAD } from "./constants";
 
 const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil, random: ForgeRandom };
@@ -74,27 +70,27 @@ export function decryptBytes(key, bytes) {
   }
 }
 
-export function decryptString(key, byteBuffer, encoding) {
+export function decryptString(key: string, byteBuffer, encoding = "utf8") {
   const output = decrypt(key, byteBuffer);
   if (output) {
-    return output.toString(encoding || "utf8");
+    return new Buffer(output.toString()).toString(encoding);
   } else {
-    return false;
+    throw new Error("unable to decrypt");
   }
 }
 
-export function decryptMetadata(key, data) {
-  const byteBuffer = Forge.util.createBuffer(byteStr, "binary");
-  const metadata = JSON.parse(decryptString(key, byteBuffer.compact()));
+// export function decryptMetadata(key, data) {
+//   const byteBuffer = Forge.util.createBuffer(byteStr, "binary");
+//   const metadata = JSON.parse(decryptString(key, byteBuffer.compact()));
 
-  return { version, metadata };
-}
+//   return { version, metadata };
+// }
 
-export function versionTrytes() {
-  const typedVersion = new DataView(new ArrayBuffer(4));
-  typedVersion.setUint32(0, CURRENT_VERSION);
-  return typedVersion;
-}
+// export function versionTrytes() {
+//   const typedVersion = new DataView(new ArrayBuffer(4));
+//   typedVersion.setUint32(0, CURRENT_VERSION);
+//   return typedVersion;
+// }
 
 export const validateKeys = (obj, keys) => {
   // TODO: Smarter validation.

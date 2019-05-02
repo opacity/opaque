@@ -11,6 +11,22 @@ const DEFAULT_OPTIONS = Object.freeze({
 });
 
 export default class UploadStream extends Writable {
+  account: any
+  hash: Buffer
+  endpoint: any
+  options: any
+  size: number
+  endIndex: number
+
+  private bytesUploaded: number
+  private blockBuffer: any[]
+  private partBuffer: any[]
+  private bufferSize: number
+  private ongoingUploads: number
+  private retries: number
+  private partIndex: number
+  private finalCallback: Function
+
   constructor(account, hash, size, endpoint, options) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
     super(opts);

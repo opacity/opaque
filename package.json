@@ -9,6 +9,8 @@
     "@babel/core": "^7.4.4",
     "@babel/node": "^7.2.2",
     "@babel/preset-env": "^7.4.4",
+    "@types/is-buffer": "^2.0.0",
+    "@types/readable-stream": "^2.3.1",
     "fuse-box": "^3.7.1",
     "terser": "^3.17.0",
     "typescript": "^3.4.3"

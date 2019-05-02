@@ -1,12 +1,8 @@
-import ForgeCipher from "node-forge/lib/cipher";
-import ForgeMd from "node-forge/lib/md";
-import SHA256 from "node-forge/lib/sha256";
-import SHA512 from "node-forge/lib/sha512";
-import ForgeUtil from "node-forge/lib/util";
+import { cipher as ForgeCipher, md as ForgeMd, util as ForgeUtil } from "node-forge";
 
 const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil };
 
-export function getHash(hash, offset, cache = null) {
+export function getHash(hash: ForgeUtil.ByteStringBuffer, offset: number, cache: any[] = null) {
   if(offset > Number.MAX_SAFE_INTEGER || offset < 0) {
     return false;
   }
@@ -41,7 +37,11 @@ export function getHash(hash, offset, cache = null) {
 
 // TODO: Iterable datamap
 export default class Datamap {
-  constructor(hash, offset = 0) {
+  hash: string
+  offset: number
+  cache: any[]
+
+  constructor(hash: string, offset = 0) {
     this.hash = hash;
     this.offset = offset;
     this.cache = [];
@@ -51,7 +51,7 @@ export default class Datamap {
 
   }
 
-  hashAt(offset) {
+  hashAt(offset: number) {
     this.cache.length = 0;
   }
 }

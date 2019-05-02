@@ -1,8 +1,6 @@
-import ForgeMd from "node-forge/lib/md";
-import ForgeRandom from "node-forge/lib/random";
-import ForgeUtil from "node-forge/lib/util";
+import { md as ForgeMd, random as ForgeRandom, util as ForgeUtil } from "node-forge"
 import isBuffer from "is-buffer";
-import FileSourceStream from "../streams/fileSourceStream";
+// import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import mime from "mime/lite";
 import {
@@ -10,6 +8,7 @@ import {
   DEFAULT_BLOCK_SIZE,
   BLOCK_OVERHEAD
 } from "./constants";
+import { Buffer } from "safe-buffer";
 
 const Forge = { md: ForgeMd, random: ForgeRandom, util: ForgeUtil };
 const ByteBuffer = Forge.util.ByteBuffer;
@@ -27,10 +26,10 @@ export function generateFileKeys() {
     .update(Forge.random.getBytesSync(32))
     .digest();
 
-  const handle = Forge.util.bytesToHex(hash) + Forge.util.bytesToHex(key);
+  const handle = hash.toHex() + key.toHex();
 
   return {
-    hash: Forge.util.bytesToHex(hash),
+    hash: hash.toHex(),
     key,
     handle
   }
@@ -51,7 +50,7 @@ export function keysFromHandle(handle) {
   }
 }
 
-export function sanitizeFilename(filename) {
+export function sanitizeFilename(filename: string) {
   if(filename.length > FILENAME_MAX_LENGTH) {
     const l = (FILENAME_MAX_LENGTH / 2) - 2;
     const start = filename.substring(0, l);
@@ -62,28 +61,36 @@ export function sanitizeFilename(filename) {
   return filename;
 }
 
-// Rudimentary format normalization
-export function getFileData(file, nameFallback = "file") {
-  if(isBuffer(file)) {
-    const buf = file;
+export type FileData = {
+  data: Buffer
+  size: number
+  name: string
+  type: string
+  // reader: BufferSourceStream
+}
 
-    file = {
-      data: buf,
-      size: buf.length,
+// Rudimentary format normalization
+export function getFileData(file: Buffer | FileData, nameFallback = "file"): FileData {
+  if(isBuffer(file)) {
+    return {
+      data: file as Buffer,
+      size: file.length,
       name: nameFallback,
       type: "application/octet-stream",
-      reader: BufferSourceStream
+      // reader: BufferSourceStream
     }
-  } else if(file && file.data && isBuffer(file.data)) {
-    file.size = file.data.length;
-    file.name = file.name || nameFallback;
-    file.type = file.type || mime.getType(file.name) || "application/octet-stream";
-    file.reader = BufferSourceStream
+  } else if(file && (file as FileData).data && isBuffer((file as FileData).data)) {
+    return {
+      data: (file as FileData).data,
+      size: (file as FileData).data.length,
+      name: (file as FileData).name || nameFallback,
+      type: (file as FileData).type || mime.getType((file as FileData).name) || "application/octet-stream",
+      // reader: BufferSourceStream
+    }
   } else {
-    file.reader = FileSourceStream;
+    // TODO
+    // file.reader = FileSourceStream;
   }
-
-  return file;
 }
 
 // get true upload size, accounting for encryption overhead
@@ -92,4 +99,3 @@ export function getUploadSize(size, params) {
   const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;
 }
-
