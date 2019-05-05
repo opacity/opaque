@@ -1,16 +1,31 @@
 {
+  "name": "opaque",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "node fuse dev",
-    "build:watch": "node fuse dev:watch",
-    "dist": "node fuse dist"
+    "build": "pack build"
+  },
+  "@pika/pack": {
+    "pipeline": [
+      [
+        "@pika/plugin-ts-standard-pkg"
+      ],
+      [
+        "@pika/plugin-build-node"
+      ],
+      [
+        "@pika/plugin-build-web"
+      ],
+      [
+        "@pika/plugin-bundle-web"
+      ]
+    ]
   },
   "devDependencies": {
-    "fuse-box": "^3.7.1",
-    "terser": "^3.17.0",
-    "typescript": "^3.4.3"
-  },
-  "dependencies": {
-    "bip39": "^3.0.1",
-    "hdkey": "^1.1.1"
+    "@pika/pack": "^0.3.7",
+    "@pika/plugin-build-node": "^0.3.16",
+    "@pika/plugin-build-web": "^0.3.16",
+    "@pika/plugin-bundle-web": "^0.3.16",
+    "@pika/plugin-ts-standard-pkg": "^0.3.16",
+    "typescript": "^3.4.5"
   }
 }
