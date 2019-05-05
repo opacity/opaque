@@ -2,13 +2,7 @@
   "name": "opaque",
   "main": "src/index.ts",
   "scripts": {
-    "build": "node fuse dev",
-    "build:watch": "node fuse dev:watch",
-    "dist": "node fuse dist"
   },
   "devDependencies": {
-    "fuse-box": "^3.7.1",
-    "terser": "^3.17.0",
-    "typescript": "^3.4.3"
   }
 }
