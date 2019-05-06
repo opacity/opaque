@@ -1,7 +1,8 @@
 import Axios from "axios";
-import FormData from "form-data";
+import FormDataNode from "form-data";
 import { Writable } from "readable-stream";
 
+const POLYFILL_FORMDATA = typeof FormData === "undefined";
 const PART_MIME = "application/octet-stream";
 const DEFAULT_OPTIONS = Object.freeze({
   maxParallelUploads: 2,
@@ -113,22 +114,26 @@ export default class UploadStream extends Writable {
       this.cork();
     }
 
-    const data = new FormData();
+    const data = new FormDataNode();
     const filename = `${this.hash}.${part.partIndex}.part`;
+    const raw = POLYFILL_FORMDATA
+                  ? Buffer.from(part.data.buffer)
+                  : new Blob([part.data], { type: "application/octet-stream" });
+    const length = raw.size ? raw.size : raw.length;
 
     // TODO: Actual account / signature
     data.append("hash", this.hash);
     data.append("account", this.account);
     data.append("partIndex", part.partIndex);
     data.append("endIndex", this.endIndex);
-    data.append("part", Buffer.from(part.data), {
+    data.append("part", raw, {
       filename: filename,
       contentType: "application/octet-stream",
       knownLength: part.data.length
     });
 
     const upload = Axios.put(this.endpoint + "/upload/file", data, {
-      headers: data.getHeaders(),
+      headers: data.getHeaders ? data.getHeaders() : {},
       onUploadProgress: (event) => {
         return
       }

@@ -1,4 +1,7 @@
 {
+  "name": "opaque",
+  "main": "./build/opaque.server.js",
+  "browser": "./build/opaque.browser.js",
   "scripts": {
     "build": "node fuse dev",
     "build:watch": "node fuse dev:watch",

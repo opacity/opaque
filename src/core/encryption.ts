@@ -78,25 +78,3 @@ export function decryptString(key: string, byteBuffer, encoding = "utf8") {
     throw new Error("unable to decrypt");
   }
 }
-
-// export function decryptMetadata(key, data) {
-//   const byteBuffer = Forge.util.createBuffer(byteStr, "binary");
-//   const metadata = JSON.parse(decryptString(key, byteBuffer.compact()));
-
-//   return { version, metadata };
-// }
-
-// export function versionTrytes() {
-//   const typedVersion = new DataView(new ArrayBuffer(4));
-//   typedVersion.setUint32(0, CURRENT_VERSION);
-//   return typedVersion;
-// }
-
-export const validateKeys = (obj, keys) => {
-  // TODO: Smarter validation.
-  const invalidKeys = keys.filter(key => !obj.hasOwnProperty(key));
-
-  if (invalidKeys.length > 0) {
-    throw `Missing required keys: ${invalidKeys.join(", ")}`;
-  }
-};
