@@ -28,7 +28,7 @@ export function encryptMetadata (metadata, key) {
 }
 
 export function decryptMetadata (data, key) {
-  const byteStr = Forge.util.binary.raw.encode(data);
+  const byteStr = Forge.util.binary.raw.encode(new Uint8Array(data));
   const byteBuffer = Forge.util.createBuffer(byteStr, "binary");
   const meta = JSON.parse(decryptString(key, byteBuffer));
 

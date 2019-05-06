@@ -1,5 +1,4 @@
 import Axios from "axios";
-import { pipeline } from "readable-stream";
 import { EventEmitter } from "events";
 import { createMetadata, encryptMetadata } from "./core/metadata";
 import {
@@ -8,11 +7,12 @@ import {
   getFileData
 } from "./core/helpers";
 import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
-import FormData from "form-data";
+import FormDataNode from "form-data";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
 
 const PART_MIN_SIZE = 1024 * 1024 * 5;
+const POLYFILL_FORMDATA = typeof FormData === "undefined";
 const DEFAULT_OPTIONS = Object.freeze({
   autoStart: true
 });
@@ -61,7 +61,11 @@ export default class Upload extends EventEmitter {
   async uploadMetadata() {
     const meta = createMetadata(this.data, this.options.params);
     const encryptedMeta = encryptMetadata(meta, this.key);
-    const data = new FormData();
+    const data = new FormDataNode();
+    const raw = POLYFILL_FORMDATA
+                  ? Buffer.from(encryptedMeta.buffer)
+                  : new Blob([encryptedMeta], {type: "application/octet-stream"})
+    const length = raw.size ? raw.size : raw.length;
 
     // TODO: Actual account
     data.append("account", this.account);
@@ -69,14 +73,14 @@ export default class Upload extends EventEmitter {
     data.append("hash", this.hash);
     // Just used to prematurely return an error if not enough space
     data.append("size", this.uploadSize);
-    data.append("metadata", Buffer.from(encryptedMeta.buffer), {
+    data.append("metadata", raw, {
       filename: 'metadata',
       contentType: "application/octet-stream",
-      knownLength: encryptedMeta.length
+      knownLength: length
     });
 
     return Axios.put(this.options.endpoint + "/upload/metadata", data, {
-      headers: data.getHeaders()
+      headers: data.getHeaders ? data.getHeaders() : {}
     })
     .then(res => {
       this.emit("metadata", meta);
@@ -101,26 +105,23 @@ export default class Upload extends EventEmitter {
       });
     });
 
-    pipeline(
-      this.readStream,
-      this.encryptStream,
-      this.uploadStream,
-      this.finishUpload
-    )
+    this.readStream
+      .pipe(this.encryptStream)
+      .pipe(this.uploadStream)
+      .on("finish", this.finishUpload);
+
+    this.readStream.on("error", this.propagateError);
+    this.encryptStream.on("error", this.propagateError);
+    this.uploadStream.on("error", this.propagateError);
   }
 
-  async finishUpload(error) {
-    if(error) {
-      this.propagateError(error);
-    } else {
-      this.emit("finish", {
-        target: this,
-        handle: this.handle,
-        metadata: this.metadata
-      });
-    }
+  async finishUpload() {
+    this.emit("finish", {
+      target: this,
+      handle: this.handle,
+      metadata: this.metadata
+    });
   }
-
 
   propagateError(error) {
     process.nextTick(() => this.emit("error", error));

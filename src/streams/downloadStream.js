@@ -112,7 +112,7 @@ export default class DownloadStream extends Readable {
     const chunk = this.chunks[this.pushId];
     if (chunk && chunk.data !== null) {
       this.pushId++;
-      this.pushChunk = this.push(chunk.data);
+      this.pushChunk = this.push(new Uint8Array(chunk.data));
       chunk.data = null;
       this._pushChunk();
     } else if(this.ongoingDownloads === 0 && this.isDownloadFinished) {

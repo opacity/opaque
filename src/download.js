@@ -70,6 +70,27 @@ export default class Download extends EventEmitter {
     });
   }
 
+  async toFile() {
+    const chunks = [];
+    let totalLength = 0;
+
+    await this.startDownload();
+
+    return new Promise(resolve => {
+      this.decryptStream.on("data", (data) => {
+        chunks.push(data);
+        totalLength += data.length;
+      })
+
+      this.decryptStream.once("finish", () => {
+        resolve(new File(chunks, {
+          name: this.metadata.name,
+          type: "text/plain"
+        }));
+      })
+    });
+  }
+
   async startDownload() {
     try {
       await this.downloadMetadata();
@@ -91,6 +112,7 @@ export default class Download extends EventEmitter {
         responseType: "arraybuffer"
       });
     }
+
 
     const res = await req;
     const metadata = decryptMetadata(res.data, this.key);
@@ -120,11 +142,11 @@ export default class Download extends EventEmitter {
       })
     });
 
-    pipeline(
-      this.downloadStream,
-      this.decryptStream,
-      this.finishDownload
-    );
+    this.downloadStream
+      .pipe(this.decryptStream)
+
+    this.downloadStream.on("error", this.propagateError);
+    this.decryptStream.on("error", this.propagateError);
   }
 
   finishDownload(error) {
@@ -136,6 +158,6 @@ export default class Download extends EventEmitter {
   }
 
   propagateError(error) {
-    this.emit("error", error);
+    process.nextTick(() => this.emit("error", error));
   }
 }
