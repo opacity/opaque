@@ -5,6 +5,10 @@ const DEFAULT_OPTIONS = Object.freeze({
 });
 
 export default class BufferSourceStream extends Readable {
+  offset
+  options
+  buffer
+
   constructor(data, options) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 

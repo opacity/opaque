@@ -7,6 +7,8 @@ import {
   keysFromHandle
 } from "./core/helpers";
 
+import { FileMeta } from "./core/metadata"
+
 import DecryptStream from "./streams/decryptStream";
 import DownloadStream from "./streams/downloadStream";
 
@@ -19,6 +21,17 @@ const DEFAULT_OPTIONS = Object.freeze({
  * Downloading files
  */
 export default class Download extends EventEmitter {
+  options
+  handle
+  hash
+  key
+  metadataRequest
+  isDownloading: boolean
+  decryptStream
+  downloadStream
+  _metadata: FileMeta
+  size
+
   constructor(handle, opts) {
     const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     const { hash, key } = keysFromHandle(handle);
@@ -40,12 +53,14 @@ export default class Download extends EventEmitter {
     }
   }
 
-  async metadata() {
-    if(this.metadata) {
-      return this.metadata;
-    } else {
-      return await this.downloadMetadata();
-    }
+  get metadata (): Promise<FileMeta> {
+    return new Promise(async resolve => {
+      if(this._metadata) {
+        resolve(this._metadata);
+      } else {
+        resolve(await this.downloadMetadata());
+      }
+    })
   }
 
   async toBuffer() {
@@ -71,7 +86,7 @@ export default class Download extends EventEmitter {
   }
 
   async toFile() {
-    const chunks = [];
+    const chunks = [] as BlobPart[];
     let totalLength = 0;
 
     await this.startDownload();
@@ -82,9 +97,8 @@ export default class Download extends EventEmitter {
         totalLength += data.length;
       })
 
-      this.decryptStream.once("finish", () => {
-        resolve(new File(chunks, {
-          name: this.metadata.name,
+      this.decryptStream.once("finish", async () => {
+        resolve(new File(chunks, (await this.metadata).name, {
           type: "text/plain"
         }));
       })
@@ -116,7 +130,7 @@ export default class Download extends EventEmitter {
 
     const res = await req;
     const metadata = decryptMetadata(res.data, this.key);
-    this.metadata = metadata;
+    this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
 
     return metadata;
@@ -128,7 +142,7 @@ export default class Download extends EventEmitter {
     }
 
     this.isDownloading = true;
-    this.downloadStream = new DownloadStream(this.hash, this.metadata, this.size, {
+    this.downloadStream = new DownloadStream(this.hash, await this.metadata, this.size, {
       endpoint: this.options.endpoint
     });
     this.decryptStream = new DecryptStream(this.key);

@@ -119,7 +119,7 @@ export default class UploadStream extends Writable {
     const raw = POLYFILL_FORMDATA
                   ? Buffer.from(part.data.buffer)
                   : new Blob([part.data], { type: "application/octet-stream" });
-    const length = raw.size ? raw.size : raw.length;
+    const length = (raw as Blob).size ? (raw as Blob).size : (raw as Buffer).length;
 
     // TODO: Actual account / signature
     data.append("hash", this.hash);
@@ -185,7 +185,7 @@ export default class UploadStream extends Writable {
       this.finalCallback(error);
     } else {
       this.emit("error", error);
-      this.close();
+      this.end();
     }
   }
 }

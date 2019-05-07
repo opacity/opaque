@@ -6,7 +6,7 @@ import {
   getUploadSize,
   getFileData
 } from "./core/helpers";
-import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
+// import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
 import FormDataNode from "form-data";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
@@ -21,6 +21,18 @@ const DEFAULT_FILE_PARAMS = {
 }
 
 export default class Upload extends EventEmitter {
+  account
+  options
+  data
+  uploadSize
+  key
+  hash
+  handle
+  metadata
+  readStream
+  encryptStream
+  uploadStream
+
   constructor(file, account, opts) {
     const options = Object.assign({}, DEFAULT_OPTIONS, opts || {});
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
@@ -65,7 +77,7 @@ export default class Upload extends EventEmitter {
     const raw = POLYFILL_FORMDATA
                   ? Buffer.from(encryptedMeta.buffer)
                   : new Blob([encryptedMeta], {type: "application/octet-stream"})
-    const length = raw.size ? raw.size : raw.length;
+    const length = (raw as Blob).size ? (raw as Blob).size : (raw as Buffer).length;
 
     // TODO: Actual account
     data.append("account", this.account);

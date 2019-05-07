@@ -3,18 +3,12 @@
   "main": "./build/opaque.server.js",
   "browser": "./build/opaque.browser.js",
   "scripts": {
-    "build": "node fuse dev",
-    "build:watch": "node fuse dev:watch",
-    "dist": "node fuse dist"
+    "build": "pack build"
   },
   "devDependencies": {
-    "@babel/cli": "^7.4.4",
-    "@babel/core": "^7.4.4",
-    "@babel/node": "^7.2.2",
-    "@babel/preset-env": "^7.4.4",
+    "@pika/pack": "^0.3.7",
     "@types/is-buffer": "^2.0.0",
     "@types/readable-stream": "^2.3.1",
-    "fuse-box": "^3.7.1",
     "terser": "^3.17.0",
     "typescript": "^3.4.3"
   },

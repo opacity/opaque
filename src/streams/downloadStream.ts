@@ -13,6 +13,20 @@ const DEFAULT_OPTIONS = Object.freeze({
 });
 
 export default class DownloadStream extends Readable {
+  options
+  hash
+  size
+  metadata
+  numChunks
+
+  chunks
+  chunkId
+  pushId
+  bytesDownloaded
+  isDownloadFinished
+  ongoingDownloads
+  pushChunk
+
   constructor(hash, metadata, size, options) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
     super(opts);
@@ -55,7 +69,7 @@ export default class DownloadStream extends Readable {
     this._pushChunk();
   }
 
-  async _download(chunkIndex) {
+  async _download(chunkIndex?) {
     const hash = this.hash;
     const size = this.size;
     const partSize = this.options.partSize;

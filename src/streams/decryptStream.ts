@@ -15,7 +15,11 @@ const DEFAULT_OPTIONS = Object.freeze({
 });
 
 export default class DecryptStream extends Transform {
-  constructor(key, options) {
+  options
+  key
+  iter
+
+  constructor(key, options?) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 
     super(opts);

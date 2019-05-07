@@ -8,6 +8,9 @@ const DEFAULT_OPTIONS = Object.freeze({
 });
 
 export default class EncryptStream extends Transform {
+  options
+  key
+
   constructor(key, options) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
 
