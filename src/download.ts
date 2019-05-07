@@ -129,7 +129,7 @@ export default class Download extends EventEmitter {
 
 
     const res = await req;
-    const metadata = decryptMetadata(res.data, this.key);
+    const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
     this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
 

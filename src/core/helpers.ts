@@ -1,7 +1,8 @@
 import { md as ForgeMd, random as ForgeRandom, util as ForgeUtil } from "node-forge"
 import isBuffer from "is-buffer";
-// import FileSourceStream from "../streams/fileSourceStream";
+import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
+import { Readable } from "readable-stream";
 import mime from "mime/lite";
 import {
   FILENAME_MAX_LENGTH,
@@ -66,7 +67,7 @@ export type FileData = {
   size: number
   name: string
   type: string
-  // reader: BufferSourceStream
+  reader: Readable
 }
 
 // Rudimentary format normalization
@@ -77,7 +78,7 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
       size: file.length,
       name: nameFallback,
       type: "application/octet-stream",
-      // reader: BufferSourceStream
+      reader: BufferSourceStream as unknown  as Readable
     }
   } else if(file && (file as FileData).data && isBuffer((file as FileData).data)) {
     return {
@@ -85,12 +86,14 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
       size: (file as FileData).data.length,
       name: (file as FileData).name || nameFallback,
       type: (file as FileData).type || mime.getType((file as FileData).name) || "application/octet-stream",
-      // reader: BufferSourceStream
+      reader: BufferSourceStream as unknown  as Readable
     }
   } else {
     // TODO
-    // file.reader = FileSourceStream;
+    (file as FileData).reader = FileSourceStream as unknown as Readable;
   }
+
+  return file as FileData;
 }
 
 // get true upload size, accounting for encryption overhead

@@ -1,4 +1,5 @@
 import { util as ForgeUtil } from "node-forge";
+import { Readable } from "readable-stream";
 import { Buffer } from "safe-buffer";
 export declare function generateFileKeys(): {
     hash: string;
@@ -16,6 +17,7 @@ export declare type FileData = {
     size: number;
     name: string;
     type: string;
+    reader: Readable;
 };
 export declare function getFileData(file: Buffer | FileData, nameFallback?: string): FileData;
 export declare function getUploadSize(size: any, params: any): any;

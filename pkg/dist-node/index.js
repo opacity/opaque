@@ -8,8 +8,8 @@ var Axios = _interopDefault(require('axios'));
 var events = require('events');
 var nodeForge = require('node-forge');
 var isBuffer = _interopDefault(require('is-buffer'));
-var mime = _interopDefault(require('mime/lite'));
 var readableStream = require('readable-stream');
+var mime = _interopDefault(require('mime/lite'));
 var FormDataNode = _interopDefault(require('form-data'));
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -46,6 +46,98 @@ function _asyncToGenerator(fn) {
       _next(undefined);
     });
   };
+}
+
+const DEFAULT_OPTIONS = Object.freeze({
+  objectMode: false
+});
+class FileSourceStream extends readableStream.Readable {
+  constructor(blob, options) {
+    const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+    console.log("Starting file source stream", blob);
+    super(opts);
+    this.offset = 0;
+    this.options = opts;
+    this.blob = blob;
+    this.reader = new FileReader();
+    this._onChunkRead = this._onChunkRead.bind(this);
+
+    if (opts.blockSize <= 0) {
+      throw new Error(`Invalid blockSize '${opts.blockSize}' in source stream.`);
+    }
+  }
+
+  _read() {
+    if (this.reader.readyState !== FileReader.LOADING) {
+      this._readChunkFromBlob();
+    }
+  }
+
+  _readChunkFromBlob() {
+    const blob = this.blob;
+    const offset = this.offset;
+    const blockSize = this.options.blockSize;
+    const limit = Math.min(offset + blockSize, blob.size); // End stream when file is read in
+
+    if (offset >= blob.size) {
+      return this.push(null);
+    }
+
+    const chunk = blob.slice(offset, limit, "application/octet-stream");
+    this.offset += blockSize;
+    this.reader.onload = this._onChunkRead;
+    this.reader.readAsArrayBuffer(chunk);
+  }
+
+  _onChunkRead(event) {
+    const chunk = event.target.result;
+
+    if (this.push(new Uint8Array(chunk))) {
+      this._read();
+    }
+  }
+
+}
+
+const DEFAULT_OPTIONS$1 = Object.freeze({
+  objectMode: false
+});
+class BufferSourceStream extends readableStream.Readable {
+  constructor(data, options) {
+    const opts = Object.assign({}, DEFAULT_OPTIONS$1, options);
+    super(opts);
+    this.offset = 0;
+    this.options = opts;
+    this.buffer = data.data;
+
+    if (opts.blockSize <= 0) {
+      throw new Error(`Invalid blockSize '${opts.blockSize}' in source stream.`);
+    }
+  }
+
+  _read() {
+    let read;
+
+    do {
+      read = this.push(this._readChunkFromBuffer());
+    } while (read);
+  }
+
+  _readChunkFromBuffer() {
+    const buf = this.buffer;
+    const offset = this.offset;
+    const blockSize = this.options.blockSize;
+    const limit = Math.min(offset + blockSize, buf.length) - offset; // End stream when file is read in
+
+    if (offset >= buf.length) {
+      return null;
+    }
+
+    const slice = buf.slice(offset, offset + limit);
+    this.offset += blockSize;
+    return slice;
+  }
+
 }
 
 const FILENAME_MAX_LENGTH = 256;
@@ -103,16 +195,23 @@ function getFileData(file, nameFallback = "file") {
       data: file,
       size: file.length,
       name: nameFallback,
-      type: "application/octet-stream"
+      type: "application/octet-stream",
+      reader: BufferSourceStream
     };
   } else if (file && file.data && isBuffer(file.data)) {
     return {
       data: file.data,
       size: file.data.length,
       name: file.name || nameFallback,
-      type: file.type || mime.getType(file.name) || "application/octet-stream"
+      type: file.type || mime.getType(file.name) || "application/octet-stream",
+      reader: BufferSourceStream
     };
+  } else {
+    // TODO
+    file.reader = FileSourceStream;
   }
+
+  return file;
 } // get true upload size, accounting for encryption overhead
 
 function getUploadSize(size, params) {
@@ -218,14 +317,14 @@ function decryptMetadata(data, key) {
   return meta;
 }
 
-const DEFAULT_OPTIONS = Object.freeze({
+const DEFAULT_OPTIONS$2 = Object.freeze({
   binaryMode: false,
   objectMode: true,
   blockSize: DEFAULT_BLOCK_SIZE
 });
 class DecryptStream extends readableStream.Transform {
   constructor(key, options) {
-    const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+    const opts = Object.assign({}, DEFAULT_OPTIONS$2, options);
     super(opts);
     this.options = opts;
     this.key = key;
@@ -254,7 +353,7 @@ class DecryptStream extends readableStream.Transform {
 
 }
 
-const DEFAULT_OPTIONS$1 = Object.freeze({
+const DEFAULT_OPTIONS$3 = Object.freeze({
   maxParallelDownloads: 1,
   maxRetries: 0,
   partSize: 80 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD),
@@ -262,7 +361,7 @@ const DEFAULT_OPTIONS$1 = Object.freeze({
 });
 class DownloadStream extends readableStream.Readable {
   constructor(hash, metadata, size, options) {
-    const opts = Object.assign({}, DEFAULT_OPTIONS$1, options);
+    const opts = Object.assign({}, DEFAULT_OPTIONS$3, options);
     super(opts); // Input
 
     this.options = opts;
@@ -377,7 +476,7 @@ class DownloadStream extends readableStream.Readable {
 }
 
 const METADATA_PATH = "/download/metadata/";
-const DEFAULT_OPTIONS$2 = Object.freeze({
+const DEFAULT_OPTIONS$4 = Object.freeze({
   autoStart: true
 });
 /**
@@ -386,7 +485,7 @@ const DEFAULT_OPTIONS$2 = Object.freeze({
 
 class Download extends events.EventEmitter {
   constructor(handle, opts) {
-    const options = Object.assign({}, DEFAULT_OPTIONS$2, opts);
+    const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
 
     const _keysFromHandle = keysFromHandle(handle),
           hash = _keysFromHandle.hash,
@@ -507,7 +606,7 @@ class Download extends events.EventEmitter {
       }
 
       const res = yield req;
-      const metadata = decryptMetadata(res.data, _this5.key);
+      const metadata = decryptMetadata(new Uint8Array(res.data), _this5.key);
       _this5._metadata = metadata;
       _this5.size = getUploadSize(metadata.size, metadata.p || {});
       return metadata;
@@ -561,12 +660,12 @@ class Download extends events.EventEmitter {
 const Forge$3 = {
   util: nodeForge.util
 };
-const DEFAULT_OPTIONS$3 = Object.freeze({
+const DEFAULT_OPTIONS$5 = Object.freeze({
   objectMode: false
 });
 class EncryptStream extends readableStream.Transform {
   constructor(key, options) {
-    const opts = Object.assign({}, DEFAULT_OPTIONS$3, options);
+    const opts = Object.assign({}, DEFAULT_OPTIONS$5, options);
     super(opts);
     this.options = opts;
     this.key = key;
@@ -582,7 +681,7 @@ class EncryptStream extends readableStream.Transform {
 }
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
-const DEFAULT_OPTIONS$4 = Object.freeze({
+const DEFAULT_OPTIONS$6 = Object.freeze({
   maxParallelUploads: 2,
   maxRetries: 0,
   partSize: 256,
@@ -590,7 +689,7 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
 });
 class UploadStream extends readableStream.Writable {
   constructor(account, hash, size, endpoint, options) {
-    const opts = Object.assign({}, DEFAULT_OPTIONS$4, options);
+    const opts = Object.assign({}, DEFAULT_OPTIONS$6, options);
     super(opts); // Input
 
     this.account = account;
@@ -746,7 +845,7 @@ class UploadStream extends readableStream.Writable {
 }
 
 const POLYFILL_FORMDATA$1 = typeof FormData === "undefined";
-const DEFAULT_OPTIONS$5 = Object.freeze({
+const DEFAULT_OPTIONS$7 = Object.freeze({
   autoStart: true
 });
 const DEFAULT_FILE_PARAMS = {
@@ -754,7 +853,7 @@ const DEFAULT_FILE_PARAMS = {
 };
 class Upload extends events.EventEmitter {
   constructor(file, account, opts) {
-    const options = Object.assign({}, DEFAULT_OPTIONS$5, opts || {});
+    const options = Object.assign({}, DEFAULT_OPTIONS$7, opts || {});
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const _generateFileKeys = generateFileKeys(),
