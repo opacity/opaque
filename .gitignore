@@ -60,9 +60,5 @@ typings/
 # next.js build output
 .next
 
-# fuse-box cache
-.fusebox
-
 # build artifacts
-build/**/*
-dist/**/*
+pkg/**/*
