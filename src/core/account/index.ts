@@ -52,7 +52,7 @@ class MasterHandle extends HDKey {
 
     // TODO: fill in path
     // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
-    Object.assign(this, fromMasterSeed(account.seed).derive("path"))
+    Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"))
   }
 
   /**

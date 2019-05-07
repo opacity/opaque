@@ -27,5 +27,9 @@
     "@pika/plugin-bundle-web": "^0.3.16",
     "@pika/plugin-ts-standard-pkg": "^0.3.16",
     "typescript": "^3.4.5"
+  },
+  "dependencies": {
+    "bip39": "^3.0.1",
+    "hdkey": "^1.1.1"
   }
 }
