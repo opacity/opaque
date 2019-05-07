@@ -1,6 +1,6 @@
 import { Transform } from "readable-stream";
 import { encryptBytes } from "../core/encryption";
-import ForgeUtil from "node-forge/lib/util";
+import { util as ForgeUtil } from "node-forge";
 
 const Forge = { util: ForgeUtil };
 const DEFAULT_OPTIONS = Object.freeze({

@@ -1,6 +1,6 @@
 import { Transform } from "readable-stream";
 import { decryptBytes } from "../core/encryption";
-import ForgeUtil from "node-forge/lib/util";
+import { util as ForgeUtil } from "node-forge";
 import {
   DEFAULT_BLOCK_SIZE,
   BLOCK_OVERHEAD
