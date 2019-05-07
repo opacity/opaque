@@ -1,3 +1,4 @@
+import Download from "./download";
+import Upload from "./upload";
 export * from "./core/account/metadata";
-export * from "./download";
-export * from "./upload";
+export { Download, Upload };
