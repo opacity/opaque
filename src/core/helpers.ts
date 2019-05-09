@@ -16,21 +16,25 @@ const ByteBuffer = Forge.util.ByteBuffer;
 
 // Generate new handle, datamap entry hash and encryption key
 // TODO: Decide on format and derivation
-export function generateFileKeys() {
+export function generateFileKeys(
+  key: string = (
+    Forge.md.sha256
+      .create()
+      .update(Forge.random.getBytesSync(32))
+      .digest()
+      .toHex()
+  )
+) {
   const hash = Forge.md.sha256
     .create()
     .update(Forge.random.getBytesSync(32))
-    .digest();
+    .digest()
+    .toHex();
 
-  const key = Forge.md.sha256
-    .create()
-    .update(Forge.random.getBytesSync(32))
-    .digest();
-
-  const handle = hash.toHex() + key.toHex();
+  const handle = hash + key;
 
   return {
-    hash: hash.toHex(),
+    hash,
     key,
     handle
   }

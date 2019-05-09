@@ -32,7 +32,7 @@ export default class Download extends EventEmitter {
   _metadata: FileMeta
   size
 
-  constructor(handle, opts) {
+  constructor(handle, opts = {}) {
     const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     const { hash, key } = keysFromHandle(handle);
 

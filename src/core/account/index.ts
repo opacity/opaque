@@ -58,7 +58,7 @@ class MasterHandle extends HDKey {
    *
    * @param path - the string to use as a sub path
    */
-  private generateSubHDKey (path: string) {
+  private generateSubHDKey (path: string): HDKey {
     return (
       pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex"))
         .through(
@@ -84,8 +84,21 @@ class MasterHandle extends HDKey {
    *
    * @param dir - the folder path in the UI
    */
-  generateFolderHDKey (dir: string) {
+  getFolderHDKey (dir: string) {
     return this.generateSubHDKey("folder: " + dir)
+  }
+
+  getFolderLocation (folderKey: HDKey) {
+    return hash(folderKey.publicKey.toString("hex"))
+  }
+
+  async getFolderHandle (dir: string) {
+    const
+      folderKey = this.getFolderHDKey(dir),
+      location = this.getFolderLocation(folderKey),
+      key = hash(folderKey.privateKey.toString("hex"))
+
+    const metaLocation = await requestFolderMeta(location)
   }
 }
 

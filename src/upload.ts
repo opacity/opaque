@@ -34,8 +34,8 @@ export default class Upload extends EventEmitter {
   encryptStream
   uploadStream
 
-  constructor(file, account, opts) {
-    const options = Object.assign({}, DEFAULT_OPTIONS, opts || {});
+  constructor(file, account, opts = {}) {
+    const options: { [key: string]: any } = Object.assign({}, DEFAULT_OPTIONS, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const { handle, hash, key } = generateFileKeys();
@@ -52,7 +52,7 @@ export default class Upload extends EventEmitter {
     this.options = options;
     this.data = data;
     this.uploadSize = size;
-    this.key = key; // Encryption key
+    this.key = Buffer.from(key, "hex"); // Encryption key
     this.hash = hash; // Datamap entry hash
     this.handle = handle; // File handle - hex(hash) + hex(key)
     this.metadata = createMetadata(data, options.params);
