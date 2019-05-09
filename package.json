@@ -2,8 +2,7 @@
   "name": "opaque",
   "main": "src/index.ts",
   "scripts": {
-    "build": "pack build",
-    "postinstall": "[ -d ./node_modules ] || find . -maxdepth 1 -type f -exec rm \"{}\" ; && cp -r ./pkg/. . && rm -r ./pkg"
+    "build": "pack build"
   },
   "@pika/pack": {
     "pipeline": [
@@ -19,11 +18,10 @@
     ]
   },
   "dependencies": {
-    "axios": "^0.18.0",
-    "form-data": "^2.3.3",
-    "mime": "^2.4.2",
-    "node-forge": "^0.8.2",
-    "readable-stream": "^3.3.0"
+    "bip39": "^3.0.1",
+    "bn.js": "^4.11.8",
+    "hdkey": "^1.1.1",
+    "web3-utils": "^1.0.0-beta.54"
   },
   "devDependencies": {
     "@pika/pack": "^0.3.7",
@@ -31,12 +29,9 @@
     "@pika/plugin-build-web": "^0.3.16",
     "@pika/plugin-bundle-web": "^0.3.16",
     "@pika/plugin-ts-standard-pkg": "^0.3.16",
+    "@types/form-data": "^2.2.1",
     "@types/is-buffer": "^2.0.0",
     "@types/readable-stream": "^2.3.1",
     "typescript": "^3.4.5"
-  },
-  "dependencies": {
-    "bip39": "^3.0.1",
-    "hdkey": "^1.1.1"
   }
 }

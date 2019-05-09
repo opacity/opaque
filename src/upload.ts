@@ -1,6 +1,7 @@
 import Axios from "axios";
 import { EventEmitter } from "events";
-import { createMetadata, encryptMetadata } from "./core/metadata";
+import { createMetadata, encryptMetadata, FileMeta } from "./core/metadata";
+import { FileEntryMeta } from "./core/account/metadata";
 import {
   generateFileKeys,
   getUploadSize,

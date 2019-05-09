@@ -2,9 +2,7 @@ import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemon
 import HDKey, { fromMasterSeed } from "hdkey"
 
 import { pipe } from "../../utils/pipe"
-
-// TODO: implement actual hashing (not here)
-const hash = (buf: Buffer): Buffer => null
+import { hash } from "../hashing"
 
 /**
  * **_this should never be shared or left in storage_**
@@ -56,13 +54,13 @@ class MasterHandle extends HDKey {
   }
 
   /**
-   * creates a file key seed for validating
+   * creates a sub key seed for validating
    *
-   * @param file - the location of the file on the network
+   * @param path - the string to use as a sub path
    */
-  generateFileHDKey (file: string) {
+  private generateSubHDKey (path: string) {
     return (
-      pipe(Buffer.concat([this.privateKey, hash(Buffer.from(file, "hex"))]))
+      pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex"))
         .through(
           hash,
           entropyToMnemonic,
@@ -70,6 +68,24 @@ class MasterHandle extends HDKey {
           fromMasterSeed
         )
     )
+  }
+
+  /**
+   * creates a file key seed for validating
+   *
+   * @param file - the location of the file on the network
+   */
+  generateFileHDKey (file: string) {
+    return this.generateSubHDKey("file: " + file)
+  }
+
+  /**
+   * creates a dir key seed for validating and folder navigation
+   *
+   * @param dir - the folder path in the UI
+   */
+  generateFolderHDKey (dir: string) {
+    return this.generateSubHDKey("folder: " + dir)
   }
 }
 

@@ -1,4 +1,5 @@
 import { MasterHandle } from "../core/account"
+import { hash } from "../core/hashing"
 
 /**
  * an object representation of the parameters of an upload part request
