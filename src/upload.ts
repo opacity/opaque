@@ -1,6 +1,6 @@
 import Axios from "axios";
 import { EventEmitter } from "events";
-import { createMetadata, encryptMetadata, FileMeta } from "./core/metadata";
+import { createMetadata, encryptMetadata, FileMeta, FileMetaOptions } from "./core/metadata";
 import {
   generateFileKeys,
   getUploadSize,
@@ -15,7 +15,13 @@ import { Readable } from "readable-stream";
 
 const PART_MIN_SIZE = 1024 * 1024 * 5;
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
-const DEFAULT_OPTIONS = Object.freeze({
+
+type UploadOptions = {
+  autoStart?: boolean,
+  endpoint?: boolean,
+  params?: FileMetaOptions
+}
+const DEFAULT_OPTIONS: UploadOptions = Object.freeze({
   autoStart: true
 });
 const DEFAULT_FILE_PARAMS = {
@@ -24,7 +30,7 @@ const DEFAULT_FILE_PARAMS = {
 
 export default class Upload extends EventEmitter {
   account: string
-  options
+  options: UploadOptions
   data: FileData
   uploadSize
   key: string
@@ -32,23 +38,18 @@ export default class Upload extends EventEmitter {
   handle: string
   metadata: FileMeta
   readStream: Readable
-  encryptStream
-  uploadStream
+  encryptStream: EncryptStream
+  uploadStream: UploadStream
 
-  constructor(file, account, opts) {
+  constructor(file, account, opts: UploadOptions = {}) {
     super();
 
-    const options = Object.assign({}, DEFAULT_OPTIONS, opts || {});
+    const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const { handle, hash, key } = generateFileKeys();
     const data = getFileData(file, handle);
     const size = getUploadSize(file.size, options.params);
-
-    this.startUpload = this.startUpload.bind(this);
-    this.uploadMetadata = this.uploadMetadata.bind(this);
-    this.uploadFile = this.uploadFile.bind(this);
-    this.finishUpload = this.finishUpload.bind(this);
 
     this.account = account;
     this.options = options;

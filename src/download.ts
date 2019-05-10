@@ -39,7 +39,7 @@ export default class Download extends EventEmitter {
 
   private size
 
-  constructor(handle, opts?: DownloadOptions) {
+  constructor(handle, opts: DownloadOptions = {}) {
     super();
 
     const options = Object.assign({}, DEFAULT_OPTIONS, opts);

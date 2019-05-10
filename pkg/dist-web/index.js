@@ -484,9 +484,10 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
  */
 
 class Download extends EventEmitter {
-  constructor(handle, opts) {
+  constructor(handle) {
     var _this;
 
+    let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     super();
     _this = this;
     this.toBuffer =
@@ -839,9 +840,10 @@ const DEFAULT_FILE_PARAMS = {
   blockSize: 64 * 1024
 };
 class Upload extends EventEmitter {
-  constructor(file, account, opts) {
+  constructor(file, account) {
     var _this;
 
+    let opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
     super();
     _this = this;
     this.startUpload =
@@ -912,7 +914,7 @@ class Upload extends EventEmitter {
       process.nextTick(() => this.emit("error", error));
     };
 
-    const options = Object.assign({}, DEFAULT_OPTIONS$7, opts || {});
+    const options = Object.assign({}, DEFAULT_OPTIONS$7, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const _generateFileKeys = generateFileKeys(),
@@ -922,10 +924,6 @@ class Upload extends EventEmitter {
 
     const data = getFileData(file, handle);
     const size = getUploadSize(file.size, options.params);
-    this.startUpload = this.startUpload.bind(this);
-    this.uploadMetadata = this.uploadMetadata.bind(this);
-    this.uploadFile = this.uploadFile.bind(this);
-    this.finishUpload = this.finishUpload.bind(this);
     this.account = account;
     this.options = options;
     this.data = data;

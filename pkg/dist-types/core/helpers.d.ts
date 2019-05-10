@@ -1,6 +1,7 @@
 import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import { Readable } from "readable-stream";
+import { FileMetaOptions } from "./metadata";
 import { Buffer } from "safe-buffer";
 export declare function generateFileKeys(): {
     hash: string;
@@ -21,6 +22,4 @@ export declare type FileData = {
     reader: typeof Readable | typeof BufferSourceStream | typeof FileSourceStream;
 };
 export declare function getFileData(file: Buffer | FileData, nameFallback?: string): FileData;
-export declare function getUploadSize(size: number, params: {
-    blockSize?: number;
-}): number;
+export declare function getUploadSize(size: number, params: FileMetaOptions): number;

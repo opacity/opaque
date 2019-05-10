@@ -12,7 +12,7 @@ const DEFAULT_OPTIONS = Object.freeze({
  * Downloading files
  */
 export default class Download extends EventEmitter {
-    constructor(handle, opts) {
+    constructor(handle, opts = {}) {
         super();
         this.toBuffer = async () => {
             const chunks = [];

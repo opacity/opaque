@@ -4,6 +4,7 @@ import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import { Readable } from "readable-stream";
 import mime from "mime/lite";
+import { FileMetaOptions } from "./metadata"
 import {
   FILENAME_MAX_LENGTH,
   DEFAULT_BLOCK_SIZE,
@@ -98,7 +99,7 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
 }
 
 // get true upload size, accounting for encryption overhead
-export function getUploadSize(size: number, params: { blockSize?: number }) {
+export function getUploadSize(size: number, params: FileMetaOptions) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
   const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;

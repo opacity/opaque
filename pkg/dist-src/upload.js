@@ -15,7 +15,7 @@ const DEFAULT_FILE_PARAMS = {
     blockSize: 64 * 1024,
 };
 export default class Upload extends EventEmitter {
-    constructor(file, account, opts) {
+    constructor(file, account, opts = {}) {
         super();
         this.startUpload = async () => {
             try {
@@ -78,15 +78,11 @@ export default class Upload extends EventEmitter {
         this.propagateError = (error) => {
             process.nextTick(() => this.emit("error", error));
         };
-        const options = Object.assign({}, DEFAULT_OPTIONS, opts || {});
+        const options = Object.assign({}, DEFAULT_OPTIONS, opts);
         options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
         const { handle, hash, key } = generateFileKeys();
         const data = getFileData(file, handle);
         const size = getUploadSize(file.size, options.params);
-        this.startUpload = this.startUpload.bind(this);
-        this.uploadMetadata = this.uploadMetadata.bind(this);
-        this.uploadFile = this.uploadFile.bind(this);
-        this.finishUpload = this.finishUpload.bind(this);
         this.account = account;
         this.options = options;
         this.data = data;
