@@ -150,11 +150,11 @@ const ByteBuffer = Forge.util.ByteBuffer; // Generate new handle, datamap entry 
 // TODO: Decide on format and derivation
 
 function generateFileKeys() {
-  const hash = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest();
-  const key = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest();
-  const handle = hash.toHex() + key.toHex();
+  const hash = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest().toHex();
+  const key = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest().toHex();
+  const handle = hash + key;
   return {
-    hash: hash.toHex(),
+    hash,
     key,
     handle
   };
@@ -168,7 +168,7 @@ function keysFromHandle(handle) {
   const key = buf.getBytes(32);
   return {
     hash: Forge.util.bytesToHex(hash),
-    key: new ByteBuffer(key),
+    key: Forge.util.bytesToHex(key),
     handle
   };
 }
@@ -195,6 +195,7 @@ function getFileData(file) {
       reader: BufferSourceStream
     };
   } else if (file && file.data && isBuffer(file.data)) {
+    file = file;
     return {
       data: file.data,
       size: file.data.length,
@@ -249,16 +250,18 @@ function encryptBytes(key, bytes) {
 } // Decryption
 
 function decrypt(key, byteBuffer) {
-  key.read = 0;
+  const keyBuf = new ByteBuffer$1(Buffer.from(key, "hex"));
+  keyBuf.read = 0;
   byteBuffer.read = byteBuffer.length() - BLOCK_OVERHEAD;
   const tag = byteBuffer.getBytes(TAG_BYTE_LENGTH);
   const iv = byteBuffer.getBytes(IV_BYTE_LENGTH);
-  const decipher = Forge$1.cipher.createDecipher("AES-GCM", key);
+  const decipher = Forge$1.cipher.createDecipher("AES-GCM", keyBuf);
   byteBuffer.read = 0;
   byteBuffer.truncate(BLOCK_OVERHEAD);
   decipher.start({
     iv,
-    tag,
+    // the type definitions are wrong in @types/node-forge
+    tag: tag,
     tagLength: TAG_BIT_LENGTH
   });
   decipher.update(byteBuffer);
@@ -482,16 +485,131 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
 
 class Download extends EventEmitter {
   constructor(handle, opts) {
+    var _this;
+
+    super();
+    _this = this;
+    this.toBuffer =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const chunks = [];
+      let totalLength = 0;
+
+      if (typeof Buffer === "undefined") {
+        return false;
+      }
+
+      yield _this.startDownload();
+      return new Promise(resolve => {
+        _this.decryptStream.on("data", data => {
+          chunks.push(data);
+          totalLength += data.length;
+        });
+
+        _this.decryptStream.once("finish", () => {
+          resolve(Buffer.concat(chunks, totalLength));
+        });
+      });
+    });
+    this.toFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const chunks = [];
+      let totalLength = 0;
+      yield _this.startDownload();
+      return new Promise(resolve => {
+        _this.decryptStream.on("data", data => {
+          chunks.push(data);
+          totalLength += data.length;
+        });
+
+        _this.decryptStream.once("finish",
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          resolve(new File(chunks, (yield _this.metadata).name, {
+            type: "text/plain"
+          }));
+        }));
+      });
+    });
+    this.startDownload =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.downloadMetadata();
+        yield _this.downloadFile();
+      } catch (e) {
+        _this.propagateError(e);
+      }
+    });
+    this.downloadMetadata =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      let overwrite = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+      let req;
+
+      if (!overwrite && _this.metadataRequest) {
+        req = _this.metadataRequest;
+      } else {
+        const endpoint = _this.options.endpoint;
+        const path = METADATA_PATH + _this.hash;
+        req = _this.metadataRequest = Axios.get(endpoint + path, {
+          responseType: "arraybuffer"
+        });
+      }
+
+      const res = yield req;
+      const metadata = decryptMetadata(new Uint8Array(res.data), _this.key);
+      _this._metadata = metadata;
+      _this.size = getUploadSize(metadata.size, metadata.p || {});
+      return metadata;
+    });
+    this.downloadFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      if (_this.isDownloading) {
+        return true;
+      }
+
+      _this.isDownloading = true;
+      _this.downloadStream = new DownloadStream(_this.hash, (yield _this.metadata), _this.size, {
+        endpoint: _this.options.endpoint
+      });
+      _this.decryptStream = new DecryptStream(_this.key); // this.targetStream = new targetStream(this.metadata);
+
+      _this.downloadStream.on("progress", progress => {
+        _this.emit("download-progress", {
+          target: _this,
+          handle: _this.handle,
+          progress: progress
+        });
+      });
+
+      _this.downloadStream.pipe(_this.decryptStream);
+
+      _this.downloadStream.on("error", _this.propagateError);
+
+      _this.decryptStream.on("error", _this.propagateError);
+    });
+
+    this.finishDownload = error => {
+      if (error) {
+        this.propagateError(error);
+      } else {
+        this.emit("finish");
+      }
+    };
+
+    this.propagateError = error => {
+      process.nextTick(() => this.emit("error", error));
+    };
+
     const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
 
     const _keysFromHandle = keysFromHandle(handle),
           hash = _keysFromHandle.hash,
           key = _keysFromHandle.key;
 
-    super();
-    this.startDownload = this.startDownload.bind(this);
-    this.propagateError = this.propagateError.bind(this);
-    this.finishDownload = this.finishDownload.bind(this);
     this.options = options;
     this.handle = handle;
     this.hash = hash;
@@ -505,153 +623,23 @@ class Download extends EventEmitter {
   }
 
   get metadata() {
-    var _this = this;
+    var _this2 = this;
 
     return new Promise(
     /*#__PURE__*/
     function () {
-      var _ref = _asyncToGenerator(function* (resolve) {
-        if (_this._metadata) {
-          resolve(_this._metadata);
+      var _ref7 = _asyncToGenerator(function* (resolve) {
+        if (_this2._metadata) {
+          resolve(_this2._metadata);
         } else {
-          resolve((yield _this.downloadMetadata()));
+          resolve((yield _this2.downloadMetadata()));
         }
       });
 
       return function (_x) {
-        return _ref.apply(this, arguments);
+        return _ref7.apply(this, arguments);
       };
     }());
-  }
-
-  toBuffer() {
-    var _this2 = this;
-
-    return _asyncToGenerator(function* () {
-      const chunks = [];
-      let totalLength = 0;
-
-      if (typeof Buffer === "undefined") {
-        return false;
-      }
-
-      yield _this2.startDownload();
-      return new Promise(resolve => {
-        _this2.decryptStream.on("data", data => {
-          chunks.push(data);
-          totalLength += data.length;
-        });
-
-        _this2.decryptStream.once("finish", () => {
-          resolve(Buffer.concat(chunks, totalLength));
-        });
-      });
-    })();
-  }
-
-  toFile() {
-    var _this3 = this;
-
-    return _asyncToGenerator(function* () {
-      const chunks = [];
-      let totalLength = 0;
-      yield _this3.startDownload();
-      return new Promise(resolve => {
-        _this3.decryptStream.on("data", data => {
-          chunks.push(data);
-          totalLength += data.length;
-        });
-
-        _this3.decryptStream.once("finish",
-        /*#__PURE__*/
-        _asyncToGenerator(function* () {
-          resolve(new File(chunks, (yield _this3.metadata).name, {
-            type: "text/plain"
-          }));
-        }));
-      });
-    })();
-  }
-
-  startDownload() {
-    var _this4 = this;
-
-    return _asyncToGenerator(function* () {
-      try {
-        yield _this4.downloadMetadata();
-        yield _this4.downloadFile();
-      } catch (e) {
-        _this4.propagateError(e);
-      }
-    })();
-  }
-
-  downloadMetadata() {
-    var _this5 = this,
-        _arguments = arguments;
-
-    return _asyncToGenerator(function* () {
-      let overwrite = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
-      let req;
-
-      if (!overwrite && _this5.metadataRequest) {
-        req = _this5.metadataRequest;
-      } else {
-        const endpoint = _this5.options.endpoint;
-        const path = METADATA_PATH + _this5.hash;
-        req = _this5.metadataRequest = Axios.get(endpoint + path, {
-          responseType: "arraybuffer"
-        });
-      }
-
-      const res = yield req;
-      const metadata = decryptMetadata(new Uint8Array(res.data), _this5.key);
-      _this5._metadata = metadata;
-      _this5.size = getUploadSize(metadata.size, metadata.p || {});
-      return metadata;
-    })();
-  }
-
-  downloadFile() {
-    var _this6 = this;
-
-    return _asyncToGenerator(function* () {
-      if (_this6.isDownloading) {
-        return true;
-      }
-
-      _this6.isDownloading = true;
-      _this6.downloadStream = new DownloadStream(_this6.hash, (yield _this6.metadata), _this6.size, {
-        endpoint: _this6.options.endpoint
-      });
-      _this6.decryptStream = new DecryptStream(_this6.key); // this.targetStream = new targetStream(this.metadata);
-
-      _this6.downloadStream.on("progress", progress => {
-        _this6.emit("download-progress", {
-          target: _this6,
-          handle: _this6.handle,
-          progress: progress
-        });
-      });
-
-      _this6.downloadStream.pipe(_this6.decryptStream);
-
-      _this6.downloadStream.on("error", _this6.propagateError);
-
-      _this6.decryptStream.on("error", _this6.propagateError);
-    })();
-  }
-
-  finishDownload(error) {
-    if (error) {
-      this.propagateError(error);
-    } else {
-      this.emit("finish");
-    }
-  }
-
-  propagateError(error) {
-    process.nextTick(() => this.emit("error", error));
   }
 
 }
@@ -852,6 +840,78 @@ const DEFAULT_FILE_PARAMS = {
 };
 class Upload extends EventEmitter {
   constructor(file, account, opts) {
+    var _this;
+
+    super();
+    _this = this;
+    this.startUpload =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.uploadMetadata();
+        yield _this.uploadFile();
+      } catch (e) {
+        _this.propagateError(e);
+      }
+    });
+    this.uploadMetadata =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const meta = createMetadata(_this.data, _this.options.params);
+      const encryptedMeta = encryptMetadata(meta, _this.key);
+      const data = new FormDataNode();
+      const raw = POLYFILL_FORMDATA$1 ? Buffer.from(encryptedMeta.buffer) : new Blob([encryptedMeta], {
+        type: "application/octet-stream"
+      });
+      const length = raw.size ? raw.size : raw.length; // TODO: Actual account
+
+      data.append("account", _this.account); // TODO: Use separate metadata hash
+
+      data.append("hash", _this.hash); // Just used to prematurely return an error if not enough space
+
+      data.append("size", _this.uploadSize);
+      data.append("metadata", raw, {
+        filename: 'metadata',
+        contentType: "application/octet-stream",
+        knownLength: length
+      });
+      return Axios.put(_this.options.endpoint + "/upload/metadata", data, {
+        headers: data.getHeaders ? data.getHeaders() : {}
+      }).then(res => {
+        _this.emit("metadata", meta);
+      }).catch(error => {
+        _this.propagateError(error);
+      });
+    });
+    this.uploadFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const readStream = new _this.data.reader(_this.data, _this.options.params);
+      _this.readStream = readStream;
+      _this.encryptStream = new EncryptStream(_this.key, _this.options.params);
+      _this.uploadStream = new UploadStream(_this.account, _this.hash, _this.uploadSize, _this.options.endpoint, _this.options.params);
+
+      _this.uploadStream.on("progress", progress => {
+        _this.emit("upload-progress", {
+          target: _this,
+          handle: _this.handle,
+          progress
+        });
+      });
+
+      _this.readStream.pipe(_this.encryptStream).pipe(_this.uploadStream).on("finish", _this.finishUpload);
+
+      _this.readStream.on("error", _this.propagateError);
+
+      _this.encryptStream.on("error", _this.propagateError);
+
+      _this.uploadStream.on("error", _this.propagateError);
+    });
+
+    this.propagateError = error => {
+      process.nextTick(() => this.emit("error", error));
+    };
+
     const options = Object.assign({}, DEFAULT_OPTIONS$7, opts || {});
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
@@ -862,7 +922,6 @@ class Upload extends EventEmitter {
 
     const data = getFileData(file, handle);
     const size = getUploadSize(file.size, options.params);
-    super();
     this.startUpload = this.startUpload.bind(this);
     this.uploadMetadata = this.uploadMetadata.bind(this);
     this.uploadFile = this.uploadFile.bind(this);
@@ -884,92 +943,16 @@ class Upload extends EventEmitter {
     }
   }
 
-  startUpload() {
-    var _this = this;
-
-    return _asyncToGenerator(function* () {
-      try {
-        yield _this.uploadMetadata();
-        yield _this.uploadFile();
-      } catch (e) {
-        _this.propagateError(e);
-      }
-    })();
-  }
-
-  uploadMetadata() {
+  finishUpload() {
     var _this2 = this;
 
     return _asyncToGenerator(function* () {
-      const meta = createMetadata(_this2.data, _this2.options.params);
-      const encryptedMeta = encryptMetadata(meta, _this2.key);
-      const data = new FormDataNode();
-      const raw = POLYFILL_FORMDATA$1 ? Buffer.from(encryptedMeta.buffer) : new Blob([encryptedMeta], {
-        type: "application/octet-stream"
-      });
-      const length = raw.size ? raw.size : raw.length; // TODO: Actual account
-
-      data.append("account", _this2.account); // TODO: Use separate metadata hash
-
-      data.append("hash", _this2.hash); // Just used to prematurely return an error if not enough space
-
-      data.append("size", _this2.uploadSize);
-      data.append("metadata", raw, {
-        filename: 'metadata',
-        contentType: "application/octet-stream",
-        knownLength: length
-      });
-      return Axios.put(_this2.options.endpoint + "/upload/metadata", data, {
-        headers: data.getHeaders ? data.getHeaders() : {}
-      }).then(res => {
-        _this2.emit("metadata", meta);
-      }).catch(error => {
-        _this2.propagateError(error);
+      _this2.emit("finish", {
+        target: _this2,
+        handle: _this2.handle,
+        metadata: _this2.metadata
       });
     })();
-  }
-
-  uploadFile() {
-    var _this3 = this;
-
-    return _asyncToGenerator(function* () {
-      const readStream = new _this3.data.reader(_this3.data, _this3.options.params);
-      _this3.readStream = readStream;
-      _this3.encryptStream = new EncryptStream(_this3.key, _this3.options.params);
-      _this3.uploadStream = new UploadStream(_this3.account, _this3.hash, _this3.uploadSize, _this3.options.endpoint, _this3.options.params);
-
-      _this3.uploadStream.on("progress", progress => {
-        _this3.emit("upload-progress", {
-          target: _this3,
-          handle: _this3.handle,
-          progress
-        });
-      });
-
-      _this3.readStream.pipe(_this3.encryptStream).pipe(_this3.uploadStream).on("finish", _this3.finishUpload);
-
-      _this3.readStream.on("error", _this3.propagateError);
-
-      _this3.encryptStream.on("error", _this3.propagateError);
-
-      _this3.uploadStream.on("error", _this3.propagateError);
-    })();
-  }
-
-  finishUpload() {
-    var _this4 = this;
-
-    return _asyncToGenerator(function* () {
-      _this4.emit("finish", {
-        target: _this4,
-        handle: _this4.handle,
-        metadata: _this4.metadata
-      });
-    })();
-  }
-
-  propagateError(error) {
-    process.nextTick(() => this.emit("error", error));
   }
 
 }

@@ -28,16 +28,18 @@ export function encryptBytes(key, bytes) {
 }
 // Decryption
 export function decrypt(key, byteBuffer) {
-    key.read = 0;
+    const keyBuf = new ByteBuffer(Buffer.from(key, "hex"));
+    keyBuf.read = 0;
     byteBuffer.read = byteBuffer.length() - BLOCK_OVERHEAD;
     const tag = byteBuffer.getBytes(TAG_BYTE_LENGTH);
     const iv = byteBuffer.getBytes(IV_BYTE_LENGTH);
-    const decipher = Forge.cipher.createDecipher("AES-GCM", key);
+    const decipher = Forge.cipher.createDecipher("AES-GCM", keyBuf);
     byteBuffer.read = 0;
     byteBuffer.truncate(BLOCK_OVERHEAD);
     decipher.start({
         iv,
-        tag,
+        // the type definitions are wrong in @types/node-forge
+        tag: tag,
         tagLength: TAG_BIT_LENGTH
     });
     decipher.update(byteBuffer);

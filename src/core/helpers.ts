@@ -20,17 +20,17 @@ export function generateFileKeys() {
   const hash = Forge.md.sha256
     .create()
     .update(Forge.random.getBytesSync(32))
-    .digest();
+    .digest().toHex();
 
   const key = Forge.md.sha256
     .create()
     .update(Forge.random.getBytesSync(32))
-    .digest();
+    .digest().toHex();
 
-  const handle = hash.toHex() + key.toHex();
+  const handle = hash + key;
 
   return {
-    hash: hash.toHex(),
+    hash,
     key,
     handle
   }
@@ -38,7 +38,7 @@ export function generateFileKeys() {
 
 // Return datamap hash and encryption key from handle
 // TODO: Decide on format and derivation
-export function keysFromHandle(handle) {
+export function keysFromHandle(handle: string) {
   const bytes = Forge.util.binary.hex.decode(handle);
   const buf = new ByteBuffer(bytes);
   const hash = buf.getBytes(32);
@@ -46,7 +46,7 @@ export function keysFromHandle(handle) {
 
   return {
     hash: Forge.util.bytesToHex(hash),
-    key: new ByteBuffer(key),
+    key: Forge.util.bytesToHex(key),
     handle
   }
 }
@@ -67,7 +67,7 @@ export type FileData = {
   size: number
   name: string
   type: string
-  reader: Readable
+  reader: typeof Readable | typeof BufferSourceStream | typeof FileSourceStream
 }
 
 // Rudimentary format normalization
@@ -78,26 +78,27 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
       size: file.length,
       name: nameFallback,
       type: "application/octet-stream",
-      reader: BufferSourceStream as unknown  as Readable
+      reader: BufferSourceStream
     }
   } else if(file && (file as FileData).data && isBuffer((file as FileData).data)) {
+    file = file as FileData
     return {
-      data: (file as FileData).data,
-      size: (file as FileData).data.length,
-      name: (file as FileData).name || nameFallback,
-      type: (file as FileData).type || mime.getType((file as FileData).name) || "application/octet-stream",
-      reader: BufferSourceStream as unknown  as Readable
+      data: file.data,
+      size: file.data.length,
+      name: file.name || nameFallback,
+      type: file.type || mime.getType(file.name) || "application/octet-stream",
+      reader: BufferSourceStream
     }
   } else {
     // TODO
-    (file as FileData).reader = FileSourceStream as unknown as Readable;
+    (file as unknown as FileData).reader = FileSourceStream;
   }
 
   return file as FileData;
 }
 
 // get true upload size, accounting for encryption overhead
-export function getUploadSize(size, params) {
+export function getUploadSize(size: number, params: { blockSize?: number }) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
   const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;

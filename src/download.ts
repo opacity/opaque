@@ -13,7 +13,13 @@ import DecryptStream from "./streams/decryptStream";
 import DownloadStream from "./streams/downloadStream";
 
 const METADATA_PATH = "/download/metadata/";
-const DEFAULT_OPTIONS = Object.freeze({
+
+type DownloadOptions = {
+  autoStart?: boolean
+  endpoint?: string
+}
+
+const DEFAULT_OPTIONS: DownloadOptions = Object.freeze({
   autoStart: true
 });
 
@@ -21,25 +27,23 @@ const DEFAULT_OPTIONS = Object.freeze({
  * Downloading files
  */
 export default class Download extends EventEmitter {
-  options
-  handle
-  hash
-  key
+  options: DownloadOptions
+  handle: string
+  hash: string
+  key: string
   metadataRequest
   isDownloading: boolean
-  decryptStream
-  downloadStream
+  decryptStream: DecryptStream
+  downloadStream: DownloadStream
   _metadata: FileMeta
-  size
 
-  constructor(handle, opts) {
+  private size
+
+  constructor(handle, opts?: DownloadOptions) {
+    super();
+
     const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     const { hash, key } = keysFromHandle(handle);
-
-    super();
-    this.startDownload = this.startDownload.bind(this);
-    this.propagateError = this.propagateError.bind(this);
-    this.finishDownload = this.finishDownload.bind(this);
 
     this.options = options;
     this.handle = handle;
@@ -63,7 +67,7 @@ export default class Download extends EventEmitter {
     })
   }
 
-  async toBuffer() {
+  toBuffer = async () => {
     const chunks = [];
     let totalLength = 0;
 
@@ -85,7 +89,7 @@ export default class Download extends EventEmitter {
     });
   }
 
-  async toFile() {
+  toFile = async () => {
     const chunks = [] as BlobPart[];
     let totalLength = 0;
 
@@ -105,7 +109,7 @@ export default class Download extends EventEmitter {
     });
   }
 
-  async startDownload() {
+  startDownload = async () => {
     try {
       await this.downloadMetadata();
       await this.downloadFile();
@@ -114,7 +118,7 @@ export default class Download extends EventEmitter {
     }
   }
 
-  async downloadMetadata(overwrite = false) {
+  downloadMetadata = async (overwrite = false) => {
     let req;
 
     if(!overwrite && this.metadataRequest) {
@@ -127,7 +131,6 @@ export default class Download extends EventEmitter {
       });
     }
 
-
     const res = await req;
     const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
     this._metadata = metadata;
@@ -136,7 +139,7 @@ export default class Download extends EventEmitter {
     return metadata;
   }
 
-  async downloadFile() {
+  downloadFile = async () => {
     if(this.isDownloading) {
       return true;
     }
@@ -163,7 +166,7 @@ export default class Download extends EventEmitter {
     this.decryptStream.on("error", this.propagateError);
   }
 
-  finishDownload(error) {
+  finishDownload = (error) => {
     if(error) {
       this.propagateError(error);
     } else {
@@ -171,7 +174,7 @@ export default class Download extends EventEmitter {
     }
   }
 
-  propagateError(error) {
+  propagateError = (error) => {
     process.nextTick(() => this.emit("error", error));
   }
 }

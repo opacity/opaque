@@ -12,14 +12,14 @@ export function generateFileKeys() {
     const hash = Forge.md.sha256
         .create()
         .update(Forge.random.getBytesSync(32))
-        .digest();
+        .digest().toHex();
     const key = Forge.md.sha256
         .create()
         .update(Forge.random.getBytesSync(32))
-        .digest();
-    const handle = hash.toHex() + key.toHex();
+        .digest().toHex();
+    const handle = hash + key;
     return {
-        hash: hash.toHex(),
+        hash,
         key,
         handle
     };
@@ -33,7 +33,7 @@ export function keysFromHandle(handle) {
     const key = buf.getBytes(32);
     return {
         hash: Forge.util.bytesToHex(hash),
-        key: new ByteBuffer(key),
+        key: Forge.util.bytesToHex(key),
         handle
     };
 }
@@ -58,6 +58,7 @@ export function getFileData(file, nameFallback = "file") {
         };
     }
     else if (file && file.data && isBuffer(file.data)) {
+        file = file;
         return {
             data: file.data,
             size: file.data.length,

@@ -13,12 +13,102 @@ const DEFAULT_OPTIONS = Object.freeze({
  */
 export default class Download extends EventEmitter {
     constructor(handle, opts) {
+        super();
+        this.toBuffer = async () => {
+            const chunks = [];
+            let totalLength = 0;
+            if (typeof Buffer === "undefined") {
+                return false;
+            }
+            await this.startDownload();
+            return new Promise(resolve => {
+                this.decryptStream.on("data", (data) => {
+                    chunks.push(data);
+                    totalLength += data.length;
+                });
+                this.decryptStream.once("finish", () => {
+                    resolve(Buffer.concat(chunks, totalLength));
+                });
+            });
+        };
+        this.toFile = async () => {
+            const chunks = [];
+            let totalLength = 0;
+            await this.startDownload();
+            return new Promise(resolve => {
+                this.decryptStream.on("data", (data) => {
+                    chunks.push(data);
+                    totalLength += data.length;
+                });
+                this.decryptStream.once("finish", async () => {
+                    resolve(new File(chunks, (await this.metadata).name, {
+                        type: "text/plain"
+                    }));
+                });
+            });
+        };
+        this.startDownload = async () => {
+            try {
+                await this.downloadMetadata();
+                await this.downloadFile();
+            }
+            catch (e) {
+                this.propagateError(e);
+            }
+        };
+        this.downloadMetadata = async (overwrite = false) => {
+            let req;
+            if (!overwrite && this.metadataRequest) {
+                req = this.metadataRequest;
+            }
+            else {
+                const endpoint = this.options.endpoint;
+                const path = METADATA_PATH + this.hash;
+                req = this.metadataRequest = Axios.get(endpoint + path, {
+                    responseType: "arraybuffer"
+                });
+            }
+            const res = await req;
+            const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
+            this._metadata = metadata;
+            this.size = getUploadSize(metadata.size, metadata.p || {});
+            return metadata;
+        };
+        this.downloadFile = async () => {
+            if (this.isDownloading) {
+                return true;
+            }
+            this.isDownloading = true;
+            this.downloadStream = new DownloadStream(this.hash, await this.metadata, this.size, {
+                endpoint: this.options.endpoint
+            });
+            this.decryptStream = new DecryptStream(this.key);
+            // this.targetStream = new targetStream(this.metadata);
+            this.downloadStream.on("progress", progress => {
+                this.emit("download-progress", {
+                    target: this,
+                    handle: this.handle,
+                    progress: progress
+                });
+            });
+            this.downloadStream
+                .pipe(this.decryptStream);
+            this.downloadStream.on("error", this.propagateError);
+            this.decryptStream.on("error", this.propagateError);
+        };
+        this.finishDownload = (error) => {
+            if (error) {
+                this.propagateError(error);
+            }
+            else {
+                this.emit("finish");
+            }
+        };
+        this.propagateError = (error) => {
+            process.nextTick(() => this.emit("error", error));
+        };
         const options = Object.assign({}, DEFAULT_OPTIONS, opts);
         const { hash, key } = keysFromHandle(handle);
-        super();
-        this.startDownload = this.startDownload.bind(this);
-        this.propagateError = this.propagateError.bind(this);
-        this.finishDownload = this.finishDownload.bind(this);
         this.options = options;
         this.handle = handle;
         this.hash = hash;
@@ -38,98 +128,5 @@ export default class Download extends EventEmitter {
                 resolve(await this.downloadMetadata());
             }
         });
-    }
-    async toBuffer() {
-        const chunks = [];
-        let totalLength = 0;
-        if (typeof Buffer === "undefined") {
-            return false;
-        }
-        await this.startDownload();
-        return new Promise(resolve => {
-            this.decryptStream.on("data", (data) => {
-                chunks.push(data);
-                totalLength += data.length;
-            });
-            this.decryptStream.once("finish", () => {
-                resolve(Buffer.concat(chunks, totalLength));
-            });
-        });
-    }
-    async toFile() {
-        const chunks = [];
-        let totalLength = 0;
-        await this.startDownload();
-        return new Promise(resolve => {
-            this.decryptStream.on("data", (data) => {
-                chunks.push(data);
-                totalLength += data.length;
-            });
-            this.decryptStream.once("finish", async () => {
-                resolve(new File(chunks, (await this.metadata).name, {
-                    type: "text/plain"
-                }));
-            });
-        });
-    }
-    async startDownload() {
-        try {
-            await this.downloadMetadata();
-            await this.downloadFile();
-        }
-        catch (e) {
-            this.propagateError(e);
-        }
-    }
-    async downloadMetadata(overwrite = false) {
-        let req;
-        if (!overwrite && this.metadataRequest) {
-            req = this.metadataRequest;
-        }
-        else {
-            const endpoint = this.options.endpoint;
-            const path = METADATA_PATH + this.hash;
-            req = this.metadataRequest = Axios.get(endpoint + path, {
-                responseType: "arraybuffer"
-            });
-        }
-        const res = await req;
-        const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
-        this._metadata = metadata;
-        this.size = getUploadSize(metadata.size, metadata.p || {});
-        return metadata;
-    }
-    async downloadFile() {
-        if (this.isDownloading) {
-            return true;
-        }
-        this.isDownloading = true;
-        this.downloadStream = new DownloadStream(this.hash, await this.metadata, this.size, {
-            endpoint: this.options.endpoint
-        });
-        this.decryptStream = new DecryptStream(this.key);
-        // this.targetStream = new targetStream(this.metadata);
-        this.downloadStream.on("progress", progress => {
-            this.emit("download-progress", {
-                target: this,
-                handle: this.handle,
-                progress: progress
-            });
-        });
-        this.downloadStream
-            .pipe(this.decryptStream);
-        this.downloadStream.on("error", this.propagateError);
-        this.decryptStream.on("error", this.propagateError);
-    }
-    finishDownload(error) {
-        if (error) {
-            this.propagateError(error);
-        }
-        else {
-            this.emit("finish");
-        }
-    }
-    propagateError(error) {
-        process.nextTick(() => this.emit("error", error));
     }
 }
