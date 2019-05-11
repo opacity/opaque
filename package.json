@@ -2,8 +2,7 @@
   "name": "opaque",
   "main": "src/index.ts",
   "scripts": {
-    "build": "pack build",
-    "postinstall": "[ -d ./node_modules ] || find . -maxdepth 1 -type f -exec rm \"{}\" ; && cp -r ./pkg/. . && rm -r ./pkg"
+    "build": "pack build"
   },
   "@pika/pack": {
     "pipeline": [
@@ -20,6 +19,8 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
+    "bip39": "^3.0.2",
+    "ethereumjs-util": "^6.1.0",
     "form-data": "^2.3.3",
     "mime": "^2.4.2",
     "node-forge": "^0.8.2",
