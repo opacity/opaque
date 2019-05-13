@@ -32,6 +32,7 @@ class AccountPreferences {
  * a metadata class to describe a file as it relates to the UI
  */
 class FileEntryMeta {
+	type = "file"
 	/** the name of the file as shown in the UI */
 	name: string
 	/** the date in `ms` that this file was initially updated */
@@ -116,7 +117,7 @@ class FileVersion {
 	}: {
 		size: number
 		location: string
-		hash: string
+		hash?: string
 		modified?: number
 	}) {
 		this.size = size
@@ -130,6 +131,7 @@ class FileVersion {
  * a metadata class to describe where a folder can be found (for root metadata of an account)
  */
 class FolderEntryMeta {
+	type = "folder"
 	/** a name of the folder shown in the UI */
 	name: string
 	/**

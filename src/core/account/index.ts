@@ -1,8 +1,13 @@
 import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39"
 import HDKey, { fromMasterSeed } from "hdkey"
 
+import Upload from "../../upload"
+import Download from "../../download"
+import { EventEmitter } from "events"
 import { pipe } from "../../utils/pipe"
 import { hash } from "../hashing"
+import { decryptString } from "../encryption"
+import { FolderMeta, FileEntryMeta, FileVersion } from "./metadata"
 
 /**
  * **_this should never be shared or left in storage_**
@@ -70,6 +75,60 @@ class MasterHandle extends HDKey {
     )
   }
 
+  uploadFile (dir: string, file: File) {
+    const
+      upload = new Upload(file, this),
+      ee = new EventEmitter()
+
+    upload.on("progress", progress => {
+      ee.emit("progress", progress)
+    })
+
+    upload.on("error", err => {
+      ee.emit("error", err)
+      throw err
+    })
+
+    upload.on("finish", async h => {
+      const
+        folderMeta = await this.getFolderMetadata(dir),
+        oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+        oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] as FileEntryMeta : {} as FileEntryMeta,
+        version = new FileVersion({
+          size: file.size,
+          location: h.slice(32),
+          modified: file.lastModified
+        }),
+        meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+        })
+
+      // metadata existed previously
+      if (oldMetaIndex !== -1)
+        folderMeta.files.splice(oldMetaIndex, 1, meta)
+      else
+        folderMeta.files.unshift(meta)
+
+      const buf = Buffer.from(JSON.stringify(folderMeta))
+
+      const metaUpload = new Upload(buf, this)
+
+      metaUpload.on("error", err => {
+        ee.emit("error", err)
+        throw err
+      })
+
+      metaUpload.on("finish", h => {
+        // TODO
+        requestSetFolderMeta(this.getFolderLocation(this.getFolderHDKey(dir)))
+      })
+    })
+
+    return ee
+  }
+
   /**
    * creates a file key seed for validating
    *
@@ -92,13 +151,32 @@ class MasterHandle extends HDKey {
     return hash(folderKey.publicKey.toString("hex"))
   }
 
+  generateKey (str: string) {
+    return hash(this.privateKey, str)
+  }
+
   async getFolderHandle (dir: string) {
     const
       folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(folderKey),
       key = hash(folderKey.privateKey.toString("hex"))
 
-    const metaLocation = await requestFolderMeta(location)
+    // TODO
+    const metaLocation = decryptString(key, await requestGetFolderMeta(location), "hex")
+
+    return metaLocation + this.generateKey(metaLocation)
+  }
+
+  async getFolderMetadata (dir: string) {
+    const handle = await this.getFolderHandle(dir)
+
+    const meta: FolderMeta = await new Promise((resolve, reject) => {
+      new Download(handle)
+        .on("finish", text => resolve(JSON.parse(text)))
+        .on("error", reject)
+    })
+
+    return meta
   }
 }
 
