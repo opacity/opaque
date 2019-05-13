@@ -1,76 +1,186 @@
+import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39"
+import HDKey, { fromMasterSeed } from "hdkey"
+
 import Upload from "./upload"
 import Download from "./download"
-
-import HDKey from "hdkey"
-import { MasterHandle } from "./core/account"
-import { FileEntryMeta, FolderEntryMeta } from "./core/account/metadata"
-
-import { hash } from "./core/hashing"
+import { EventEmitter } from "events"
 import { pipe } from "./utils/pipe"
+import { hash } from "./core/hashing"
+import { decryptString } from "./core/encryption"
+import { FolderMeta, FileEntryMeta, FileVersion } from "./core/account/metadata"
 
-// TODO
-const requestGetMetadata = (..._: any): Promise<string> => new Promise(resolve => {
-	setTimeout(() => resolve(hash("hello world")), 500)
-})
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for representing the account mnemonic
+ */
+class Account {
+  mnemonic: string
 
-const requestSetMetadata = (..._: any): Promise<null> => new Promise(resolve => {
-	setTimeout(resolve, 500)
-})
+  /**
+   * creates an account from a mnemonic if provided, otherwise from entropy
+   *
+   * @param mnemonic - the mnemonic to use for the account
+   */
+  constructor (mnemonic: string = generateMnemonic()) {
+    if (!validateMnemonic(mnemonic))
+      throw new Error("mnemonic provided was not valid")
 
-const locationToHandle = (key: HDKey, location: string) => {
-	return location + key.privateKey.toString("hex")
+    this.mnemonic = mnemonic
+  }
+
+  get seed () {
+    return mnemonicToSeedSync(this.mnemonic)
+  }
 }
 
-const downloadMeta = (handle: string): Promise<(FileEntryMeta | FolderEntryMeta)[]> => new Promise(resolve => {
-	const download = new Download(handle)
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for creating a master handle from an account mnemonic
+ *
+ * a master handle is responsible for:
+ *  - logging in to an account
+ *  - signing changes for the account
+ *  - deterministic entropy for generating features of an account (such as file keys)
+ */
+class MasterHandle extends HDKey {
+  /**
+   * creates a master handle from an account
+   *
+   * @param account - the account to generate the handle from
+   */
+  constructor (account: Account) {
+    super()
 
-	download.on("finish", data => {
-		resolve(JSON.parse(data))
-	})
-	// TODO
-	// download.on("error", async e => {
-	// 	if error is network error
-	// 		resolve(await downloadMeta(handle))
-	// })
-})
+    // TODO: fill in path
+    // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
+    Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"))
+  }
 
-const uploadMeta = (masterHandle: MasterHandle, meta: (FileEntryMeta | FolderEntryMeta)[]): Promise<any> => new Promise(resolve => {
-	const metaFile = new TextEncoder().encode(JSON.stringify(meta))
+  /**
+   * creates a sub key seed for validating
+   *
+   * @param path - the string to use as a sub path
+   */
+  private generateSubHDKey (path: string): HDKey {
+    return (
+      pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex"))
+        .through(
+          hash,
+          entropyToMnemonic,
+          mnemonicToSeedSync,
+          fromMasterSeed
+        )
+    )
+  }
 
-	const upload = new Upload(metaFile, masterHandle)
+  uploadFile (dir: string, file: File) {
+    const
+      upload = new Upload(file, this),
+      ee = new EventEmitter()
 
-	upload.on("finish", resolve)
-	// TODO
-	// upload.on("error", async e => {
-	// 	if error is network error
-	// 		resolve(await uploadMeta(handle))
-	// })
-})
+    upload.on("progress", progress => {
+      ee.emit("progress", progress)
+    })
 
-const getAccountFolderMeta = async (masterHandle: MasterHandle, dir: string) => {
-	const folderKey: HDKey = pipe(dir)
-		.through(
-			masterHandle.generateFolderHDKey,
-			(hd: HDKey) => hd.publicKey.toString("hex")
-		)
+    upload.on("error", err => {
+      ee.emit("error", err)
+      throw err
+    })
 
-	const
-		metaLocation = await requestGetMetadata(hash(folderKey.publicKey.toString("hex"))),
-		handle = locationToHandle(folderKey, metaLocation),
-		meta = await downloadMeta(handle)
+    upload.on("finish", async h => {
+      const
+        folderMeta = await this.getFolderMetadata(dir),
+        oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+        oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] as FileEntryMeta : {} as FileEntryMeta,
+        version = new FileVersion({
+          size: file.size,
+          location: h.slice(32),
+          modified: file.lastModified
+        }),
+        meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+        })
 
-	return meta
+      // metadata existed previously
+      if (oldMetaIndex !== -1)
+        folderMeta.files.splice(oldMetaIndex, 1, meta)
+      else
+        folderMeta.files.unshift(meta)
+
+      const buf = Buffer.from(JSON.stringify(folderMeta))
+
+      const metaUpload = new Upload(buf, this)
+
+      metaUpload.on("error", err => {
+        ee.emit("error", err)
+        throw err
+      })
+
+      metaUpload.on("finish", h => {
+        // TODO
+        requestSetFolderMeta(this.getFolderLocation(dir))
+      })
+    })
+
+    return ee
+  }
+
+  /**
+   * creates a file key seed for validating
+   *
+   * @param file - the location of the file on the network
+   */
+  generateFileHDKey (file: string) {
+    return this.generateSubHDKey("file: " + file)
+  }
+
+  /**
+   * creates a dir key seed for validating and folder navigation
+   *
+   * @param dir - the folder path in the UI
+   */
+  getFolderHDKey (dir: string) {
+    return this.generateSubHDKey("folder: " + dir)
+  }
+
+  getFolderLocation (dir: string) {
+    return hash(this.getFolderHDKey(dir).publicKey.toString("hex"))
+  }
+
+  generateKey (str: string) {
+    return hash(this.privateKey.toString("hex"), str)
+  }
+
+  async getFolderHandle (dir: string) {
+    const
+      folderKey = this.getFolderHDKey(dir),
+      location = this.getFolderLocation(dir),
+      key = hash(folderKey.privateKey.toString("hex"))
+
+    // TODO
+    const metaLocation = decryptString(key, await requestGetFolderMeta(location), "hex")
+
+    return metaLocation + this.generateKey(metaLocation)
+  }
+
+  async getFolderMetadata (dir: string) {
+    const handle = await this.getFolderHandle(dir)
+
+    const meta: FolderMeta = await new Promise((resolve, reject) => {
+      new Download(handle)
+        .on("finish", text => resolve(JSON.parse(text)))
+        .on("error", reject)
+    })
+
+    return meta
+  }
 }
 
-const uploadAccountFolderMeta = async (masterHandle: MasterHandle, dir: string, meta: (FileEntryMeta | FolderEntryMeta)[]) => {
-	const
-		location = await uploadMeta(masterHandle, meta)
-
-	const folderKey: HDKey = pipe(dir)
-		.through(
-			masterHandle.generateFolderHDKey,
-			(hd: HDKey) => hd.publicKey.toString("hex")
-		)
-
-	await requestSetMetadata(folderKey, hash(folderKey.publicKey.toString("hex")), location)
+export {
+  Account,
+  MasterHandle
 }
