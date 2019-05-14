@@ -1,6 +1,13 @@
 {
   "name": "opaque",
-  "main": "src/index.ts",
+  "files": [
+    "pkg/dist-*/",
+    "pkg/bin/"
+  ],
+  "source": "pkg/dist-src/index.js",
+  "types": "pkg/dist-types/index.d.ts",
+  "main": "pkg/dist-node/index.js",
+  "module": "pkg/dist-web/index.js",
   "scripts": {
     "build": "pack build"
   },
