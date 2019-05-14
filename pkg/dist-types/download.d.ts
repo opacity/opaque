@@ -10,6 +10,7 @@ export default class Download extends EventEmitter {
     hash: any;
     key: any;
     metadataRequest: any;
+    downloadURL: string;
     isDownloading: boolean;
     decryptStream: any;
     downloadStream: any;
@@ -20,6 +21,7 @@ export default class Download extends EventEmitter {
     toBuffer(): Promise<{}>;
     toFile(): Promise<{}>;
     startDownload(): Promise<void>;
+    getDownloadURL(): Promise<string>;
     downloadMetadata(overwrite?: boolean): Promise<FileMeta>;
     downloadFile(): Promise<boolean>;
     finishDownload(error: any): void;

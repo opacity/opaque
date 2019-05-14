@@ -2,21 +2,21 @@ import Axios from "axios";
 import { Readable } from "readable-stream";
 import { DEFAULT_BLOCK_SIZE, BLOCK_OVERHEAD } from "../core/constants";
 const DEFAULT_OPTIONS = Object.freeze({
+    autostart: true,
     maxParallelDownloads: 1,
     maxRetries: 0,
     partSize: 80 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD),
     objectMode: false
 });
 export default class DownloadStream extends Readable {
-    constructor(hash, metadata, size, options) {
+    constructor(url, metadata, size, options = {}) {
         const opts = Object.assign({}, DEFAULT_OPTIONS, options);
         super(opts);
         // Input
         this.options = opts;
-        this.hash = hash;
+        this.url = url;
         this.size = size;
         this.metadata = metadata;
-        this.numChunks = Math.ceil(size / opts.partSize);
         // Internal
         this.chunks = [];
         this.chunkId = 0;
@@ -43,7 +43,6 @@ export default class DownloadStream extends Readable {
         this._pushChunk();
     }
     async _download(chunkIndex) {
-        const hash = this.hash;
         const size = this.size;
         const partSize = this.options.partSize;
         const index = chunkIndex || this.chunks.length;
@@ -64,7 +63,7 @@ export default class DownloadStream extends Readable {
         try {
             this.chunks.push(chunk);
             this.ongoingDownloads++;
-            const download = await Axios.get(this.options.endpoint + "/download/file/" + this.hash, {
+            const download = await Axios.get(this.url + "/file", {
                 responseType: "arraybuffer",
                 headers: {
                     range

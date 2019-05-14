@@ -1,12 +1,25 @@
 import FormDataNode from "form-data";
 import * as EthUtil from "ethereumjs-util";
+import Axios from "axios";
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
-export function getPayload(rawPayload, extraPayload, hdNode, key = "requestBody") {
+export function getPayload(rawPayload, hdNode, key = "requestBody") {
+    const payload = JSON.stringify(rawPayload);
+    const hash = EthUtil.keccak256(payload);
+    const signature = hdNode.sign(hash).toString("hex");
+    const pubKey = hdNode.publicKey.toString("hex");
+    const signedPayload = {
+        signature,
+        publicKey: pubKey,
+        hash: hash.toString("hex")
+    };
+    signedPayload[key] = payload;
+    return signedPayload;
+}
+export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBody") {
     // rawPayload.timestamp = Date.now();
     const payload = JSON.stringify(rawPayload);
-    const hash = EthUtil.keccak256(hdNode.publicKey);
+    const hash = EthUtil.keccak256(payload);
     const signature = hdNode.sign(hash).toString("hex");
-    const sigHex = signature.toString("hex");
     const pubKey = hdNode.publicKey.toString("hex");
     // node, buffers
     if (POLYFILL_FORMDATA) {
@@ -39,4 +52,20 @@ export function getPayload(rawPayload, extraPayload, hdNode, key = "requestBody"
         }
         return data;
     }
+}
+export async function checkPaymentStatus(endpoint, hdNode) {
+    const payload = {
+        timestamp: Math.floor(Date.now() / 1000)
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
+}
+export async function createAccount(endpoint, hdNode, metadataKey) {
+    const payload = {
+        metadataKey: metadataKey,
+        durationInMonths: 12,
+        storageLimit: 100
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
 }

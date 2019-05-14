@@ -6,6 +6,7 @@ import {
 } from "../core/constants";
 
 const DEFAULT_OPTIONS = Object.freeze({
+  autostart: true,
   maxParallelDownloads: 1,
   maxRetries: 0,
   partSize: 80 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD), // ~5 MiB data chunks
@@ -14,10 +15,9 @@ const DEFAULT_OPTIONS = Object.freeze({
 
 export default class DownloadStream extends Readable {
   options
-  hash
+  url
   size
   metadata
-  numChunks
 
   chunks
   chunkId
@@ -27,16 +27,15 @@ export default class DownloadStream extends Readable {
   ongoingDownloads
   pushChunk
 
-  constructor(hash, metadata, size, options) {
+  constructor(url, metadata, size, options = {}) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
     super(opts);
 
     // Input
     this.options = opts;
-    this.hash = hash;
+    this.url = url;
     this.size = size;
     this.metadata = metadata;
-    this.numChunks = Math.ceil(size / opts.partSize);
 
     // Internal
     this.chunks = [];
@@ -70,7 +69,6 @@ export default class DownloadStream extends Readable {
   }
 
   async _download(chunkIndex?) {
-    const hash = this.hash;
     const size = this.size;
     const partSize = this.options.partSize;
     const index = chunkIndex || this.chunks.length;
@@ -94,7 +92,7 @@ export default class DownloadStream extends Readable {
     try {
       this.chunks.push(chunk);
       this.ongoingDownloads++;
-      const download = await Axios.get(this.options.endpoint + "/download/file/" + this.hash, {
+      const download = await Axios.get(this.url + "/file", {
         responseType: "arraybuffer",
         headers: {
           range
