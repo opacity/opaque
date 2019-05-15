@@ -89,14 +89,14 @@ class MasterHandle extends HDKey {
       throw err
     })
 
-    upload.on("finish", async h => {
+    upload.on("finish", async (h: string) => {
       const
         folderMeta = await this.getFolderMetadata(dir),
         oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
         oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] as FileEntryMeta : {} as FileEntryMeta,
         version = new FileVersion({
           size: file.size,
-          location: h.slice(32),
+          location: h.slice(0, 32),
           modified: file.lastModified
         }),
         meta = new FileEntryMeta({
@@ -129,13 +129,27 @@ class MasterHandle extends HDKey {
     return ee
   }
 
+  downloadFile = (dir: string, location: string) => {
+    return new Download(this.getFileHandle(dir, location))
+  }
+
+  static getKey (from: HDKey, str: string) {
+    return hash(from.privateKey.toString("hex"), str)
+  }
+
   /**
    * creates a file key seed for validating
    *
    * @param file - the location of the file on the network
    */
-  generateFileHDKey (file: string) {
+  getFileHDKey (file: string) {
     return this.generateSubHDKey("file: " + file)
+  }
+
+  async getFileHandle (dir: string, location: string) {
+    const folder = this.getFolderHDKey(dir)
+
+    return location + MasterHandle.getKey(folder, location)
   }
 
   /**
@@ -151,10 +165,6 @@ class MasterHandle extends HDKey {
     return hash(this.getFolderHDKey(dir).publicKey.toString("hex"))
   }
 
-  generateKey (str: string) {
-    return hash(this.privateKey.toString("hex"), str)
-  }
-
   async getFolderHandle (dir: string) {
     const
       folderKey = this.getFolderHDKey(dir),
@@ -164,7 +174,7 @@ class MasterHandle extends HDKey {
     // TODO
     const metaLocation = decryptString(key, await requestGetFolderMeta(location), "hex")
 
-    return metaLocation + this.generateKey(metaLocation)
+    return metaLocation + MasterHandle.getKey(this, metaLocation)
   }
 
   async getFolderMetadata (dir: string) {
