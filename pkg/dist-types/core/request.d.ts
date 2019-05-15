@@ -6,3 +6,5 @@ export declare function getPayload(rawPayload: any, hdNode: any, key?: string): 
 export declare function getPayloadFD(rawPayload: any, extraPayload: any, hdNode: any, key?: string): any;
 export declare function checkPaymentStatus(endpoint: any, hdNode: any): Promise<import("axios").AxiosResponse<any>>;
 export declare function createAccount(endpoint: any, hdNode: any, metadataKey: any): Promise<import("axios").AxiosResponse<any>>;
+export declare function writeMetadata(endpoint: any, hdNode: any, metadataKey: any, metadata: any): Promise<import("axios").AxiosResponse<any>>;
+export declare function getMetadata(endpoint: any, hdNode: any, metadataKey: any): Promise<import("axios").AxiosResponse<any>>;

@@ -69,3 +69,16 @@ export async function createAccount(endpoint, hdNode, metadataKey) {
     const signedPayload = getPayload(payload, hdNode);
     return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
 }
+// Metadata as hexstring as of right now
+export async function writeMetadata(endpoint, hdNode, metadataKey, metadata) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = { timestamp, metadata, metadataKey };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post("/metadata/set", signedPayload);
+}
+export async function getMetadata(endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = { timestamp, metadataKey };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/get", signedPayload);
+}

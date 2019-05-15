@@ -779,7 +779,7 @@ function _checkPaymentStatus() {
 
 function createAccount(_x3, _x4, _x5) {
   return _createAccount.apply(this, arguments);
-}
+} // Metadata as hexstring as of right now
 
 function _createAccount() {
   _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
@@ -792,6 +792,41 @@ function _createAccount() {
     return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
   });
   return _createAccount.apply(this, arguments);
+}
+
+function writeMetadata(_x6, _x7, _x8, _x9) {
+  return _writeMetadata.apply(this, arguments);
+}
+
+function _writeMetadata() {
+  _writeMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadata,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post("/metadata/set", signedPayload);
+  });
+  return _writeMetadata.apply(this, arguments);
+}
+
+function getMetadata(_x10, _x11, _x12) {
+  return _getMetadata.apply(this, arguments);
+}
+
+function _getMetadata() {
+  _getMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/get", signedPayload);
+  });
+  return _getMetadata.apply(this, arguments);
 }
 
 const DEFAULT_OPTIONS$6 = Object.freeze({
@@ -1233,5 +1268,7 @@ exports.FolderMeta = FolderMeta;
 exports.Upload = Upload;
 exports.checkPaymentStatus = checkPaymentStatus;
 exports.createAccount = createAccount;
+exports.getMetadata = getMetadata;
 exports.getPayload = getPayload;
 exports.getPayloadFD = getPayloadFD;
+exports.writeMetadata = writeMetadata;
