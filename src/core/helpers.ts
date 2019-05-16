@@ -104,3 +104,14 @@ export function getUploadSize(size: number, params: FileMetaOptions) {
   const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;
 }
+
+// get
+export function getEndIndex(uploadSize, params) {
+  const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const chunkSize = blockSize + BLOCK_OVERHEAD;
+  const chunkCount = Math.ceil(uploadSize / chunkSize);
+  const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+  const endIndex = Math.ceil(chunkCount / chunksPerPart);
+
+  return endIndex;
+}

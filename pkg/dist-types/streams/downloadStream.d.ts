@@ -1,10 +1,9 @@
 import { Readable } from "readable-stream";
 export default class DownloadStream extends Readable {
     options: any;
-    hash: any;
+    url: any;
     size: any;
     metadata: any;
-    numChunks: any;
     chunks: any;
     chunkId: any;
     pushId: any;
@@ -12,7 +11,7 @@ export default class DownloadStream extends Readable {
     isDownloadFinished: any;
     ongoingDownloads: any;
     pushChunk: any;
-    constructor(hash: any, metadata: any, size: any, options: any);
+    constructor(url: any, metadata: any, size: any, options?: {});
     _read(): void;
     _download(chunkIndex?: any): Promise<void>;
     _afterDownload(): Promise<void>;

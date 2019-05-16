@@ -5,6 +5,7 @@ import {
   generateFileKeys,
   getUploadSize,
   getFileData,
+  getEndIndex,
   FileData
 } from "./core/helpers";
 // import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
@@ -12,6 +13,7 @@ import FormDataNode from "form-data";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
 import { Readable } from "readable-stream";
+import { getPayloadFD } from "./core/request";
 
 const PART_MIN_SIZE = 1024 * 1024 * 5;
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
@@ -77,25 +79,15 @@ export default class Upload extends EventEmitter {
   uploadMetadata = async () => {
     const meta = createMetadata(this.data, this.options.params);
     const encryptedMeta = encryptMetadata(meta, this.key);
-    const data = new FormDataNode();
-    const raw = POLYFILL_FORMDATA
-                  ? Buffer.from(encryptedMeta.buffer)
-                  : new Blob([encryptedMeta], {type: "application/octet-stream"})
-    const length = (raw as Blob).size ? (raw as Blob).size : (raw as Buffer).length;
+    const data = getPayloadFD({
+      fileHandle: this.hash,
+      fileSizeInByte: this.uploadSize,
+      endIndex: getEndIndex(this.uploadSize, this.options.params)
+    }, {
+      metadata: encryptedMeta
+    }, this.account);
 
-    // TODO: Actual account
-    data.append("account", this.account);
-    // TODO: Use separate metadata hash
-    data.append("hash", this.hash);
-    // Just used to prematurely return an error if not enough space
-    data.append("size", this.uploadSize);
-    data.append("metadata", raw, {
-      filename: 'metadata',
-      contentType: "application/octet-stream",
-      knownLength: length
-    });
-
-    return Axios.put(this.options.endpoint + "/upload/metadata", data, {
+    return Axios.post(this.options.endpoint + "/api/v1/init-upload", data, {
       headers: data.getHeaders ? data.getHeaders() : {}
     })
     .then(res => {

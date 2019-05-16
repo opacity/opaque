@@ -23,3 +23,4 @@ export declare type FileData = {
 };
 export declare function getFileData(file: Buffer | FileData, nameFallback?: string): FileData;
 export declare function getUploadSize(size: number, params: FileMetaOptions): number;
+export declare function getEndIndex(uploadSize: any, params: any): number;
