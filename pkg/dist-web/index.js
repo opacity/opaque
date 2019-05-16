@@ -5,6 +5,7 @@ import isBuffer from 'is-buffer';
 import { Readable, Transform, Writable } from 'readable-stream';
 import mime from 'mime/lite';
 import FormDataNode from 'form-data';
+import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -708,6 +709,73 @@ class EncryptStream extends Transform {
 
 }
 
+function checkPaymentStatus(_x, _x2) {
+  return _checkPaymentStatus.apply(this, arguments);
+}
+
+function _checkPaymentStatus() {
+  _checkPaymentStatus = _asyncToGenerator(function* (endpoint, hdNode) {
+    const payload = {
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
+  });
+  return _checkPaymentStatus.apply(this, arguments);
+}
+
+function createAccount(_x, _x2, _x3) {
+  return _createAccount.apply(this, arguments);
+}
+
+function _createAccount() {
+  _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const payload = {
+      metadataKey: metadataKey,
+      durationInMonths: 12,
+      storageLimit: 100
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
+  });
+  return _createAccount.apply(this, arguments);
+}
+
+function setMetadata(_x, _x2, _x3, _x4) {
+  return _setMetadata.apply(this, arguments);
+}
+
+function _setMetadata() {
+  _setMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadata,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/set", signedPayload);
+  });
+  return _setMetadata.apply(this, arguments);
+}
+
+function getMetadata(_x5, _x6, _x7) {
+  return _getMetadata.apply(this, arguments);
+}
+
+function _getMetadata() {
+  _getMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/get", signedPayload);
+  });
+  return _getMetadata.apply(this, arguments);
+}
+
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 function getPayload(rawPayload, hdNode) {
   let key = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "requestBody";
@@ -740,10 +808,10 @@ function getPayloadFD(rawPayload, extraPayload, hdNode) {
     if (extraPayload) {
       Object.keys(extraPayload).forEach(key => {
         const pl = extraPayload[key];
-        data.append(key, data, {
+        data.append(key, pl, {
           filename: key,
           contentType: "application/octet-stream",
-          knownLength: data.length
+          knownLength: pl.length
         });
       });
     }
@@ -763,72 +831,6 @@ function getPayloadFD(rawPayload, extraPayload, hdNode) {
 
     return data;
   }
-}
-function checkPaymentStatus(_x, _x2) {
-  return _checkPaymentStatus.apply(this, arguments);
-}
-
-function _checkPaymentStatus() {
-  _checkPaymentStatus = _asyncToGenerator(function* (endpoint, hdNode) {
-    const payload = {
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
-  });
-  return _checkPaymentStatus.apply(this, arguments);
-}
-
-function createAccount(_x3, _x4, _x5) {
-  return _createAccount.apply(this, arguments);
-} // Metadata as hexstring as of right now
-
-function _createAccount() {
-  _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const payload = {
-      metadataKey: metadataKey,
-      durationInMonths: 12,
-      storageLimit: 100
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
-  });
-  return _createAccount.apply(this, arguments);
-}
-
-function writeMetadata(_x6, _x7, _x8, _x9) {
-  return _writeMetadata.apply(this, arguments);
-}
-
-function _writeMetadata() {
-  _writeMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadata,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post("/metadata/set", signedPayload);
-  });
-  return _writeMetadata.apply(this, arguments);
-}
-
-function getMetadata(_x10, _x11, _x12) {
-  return _getMetadata.apply(this, arguments);
-}
-
-function _getMetadata() {
-  _getMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/get", signedPayload);
-  });
-  return _getMetadata.apply(this, arguments);
 }
 
 const DEFAULT_OPTIONS$6 = Object.freeze({
@@ -1267,4 +1269,4 @@ class FolderMeta {
 
 }
 
-export { AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, writeMetadata };
+export { AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };

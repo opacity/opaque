@@ -1,6 +1,5 @@
 import FormDataNode from "form-data";
 import * as EthUtil from "ethereumjs-util";
-import Axios from "axios";
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 export function getPayload(rawPayload, hdNode, key = "requestBody") {
     const payload = JSON.stringify(rawPayload);
@@ -31,10 +30,10 @@ export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBod
         if (extraPayload) {
             Object.keys(extraPayload).forEach(key => {
                 const pl = extraPayload[key];
-                data.append(key, data, {
+                data.append(key, pl, {
                     filename: key,
                     contentType: "application/octet-stream",
-                    knownLength: data.length
+                    knownLength: pl.length
                 });
             });
         }
@@ -53,32 +52,6 @@ export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBod
         return data;
     }
 }
-export async function checkPaymentStatus(endpoint, hdNode) {
-    const payload = {
-        timestamp: Math.floor(Date.now() / 1000)
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
-}
-export async function createAccount(endpoint, hdNode, metadataKey) {
-    const payload = {
-        metadataKey: metadataKey,
-        durationInMonths: 12,
-        storageLimit: 100
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
-}
-// Metadata as hexstring as of right now
-export async function writeMetadata(endpoint, hdNode, metadataKey, metadata) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = { timestamp, metadata, metadataKey };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post("/metadata/set", signedPayload);
-}
-export async function getMetadata(endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = { timestamp, metadataKey };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/get", signedPayload);
-}
+export { checkPaymentStatus } from "./requests/checkPaymentStatus";
+export { createAccount } from "./requests/createAccount";
+export { getMetadata, setMetadata } from "./requests/metadata";

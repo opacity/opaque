@@ -1,10 +1,12 @@
-export declare function getPayload(rawPayload: any, hdNode: any, key?: string): {
+import HDKey from "hdkey";
+export declare function getPayload(rawPayload: any, hdNode: HDKey, key?: string): {
     signature: any;
     publicKey: any;
     hash: string;
 };
-export declare function getPayloadFD(rawPayload: any, extraPayload: any, hdNode: any, key?: string): any;
-export declare function checkPaymentStatus(endpoint: any, hdNode: any): Promise<import("axios").AxiosResponse<any>>;
-export declare function createAccount(endpoint: any, hdNode: any, metadataKey: any): Promise<import("axios").AxiosResponse<any>>;
-export declare function writeMetadata(endpoint: any, hdNode: any, metadataKey: any, metadata: any): Promise<import("axios").AxiosResponse<any>>;
-export declare function getMetadata(endpoint: any, hdNode: any, metadataKey: any): Promise<import("axios").AxiosResponse<any>>;
+export declare function getPayloadFD(rawPayload: {
+    [key: string]: any;
+}, extraPayload: any, hdNode: HDKey, key?: string): any;
+export { checkPaymentStatus } from "./requests/checkPaymentStatus";
+export { createAccount } from "./requests/createAccount";
+export { getMetadata, setMetadata } from "./requests/metadata";
