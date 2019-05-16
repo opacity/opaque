@@ -12,6 +12,10 @@ var readableStream = require('readable-stream');
 var mime = _interopDefault(require('mime/lite'));
 var FormDataNode = _interopDefault(require('form-data'));
 var EthUtil = require('ethereumjs-util');
+var bip39 = require('bip39');
+var HDKey = require('hdkey');
+var HDKey__default = _interopDefault(HDKey);
+var web3Utils = require('web3-utils');
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
   try {
@@ -1105,6 +1109,16 @@ class Upload extends events.EventEmitter {
 
 }
 
+const pipe = (...values) => {
+  return {
+    through: (fn, ...args) => args.reduce((value, fn) => fn(value), fn(...values))
+  };
+};
+
+pipe.through = (fn, ...args) => (...values) => {
+  return args.reduce((value, fn) => fn(value), fn(...values));
+};
+
 class AccountMeta {
   constructor({
     planSize,
@@ -1245,6 +1259,191 @@ class FolderMeta {
 
 }
 
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for representing the account mnemonic
+ */
+
+class Account {
+  get mnemonic() {
+    return this._mnemonic.trim().split(/\s+/g);
+  }
+  /**
+   * creates an account from a mnemonic if provided, otherwise from entropy
+   *
+   * @param mnemonic - the mnemonic to use for the account
+   */
+
+
+  constructor(mnemonic = bip39.generateMnemonic()) {
+    if (!bip39.validateMnemonic(mnemonic)) throw new Error("mnemonic provided was not valid");
+    this._mnemonic = mnemonic;
+  }
+
+  get seed() {
+    return bip39.mnemonicToSeedSync(this._mnemonic);
+  }
+
+}
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for creating a master handle from an account mnemonic
+ *
+ * a master handle is responsible for:
+ *  - logging in to an account
+ *  - signing changes for the account
+ *  - deterministic entropy for generating features of an account (such as file keys)
+ */
+
+
+class MasterHandle extends HDKey__default {
+  /**
+   * creates a master handle from an account
+   *
+   * @param account - the account to generate the handle from
+   */
+  constructor(account) {
+    super();
+
+    this.downloadFile = (dir, location) => {
+      return new Download(this.getFileHandle(dir, location));
+    }; // TODO: fill in path
+    // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
+
+
+    Object.assign(this, HDKey.fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+  }
+  /**
+   * creates a sub key seed for validating
+   *
+   * @param path - the string to use as a sub path
+   */
+
+
+  generateSubHDKey(path) {
+    return pipe(Buffer.concat([this.privateKey, Buffer.from(web3Utils.soliditySha3(path), "hex")]).toString("hex")).through(web3Utils.soliditySha3, bip39.entropyToMnemonic, bip39.mnemonicToSeedSync, HDKey.fromMasterSeed);
+  }
+
+  uploadFile(dir, file) {
+    var _this = this;
+
+    const upload = new Upload(file, this),
+          ee = new events.EventEmitter();
+    upload.on("progress", progress => {
+      ee.emit("progress", progress);
+    });
+    upload.on("error", err => {
+      ee.emit("error", err);
+      throw err;
+    });
+    upload.on("finish",
+    /*#__PURE__*/
+    function () {
+      var _ref = _asyncToGenerator(function* (h) {
+        const folderMeta = yield _this.getFolderMetadata(dir),
+              oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+              oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+              version = new FileVersion({
+          size: file.size,
+          location: h.slice(0, 32),
+          modified: file.lastModified
+        }),
+              meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+        }); // metadata existed previously
+
+        if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
+        const buf = Buffer.from(JSON.stringify(folderMeta));
+        const metaUpload = new Upload(buf, _this);
+        metaUpload.on("error", err => {
+          ee.emit("error", err);
+          throw err;
+        });
+        metaUpload.on("finish", h => {
+          const encryptedHandle = encryptString(_this.privateKey.toString("hex"), h); // TODO
+
+          setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+        });
+      });
+
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
+    return ee;
+  }
+
+  static getKey(from, str) {
+    return web3Utils.soliditySha3(from.privateKey.toString("hex"), str);
+  }
+  /**
+   * creates a file key seed for validating
+   *
+   * @param file - the location of the file on the network
+   */
+
+
+  getFileHDKey(file) {
+    return this.generateSubHDKey("file: " + file);
+  }
+
+  getFileHandle(dir, location) {
+    var _this2 = this;
+
+    return _asyncToGenerator(function* () {
+      const folder = _this2.getFolderHDKey(dir);
+
+      return location + MasterHandle.getKey(folder, location);
+    })();
+  }
+  /**
+   * creates a dir key seed for validating and folder navigation
+   *
+   * @param dir - the folder path in the UI
+   */
+
+
+  getFolderHDKey(dir) {
+    return this.generateSubHDKey("folder: " + dir);
+  }
+
+  getFolderLocation(dir) {
+    return web3Utils.soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
+  }
+
+  getFolderHandle(dir) {
+    var _this3 = this;
+
+    return _asyncToGenerator(function* () {
+      const folderKey = _this3.getFolderHDKey(dir),
+            location = _this3.getFolderLocation(dir),
+            key = web3Utils.soliditySha3(folderKey.privateKey.toString("hex")); // TODO
+
+
+      const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
+      return metaLocation + MasterHandle.getKey(_this3, metaLocation);
+    })();
+  }
+
+  getFolderMetadata(dir) {
+    var _this4 = this;
+
+    return _asyncToGenerator(function* () {
+      const handle = yield _this4.getFolderHandle(dir);
+      const meta = yield new Promise((resolve, reject) => {
+        new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
+      });
+      return meta;
+    })();
+  }
+
+}
+
+exports.Account = Account;
 exports.AccountMeta = AccountMeta;
 exports.AccountPreferences = AccountPreferences;
 exports.Download = Download;
@@ -1252,6 +1451,7 @@ exports.FileEntryMeta = FileEntryMeta;
 exports.FileVersion = FileVersion;
 exports.FolderEntryMeta = FolderEntryMeta;
 exports.FolderMeta = FolderMeta;
+exports.MasterHandle = MasterHandle;
 exports.Upload = Upload;
 exports.checkPaymentStatus = checkPaymentStatus;
 exports.createAccount = createAccount;

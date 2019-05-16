@@ -7,6 +7,9 @@ import mime from 'mime/lite';
 import FormDataNode from 'form-data';
 import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
+import { generateMnemonic, validateMnemonic, mnemonicToSeedSync, entropyToMnemonic } from 'bip39';
+import HDKey, { fromMasterSeed } from 'hdkey';
+import { soliditySha3 } from 'web3-utils';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
   try {
@@ -1102,6 +1105,32 @@ class Upload extends EventEmitter {
 
 }
 
+const pipe = function pipe() {
+  for (var _len = arguments.length, values = new Array(_len), _key = 0; _key < _len; _key++) {
+    values[_key] = arguments[_key];
+  }
+
+  return {
+    through: function through(fn) {
+      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+        args[_key2 - 1] = arguments[_key2];
+      }
+
+      return args.reduce((value, fn) => fn(value), fn(...values));
+    }
+  };
+};
+
+pipe.through = function (fn) {
+  for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
+    args[_key3 - 1] = arguments[_key3];
+  }
+
+  return function () {
+    return args.reduce((value, fn) => fn(value), fn(...arguments));
+  };
+};
+
 class AccountMeta {
   constructor(_ref) {
     let planSize = _ref.planSize,
@@ -1249,4 +1278,189 @@ class FolderMeta {
 
 }
 
-export { AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for representing the account mnemonic
+ */
+
+class Account {
+  get mnemonic() {
+    return this._mnemonic.trim().split(/\s+/g);
+  }
+  /**
+   * creates an account from a mnemonic if provided, otherwise from entropy
+   *
+   * @param mnemonic - the mnemonic to use for the account
+   */
+
+
+  constructor() {
+    let mnemonic = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : generateMnemonic();
+    if (!validateMnemonic(mnemonic)) throw new Error("mnemonic provided was not valid");
+    this._mnemonic = mnemonic;
+  }
+
+  get seed() {
+    return mnemonicToSeedSync(this._mnemonic);
+  }
+
+}
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for creating a master handle from an account mnemonic
+ *
+ * a master handle is responsible for:
+ *  - logging in to an account
+ *  - signing changes for the account
+ *  - deterministic entropy for generating features of an account (such as file keys)
+ */
+
+
+class MasterHandle extends HDKey {
+  /**
+   * creates a master handle from an account
+   *
+   * @param account - the account to generate the handle from
+   */
+  constructor(account) {
+    super();
+
+    this.downloadFile = (dir, location) => {
+      return new Download(this.getFileHandle(dir, location));
+    }; // TODO: fill in path
+    // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
+
+
+    Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+  }
+  /**
+   * creates a sub key seed for validating
+   *
+   * @param path - the string to use as a sub path
+   */
+
+
+  generateSubHDKey(path) {
+    return pipe(Buffer.concat([this.privateKey, Buffer.from(soliditySha3(path), "hex")]).toString("hex")).through(soliditySha3, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
+  }
+
+  uploadFile(dir, file) {
+    var _this = this;
+
+    const upload = new Upload(file, this),
+          ee = new EventEmitter();
+    upload.on("progress", progress => {
+      ee.emit("progress", progress);
+    });
+    upload.on("error", err => {
+      ee.emit("error", err);
+      throw err;
+    });
+    upload.on("finish",
+    /*#__PURE__*/
+    function () {
+      var _ref = _asyncToGenerator(function* (h) {
+        const folderMeta = yield _this.getFolderMetadata(dir),
+              oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+              oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+              version = new FileVersion({
+          size: file.size,
+          location: h.slice(0, 32),
+          modified: file.lastModified
+        }),
+              meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+        }); // metadata existed previously
+
+        if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
+        const buf = Buffer.from(JSON.stringify(folderMeta));
+        const metaUpload = new Upload(buf, _this);
+        metaUpload.on("error", err => {
+          ee.emit("error", err);
+          throw err;
+        });
+        metaUpload.on("finish", h => {
+          const encryptedHandle = encryptString(_this.privateKey.toString("hex"), h); // TODO
+
+          setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+        });
+      });
+
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
+    return ee;
+  }
+
+  static getKey(from, str) {
+    return soliditySha3(from.privateKey.toString("hex"), str);
+  }
+  /**
+   * creates a file key seed for validating
+   *
+   * @param file - the location of the file on the network
+   */
+
+
+  getFileHDKey(file) {
+    return this.generateSubHDKey("file: " + file);
+  }
+
+  getFileHandle(dir, location) {
+    var _this2 = this;
+
+    return _asyncToGenerator(function* () {
+      const folder = _this2.getFolderHDKey(dir);
+
+      return location + MasterHandle.getKey(folder, location);
+    })();
+  }
+  /**
+   * creates a dir key seed for validating and folder navigation
+   *
+   * @param dir - the folder path in the UI
+   */
+
+
+  getFolderHDKey(dir) {
+    return this.generateSubHDKey("folder: " + dir);
+  }
+
+  getFolderLocation(dir) {
+    return soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
+  }
+
+  getFolderHandle(dir) {
+    var _this3 = this;
+
+    return _asyncToGenerator(function* () {
+      const folderKey = _this3.getFolderHDKey(dir),
+            location = _this3.getFolderLocation(dir),
+            key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
+
+
+      const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
+      return metaLocation + MasterHandle.getKey(_this3, metaLocation);
+    })();
+  }
+
+  getFolderMetadata(dir) {
+    var _this4 = this;
+
+    return _asyncToGenerator(function* () {
+      const handle = yield _this4.getFolderHandle(dir);
+      const meta = yield new Promise((resolve, reject) => {
+        new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
+      });
+      return meta;
+    })();
+  }
+
+}
+
+export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };
