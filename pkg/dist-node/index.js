@@ -1317,11 +1317,11 @@ class MasterHandle extends HDKey__default {
       return new Download(handle);
     };
 
-    if (account.constructor == Account) {
+    if (account && account.constructor == Account) {
       // TODO: fill in path
       // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
       Object.assign(this, HDKey.fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
-    } else if (handle.constructor == String) {
+    } else if (handle && handle.constructor == String) {
       this.privateKey = Buffer.from(handle, "hex");
     } else {
       throw new Error("master handle was not of expected type");

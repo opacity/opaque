@@ -1,4 +1,4 @@
-import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39";
+import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import Upload from "./upload";
 import Download from "./download";
@@ -6,7 +6,7 @@ import { EventEmitter } from "events";
 import { pipe } from "./utils/pipe";
 import { hash } from "./core/hashing";
 import { decryptString, encryptString } from "./core/encryption";
-import { FileEntryMeta, FileVersion } from "./core/account/metadata";
+import { FileEntryMeta, FileVersion, } from "./core/account/metadata";
 import { getMetadata, setMetadata } from "./core/requests/metadata";
 /**
  * **_this should never be shared or left in storage_**
@@ -47,17 +47,17 @@ class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor({ account, handle }) {
+    constructor({ account, handle, }) {
         super();
         this.downloadFile = (handle) => {
             return new Download(handle);
         };
-        if (account.constructor == Account) {
+        if (account && account.constructor == Account) {
             // TODO: fill in path
             // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
             Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
         }
-        else if (handle.constructor == String) {
+        else if (handle && handle.constructor == String) {
             this.privateKey = Buffer.from(handle, "hex");
         }
         else {
@@ -70,8 +70,7 @@ class MasterHandle extends HDKey {
      * @param path - the string to use as a sub path
      */
     generateSubHDKey(path) {
-        return (pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex"))
-            .through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed));
+        return pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex")).through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
     }
     uploadFile(dir, file) {
         const upload = new Upload(file, this), ee = new EventEmitter();
@@ -83,14 +82,16 @@ class MasterHandle extends HDKey {
             throw err;
         });
         upload.on("finish", async ({ handle }) => {
-            const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {}, version = new FileVersion({
+            const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
+                ? folderMeta.files[oldMetaIndex]
+                : {}, version = new FileVersion({
                 size: file.size,
                 handle: handle,
-                modified: file.lastModified
+                modified: file.lastModified,
             }), meta = new FileEntryMeta({
                 name: file.name,
                 created: oldMeta.created,
-                versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+                versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions,
             });
             // metadata existed previously
             if (oldMetaIndex !== -1)
@@ -136,7 +137,7 @@ class MasterHandle extends HDKey {
     async getFolderHandle(dir) {
         const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex"));
         // TODO
-        const metaLocation = decryptString(key, await getMetadata("ENDPOINT", folderKey, location), "hex");
+        const metaLocation = decryptString(key, (await getMetadata("ENDPOINT", folderKey, location)), "hex");
         return metaLocation + MasterHandle.getKey(this, metaLocation);
     }
     async getFolderMetadata(dir) {
