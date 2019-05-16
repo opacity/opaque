@@ -2,6 +2,7 @@ import Axios from "axios";
 import { EventEmitter } from "events";
 import { pipeline } from "readable-stream";
 import { decryptMetadata } from "./core/metadata";
+import { getPayload } from "./core/request";
 import {
   getUploadSize,
   keysFromHandle
@@ -13,7 +14,13 @@ import DecryptStream from "./streams/decryptStream";
 import DownloadStream from "./streams/downloadStream";
 
 const METADATA_PATH = "/download/metadata/";
-const DEFAULT_OPTIONS = Object.freeze({
+
+type DownloadOptions = {
+  autoStart?: boolean
+  endpoint?: string
+}
+
+const DEFAULT_OPTIONS: DownloadOptions = Object.freeze({
   autoStart: true
 });
 
@@ -21,25 +28,24 @@ const DEFAULT_OPTIONS = Object.freeze({
  * Downloading files
  */
 export default class Download extends EventEmitter {
-  options
-  handle
-  hash
-  key
+  options: DownloadOptions
+  handle: string
+  hash: string
+  key: string
   metadataRequest
+  downloadURL: string
   isDownloading: boolean
-  decryptStream
-  downloadStream
+  decryptStream: DecryptStream
+  downloadStream: DownloadStream
   _metadata: FileMeta
-  size
 
-  constructor(handle, opts = {}) {
+  private size
+
+  constructor(handle, opts: DownloadOptions = {}) {
+    super();
+
     const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     const { hash, key } = keysFromHandle(handle);
-
-    super();
-    this.startDownload = this.startDownload.bind(this);
-    this.propagateError = this.propagateError.bind(this);
-    this.finishDownload = this.finishDownload.bind(this);
 
     this.options = options;
     this.handle = handle;
@@ -63,7 +69,7 @@ export default class Download extends EventEmitter {
     })
   }
 
-  async toBuffer() {
+  toBuffer = async () => {
     const chunks = [];
     let totalLength = 0;
 
@@ -85,7 +91,7 @@ export default class Download extends EventEmitter {
     });
   }
 
-  async toFile() {
+  toFile = async () => {
     const chunks = [] as BlobPart[];
     let totalLength = 0;
 
@@ -105,8 +111,9 @@ export default class Download extends EventEmitter {
     });
   }
 
-  async startDownload() {
+  startDownload = async () => {
     try {
+      await this.getDownloadURL()
       await this.downloadMetadata();
       await this.downloadFile();
     } catch(e) {
@@ -114,37 +121,51 @@ export default class Download extends EventEmitter {
     }
   }
 
-  async downloadMetadata(overwrite = false) {
+  async getDownloadURL() {
+    const req = Axios.post(this.options.endpoint + "/api/v1/download", {
+      fileID: this.hash
+    });
+    const res = await req;
+
+    if(res.status === 200) {
+      this.downloadURL = res.data.fileDownloadUrl;
+      return this.downloadURL;
+    }
+  }
+
+  downloadMetadata = async (overwrite = false) => {
     let req;
+
+    if(!this.downloadURL) {
+      await this.getDownloadURL();
+    }
 
     if(!overwrite && this.metadataRequest) {
       req = this.metadataRequest;
     } else {
       const endpoint = this.options.endpoint;
       const path = METADATA_PATH + this.hash;
-      req = this.metadataRequest = Axios.get(endpoint + path, {
+      req = this.metadataRequest = Axios.get(this.downloadURL + "/metadata", {
         responseType: "arraybuffer"
       });
     }
 
-
     const res = await req;
     const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
+
     this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
 
     return metadata;
   }
 
-  async downloadFile() {
+  downloadFile = async () => {
     if(this.isDownloading) {
       return true;
     }
 
     this.isDownloading = true;
-    this.downloadStream = new DownloadStream(this.hash, await this.metadata, this.size, {
-      endpoint: this.options.endpoint
-    });
+    this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
     this.decryptStream = new DecryptStream(this.key);
     // this.targetStream = new targetStream(this.metadata);
 
@@ -163,7 +184,7 @@ export default class Download extends EventEmitter {
     this.decryptStream.on("error", this.propagateError);
   }
 
-  finishDownload(error) {
+  finishDownload = (error) => {
     if(error) {
       this.propagateError(error);
     } else {
@@ -171,7 +192,7 @@ export default class Download extends EventEmitter {
     }
   }
 
-  propagateError(error) {
+  propagateError = (error) => {
     process.nextTick(() => this.emit("error", error));
   }
 }

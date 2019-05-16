@@ -5,6 +5,8 @@ import isBuffer from 'is-buffer';
 import { Readable, Transform, Writable } from 'readable-stream';
 import mime from 'mime/lite';
 import FormDataNode from 'form-data';
+import * as EthUtil from 'ethereumjs-util';
+import { keccak256 } from 'ethereumjs-util';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
   try {
@@ -150,11 +152,11 @@ const ByteBuffer = Forge.util.ByteBuffer; // Generate new handle, datamap entry 
 // TODO: Decide on format and derivation
 
 function generateFileKeys() {
-  const hash = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest();
-  const key = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest();
-  const handle = hash.toHex() + key.toHex();
+  const hash = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest().toHex();
+  const key = Forge.md.sha256.create().update(Forge.random.getBytesSync(32)).digest().toHex();
+  const handle = hash + key;
   return {
-    hash: hash.toHex(),
+    hash,
     key,
     handle
   };
@@ -168,7 +170,7 @@ function keysFromHandle(handle) {
   const key = buf.getBytes(32);
   return {
     hash: Forge.util.bytesToHex(hash),
-    key: new ByteBuffer(key),
+    key: Forge.util.bytesToHex(key),
     handle
   };
 }
@@ -195,6 +197,7 @@ function getFileData(file) {
       reader: BufferSourceStream
     };
   } else if (file && file.data && isBuffer(file.data)) {
+    file = file;
     return {
       data: file.data,
       size: file.data.length,
@@ -214,6 +217,15 @@ function getUploadSize(size, params) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
   const blockCount = Math.ceil(size / blockSize);
   return size + blockCount * BLOCK_OVERHEAD;
+} // get
+
+function getEndIndex(uploadSize, params) {
+  const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const chunkSize = blockSize + BLOCK_OVERHEAD;
+  const chunkCount = Math.ceil(uploadSize / chunkSize);
+  const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+  const endIndex = Math.ceil(chunkCount / chunksPerPart);
+  return endIndex;
 }
 
 const Forge$1 = {
@@ -249,16 +261,18 @@ function encryptBytes(key, bytes) {
 } // Decryption
 
 function decrypt(key, byteBuffer) {
-  key.read = 0;
+  const keyBuf = new ByteBuffer$1(Buffer.from(key, "hex"));
+  keyBuf.read = 0;
   byteBuffer.read = byteBuffer.length() - BLOCK_OVERHEAD;
   const tag = byteBuffer.getBytes(TAG_BYTE_LENGTH);
   const iv = byteBuffer.getBytes(IV_BYTE_LENGTH);
-  const decipher = Forge$1.cipher.createDecipher("AES-GCM", key);
+  const decipher = Forge$1.cipher.createDecipher("AES-GCM", keyBuf);
   byteBuffer.read = 0;
   byteBuffer.truncate(BLOCK_OVERHEAD);
   decipher.start({
     iv,
-    tag,
+    // the type definitions are wrong in @types/node-forge
+    tag: tag,
     tagLength: TAG_BIT_LENGTH
   });
   decipher.update(byteBuffer);
@@ -351,21 +365,22 @@ class DecryptStream extends Transform {
 }
 
 const DEFAULT_OPTIONS$3 = Object.freeze({
+  autostart: true,
   maxParallelDownloads: 1,
   maxRetries: 0,
   partSize: 80 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD),
   objectMode: false
 });
 class DownloadStream extends Readable {
-  constructor(hash, metadata, size, options) {
+  constructor(url, metadata, size) {
+    let options = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
     const opts = Object.assign({}, DEFAULT_OPTIONS$3, options);
     super(opts); // Input
 
     this.options = opts;
-    this.hash = hash;
+    this.url = url;
     this.size = size;
-    this.metadata = metadata;
-    this.numChunks = Math.ceil(size / opts.partSize); // Internal
+    this.metadata = metadata; // Internal
 
     this.chunks = [];
     this.chunkId = 0;
@@ -401,7 +416,6 @@ class DownloadStream extends Readable {
     var _this = this;
 
     return _asyncToGenerator(function* () {
-      const hash = _this.hash;
       const size = _this.size;
       const partSize = _this.options.partSize;
       const index = chunkIndex || _this.chunks.length;
@@ -425,7 +439,7 @@ class DownloadStream extends Readable {
         _this.chunks.push(chunk);
 
         _this.ongoingDownloads++;
-        const download = yield Axios.get(_this.options.endpoint + "/download/file/" + _this.hash, {
+        const download = yield Axios.get(_this.url + "/file", {
           responseType: "arraybuffer",
           headers: {
             range
@@ -481,17 +495,136 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
  */
 
 class Download extends EventEmitter {
-  constructor(handle, opts) {
+  constructor(handle) {
+    var _this;
+
+    let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    super();
+    _this = this;
+    this.toBuffer =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const chunks = [];
+      let totalLength = 0;
+
+      if (typeof Buffer === "undefined") {
+        return false;
+      }
+
+      yield _this.startDownload();
+      return new Promise(resolve => {
+        _this.decryptStream.on("data", data => {
+          chunks.push(data);
+          totalLength += data.length;
+        });
+
+        _this.decryptStream.once("finish", () => {
+          resolve(Buffer.concat(chunks, totalLength));
+        });
+      });
+    });
+    this.toFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const chunks = [];
+      let totalLength = 0;
+      yield _this.startDownload();
+      return new Promise(resolve => {
+        _this.decryptStream.on("data", data => {
+          chunks.push(data);
+          totalLength += data.length;
+        });
+
+        _this.decryptStream.once("finish",
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          resolve(new File(chunks, (yield _this.metadata).name, {
+            type: "text/plain"
+          }));
+        }));
+      });
+    });
+    this.startDownload =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.getDownloadURL();
+        yield _this.downloadMetadata();
+        yield _this.downloadFile();
+      } catch (e) {
+        _this.propagateError(e);
+      }
+    });
+    this.downloadMetadata =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      let overwrite = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+      let req;
+
+      if (!_this.downloadURL) {
+        yield _this.getDownloadURL();
+      }
+
+      if (!overwrite && _this.metadataRequest) {
+        req = _this.metadataRequest;
+      } else {
+        const endpoint = _this.options.endpoint;
+        const path = METADATA_PATH + _this.hash;
+        req = _this.metadataRequest = Axios.get(_this.downloadURL + "/metadata", {
+          responseType: "arraybuffer"
+        });
+      }
+
+      const res = yield req;
+      const metadata = decryptMetadata(new Uint8Array(res.data), _this.key);
+      _this._metadata = metadata;
+      _this.size = getUploadSize(metadata.size, metadata.p || {});
+      return metadata;
+    });
+    this.downloadFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      if (_this.isDownloading) {
+        return true;
+      }
+
+      _this.isDownloading = true;
+      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size);
+      _this.decryptStream = new DecryptStream(_this.key); // this.targetStream = new targetStream(this.metadata);
+
+      _this.downloadStream.on("progress", progress => {
+        _this.emit("download-progress", {
+          target: _this,
+          handle: _this.handle,
+          progress: progress
+        });
+      });
+
+      _this.downloadStream.pipe(_this.decryptStream);
+
+      _this.downloadStream.on("error", _this.propagateError);
+
+      _this.decryptStream.on("error", _this.propagateError);
+    });
+
+    this.finishDownload = error => {
+      if (error) {
+        this.propagateError(error);
+      } else {
+        this.emit("finish");
+      }
+    };
+
+    this.propagateError = error => {
+      process.nextTick(() => this.emit("error", error));
+    };
+
     const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
 
     const _keysFromHandle = keysFromHandle(handle),
           hash = _keysFromHandle.hash,
           key = _keysFromHandle.key;
 
-    super();
-    this.startDownload = this.startDownload.bind(this);
-    this.propagateError = this.propagateError.bind(this);
-    this.finishDownload = this.finishDownload.bind(this);
     this.options = options;
     this.handle = handle;
     this.hash = hash;
@@ -505,153 +638,39 @@ class Download extends EventEmitter {
   }
 
   get metadata() {
-    var _this = this;
+    var _this2 = this;
 
     return new Promise(
     /*#__PURE__*/
     function () {
-      var _ref = _asyncToGenerator(function* (resolve) {
-        if (_this._metadata) {
-          resolve(_this._metadata);
+      var _ref7 = _asyncToGenerator(function* (resolve) {
+        if (_this2._metadata) {
+          resolve(_this2._metadata);
         } else {
-          resolve((yield _this.downloadMetadata()));
+          resolve((yield _this2.downloadMetadata()));
         }
       });
 
       return function (_x) {
-        return _ref.apply(this, arguments);
+        return _ref7.apply(this, arguments);
       };
     }());
   }
 
-  toBuffer() {
-    var _this2 = this;
-
-    return _asyncToGenerator(function* () {
-      const chunks = [];
-      let totalLength = 0;
-
-      if (typeof Buffer === "undefined") {
-        return false;
-      }
-
-      yield _this2.startDownload();
-      return new Promise(resolve => {
-        _this2.decryptStream.on("data", data => {
-          chunks.push(data);
-          totalLength += data.length;
-        });
-
-        _this2.decryptStream.once("finish", () => {
-          resolve(Buffer.concat(chunks, totalLength));
-        });
-      });
-    })();
-  }
-
-  toFile() {
+  getDownloadURL() {
     var _this3 = this;
 
     return _asyncToGenerator(function* () {
-      const chunks = [];
-      let totalLength = 0;
-      yield _this3.startDownload();
-      return new Promise(resolve => {
-        _this3.decryptStream.on("data", data => {
-          chunks.push(data);
-          totalLength += data.length;
-        });
-
-        _this3.decryptStream.once("finish",
-        /*#__PURE__*/
-        _asyncToGenerator(function* () {
-          resolve(new File(chunks, (yield _this3.metadata).name, {
-            type: "text/plain"
-          }));
-        }));
+      const req = Axios.post(_this3.options.endpoint + "/api/v1/download", {
+        fileID: _this3.hash
       });
-    })();
-  }
-
-  startDownload() {
-    var _this4 = this;
-
-    return _asyncToGenerator(function* () {
-      try {
-        yield _this4.downloadMetadata();
-        yield _this4.downloadFile();
-      } catch (e) {
-        _this4.propagateError(e);
-      }
-    })();
-  }
-
-  downloadMetadata() {
-    var _this5 = this,
-        _arguments = arguments;
-
-    return _asyncToGenerator(function* () {
-      let overwrite = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
-      let req;
-
-      if (!overwrite && _this5.metadataRequest) {
-        req = _this5.metadataRequest;
-      } else {
-        const endpoint = _this5.options.endpoint;
-        const path = METADATA_PATH + _this5.hash;
-        req = _this5.metadataRequest = Axios.get(endpoint + path, {
-          responseType: "arraybuffer"
-        });
-      }
-
       const res = yield req;
-      const metadata = decryptMetadata(new Uint8Array(res.data), _this5.key);
-      _this5._metadata = metadata;
-      _this5.size = getUploadSize(metadata.size, metadata.p || {});
-      return metadata;
-    })();
-  }
 
-  downloadFile() {
-    var _this6 = this;
-
-    return _asyncToGenerator(function* () {
-      if (_this6.isDownloading) {
-        return true;
+      if (res.status === 200) {
+        _this3.downloadURL = res.data.fileDownloadUrl;
+        return _this3.downloadURL;
       }
-
-      _this6.isDownloading = true;
-      _this6.downloadStream = new DownloadStream(_this6.hash, (yield _this6.metadata), _this6.size, {
-        endpoint: _this6.options.endpoint
-      });
-      _this6.decryptStream = new DecryptStream(_this6.key); // this.targetStream = new targetStream(this.metadata);
-
-      _this6.downloadStream.on("progress", progress => {
-        _this6.emit("download-progress", {
-          target: _this6,
-          handle: _this6.handle,
-          progress: progress
-        });
-      });
-
-      _this6.downloadStream.pipe(_this6.decryptStream);
-
-      _this6.downloadStream.on("error", _this6.propagateError);
-
-      _this6.decryptStream.on("error", _this6.propagateError);
     })();
-  }
-
-  finishDownload(error) {
-    if (error) {
-      this.propagateError(error);
-    } else {
-      this.emit("finish");
-    }
-  }
-
-  propagateError(error) {
-    process.nextTick(() => this.emit("error", error));
   }
 
 }
@@ -679,9 +698,132 @@ class EncryptStream extends Transform {
 
 }
 
+function checkPaymentStatus(_x, _x2) {
+  return _checkPaymentStatus.apply(this, arguments);
+}
+
+function _checkPaymentStatus() {
+  _checkPaymentStatus = _asyncToGenerator(function* (endpoint, hdNode) {
+    const payload = {
+      timestamp: Math.floor(Date.now() / 1000)
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
+  });
+  return _checkPaymentStatus.apply(this, arguments);
+}
+
+function createAccount(_x, _x2, _x3) {
+  return _createAccount.apply(this, arguments);
+}
+
+function _createAccount() {
+  _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const payload = {
+      metadataKey: metadataKey,
+      durationInMonths: 12,
+      storageLimit: 100
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
+  });
+  return _createAccount.apply(this, arguments);
+}
+
+function setMetadata(_x, _x2, _x3, _x4) {
+  return _setMetadata.apply(this, arguments);
+}
+
+function _setMetadata() {
+  _setMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadata,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/set", signedPayload);
+  });
+  return _setMetadata.apply(this, arguments);
+}
+
+function getMetadata(_x5, _x6, _x7) {
+  return _getMetadata.apply(this, arguments);
+}
+
+function _getMetadata() {
+  _getMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/metadata/get", signedPayload);
+  });
+  return _getMetadata.apply(this, arguments);
+}
+
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
+function getPayload(rawPayload, hdNode) {
+  let key = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "requestBody";
+  const payload = JSON.stringify(rawPayload);
+  const hash = keccak256(payload);
+  const signature = hdNode.sign(hash).toString("hex");
+  const pubKey = hdNode.publicKey.toString("hex");
+  const signedPayload = {
+    signature,
+    publicKey: pubKey,
+    hash: hash.toString("hex")
+  };
+  signedPayload[key] = payload;
+  return signedPayload;
+}
+function getPayloadFD(rawPayload, extraPayload, hdNode) {
+  let key = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : "requestBody";
+  // rawPayload.timestamp = Date.now();
+  const payload = JSON.stringify(rawPayload);
+  const hash = keccak256(payload);
+  const signature = hdNode.sign(hash).toString("hex");
+  const pubKey = hdNode.publicKey.toString("hex"); // node, buffers
+
+  if (POLYFILL_FORMDATA) {
+    const data = new FormDataNode();
+    data.append(key, payload);
+    data.append("signature", signature);
+    data.append("publicKey", pubKey); // data.append("hash", hash);
+
+    if (extraPayload) {
+      Object.keys(extraPayload).forEach(key => {
+        const pl = extraPayload[key];
+        data.append(key, pl, {
+          filename: key,
+          contentType: "application/octet-stream",
+          knownLength: pl.length
+        });
+      });
+    }
+
+    return data;
+  } else {
+    const data = new FormData();
+    data.append(key, payload);
+    data.append("signature", signature);
+    data.append("publicKey", pubKey);
+
+    if (extraPayload) {
+      Object.keys(extraPayload).forEach(key => {
+        data.append(key, new Blob([extraPayload[key].buffer]), key);
+      });
+    }
+
+    return data;
+  }
+}
+
 const DEFAULT_OPTIONS$6 = Object.freeze({
-  maxParallelUploads: 2,
+  maxParallelUploads: 3,
   maxRetries: 0,
   partSize: 256,
   objectMode: false
@@ -696,8 +838,7 @@ class UploadStream extends Writable {
     this.endpoint = endpoint;
     this.options = opts;
     this.size = size;
-    this.endIndex = Math.ceil(size / opts.partSize);
-    console.log("Uploading new file with ".concat(this.endIndex, " parts.")); // Internal
+    this.endIndex = getEndIndex(size, opts); // Internal
 
     this.bytesUploaded = 0;
     this.blockBuffer = [];
@@ -771,23 +912,14 @@ class UploadStream extends Writable {
       this.cork();
     }
 
-    const data = new FormDataNode();
-    const filename = "".concat(this.hash, ".").concat(part.partIndex, ".part");
-    const raw = POLYFILL_FORMDATA ? Buffer.from(part.data.buffer) : new Blob([part.data], {
-      type: "application/octet-stream"
-    });
-    const length = raw.size ? raw.size : raw.length; // TODO: Actual account / signature
-
-    data.append("hash", this.hash);
-    data.append("account", this.account);
-    data.append("partIndex", part.partIndex);
-    data.append("endIndex", this.endIndex);
-    data.append("part", raw, {
-      filename: filename,
-      contentType: "application/octet-stream",
-      knownLength: part.data.length
-    });
-    const upload = Axios.put(this.endpoint + "/upload/file", data, {
+    const data = getPayloadFD({
+      fileHandle: this.hash,
+      partIndex: part.partIndex,
+      endIndex: this.endIndex
+    }, {
+      chunkData: part.data
+    }, this.account);
+    const upload = Axios.post(this.endpoint + "/api/v1/upload", data, {
       headers: data.getHeaders ? data.getHeaders() : {},
       onUploadProgress: event => {
         return;
@@ -801,8 +933,7 @@ class UploadStream extends Writable {
 
   _afterUpload(part) {
     this.ongoingUploads--;
-    this.bytesUploaded += part.data.length; // TODO: Progress
-
+    this.bytesUploaded += part.data.length;
     this.emit("progress", this.bytesUploaded / this.size); // Upload until done
 
     if (this.partBuffer.length > 0) {
@@ -812,12 +943,26 @@ class UploadStream extends Writable {
     if (this.finalCallback) {
       // Finish
       if (this.ongoingUploads === 0) {
-        this.finalCallback();
+        this._finishUpload();
       }
     } else {
       // Continue
       process.nextTick(() => this.uncork());
     }
+  }
+
+  _finishUpload() {
+    var _this = this;
+
+    return _asyncToGenerator(function* () {
+      const data = getPayload({
+        fileHandle: _this.hash
+      }, _this.account);
+      const req = Axios.post(_this.endpoint + "/api/v1/upload-status", data);
+      const res = yield req;
+
+      _this.finalCallback();
+    })();
   }
 
   _uploadError(error, part) {
@@ -843,7 +988,6 @@ class UploadStream extends Writable {
 
 }
 
-const POLYFILL_FORMDATA$1 = typeof FormData === "undefined";
 const DEFAULT_OPTIONS$7 = Object.freeze({
   autoStart: true
 });
@@ -851,8 +995,72 @@ const DEFAULT_FILE_PARAMS = {
   blockSize: 64 * 1024
 };
 class Upload extends EventEmitter {
-  constructor(file, account, opts) {
-    const options = Object.assign({}, DEFAULT_OPTIONS$7, opts || {});
+  constructor(file, account) {
+    var _this;
+
+    let opts = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    super();
+    _this = this;
+    this.startUpload =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.uploadMetadata();
+        yield _this.uploadFile();
+      } catch (e) {
+        _this.propagateError(e);
+      }
+    });
+    this.uploadMetadata =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const meta = createMetadata(_this.data, _this.options.params);
+      const encryptedMeta = encryptMetadata(meta, _this.key);
+      const data = getPayloadFD({
+        fileHandle: _this.hash,
+        fileSizeInByte: _this.uploadSize,
+        endIndex: getEndIndex(_this.uploadSize, _this.options.params)
+      }, {
+        metadata: encryptedMeta
+      }, _this.account);
+      return Axios.post(_this.options.endpoint + "/api/v1/init-upload", data, {
+        headers: data.getHeaders ? data.getHeaders() : {}
+      }).then(res => {
+        _this.emit("metadata", meta);
+      }).catch(error => {
+        _this.propagateError(error);
+      });
+    });
+    this.uploadFile =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      const readStream = new _this.data.reader(_this.data, _this.options.params);
+      _this.readStream = readStream;
+      _this.encryptStream = new EncryptStream(_this.key, _this.options.params);
+      _this.uploadStream = new UploadStream(_this.account, _this.hash, _this.uploadSize, _this.options.endpoint, _this.options.params);
+
+      _this.uploadStream.on("progress", progress => {
+        _this.emit("upload-progress", {
+          target: _this,
+          handle: _this.handle,
+          progress
+        });
+      });
+
+      _this.readStream.pipe(_this.encryptStream).pipe(_this.uploadStream).on("finish", _this.finishUpload);
+
+      _this.readStream.on("error", _this.propagateError);
+
+      _this.encryptStream.on("error", _this.propagateError);
+
+      _this.uploadStream.on("error", _this.propagateError);
+    });
+
+    this.propagateError = error => {
+      process.nextTick(() => this.emit("error", error));
+    };
+
+    const options = Object.assign({}, DEFAULT_OPTIONS$7, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const _generateFileKeys = generateFileKeys(),
@@ -862,11 +1070,6 @@ class Upload extends EventEmitter {
 
     const data = getFileData(file, handle);
     const size = getUploadSize(file.size, options.params);
-    super();
-    this.startUpload = this.startUpload.bind(this);
-    this.uploadMetadata = this.uploadMetadata.bind(this);
-    this.uploadFile = this.uploadFile.bind(this);
-    this.finishUpload = this.finishUpload.bind(this);
     this.account = account;
     this.options = options;
     this.data = data;
@@ -884,92 +1087,16 @@ class Upload extends EventEmitter {
     }
   }
 
-  startUpload() {
-    var _this = this;
-
-    return _asyncToGenerator(function* () {
-      try {
-        yield _this.uploadMetadata();
-        yield _this.uploadFile();
-      } catch (e) {
-        _this.propagateError(e);
-      }
-    })();
-  }
-
-  uploadMetadata() {
+  finishUpload() {
     var _this2 = this;
 
     return _asyncToGenerator(function* () {
-      const meta = createMetadata(_this2.data, _this2.options.params);
-      const encryptedMeta = encryptMetadata(meta, _this2.key);
-      const data = new FormDataNode();
-      const raw = POLYFILL_FORMDATA$1 ? Buffer.from(encryptedMeta.buffer) : new Blob([encryptedMeta], {
-        type: "application/octet-stream"
-      });
-      const length = raw.size ? raw.size : raw.length; // TODO: Actual account
-
-      data.append("account", _this2.account); // TODO: Use separate metadata hash
-
-      data.append("hash", _this2.hash); // Just used to prematurely return an error if not enough space
-
-      data.append("size", _this2.uploadSize);
-      data.append("metadata", raw, {
-        filename: 'metadata',
-        contentType: "application/octet-stream",
-        knownLength: length
-      });
-      return Axios.put(_this2.options.endpoint + "/upload/metadata", data, {
-        headers: data.getHeaders ? data.getHeaders() : {}
-      }).then(res => {
-        _this2.emit("metadata", meta);
-      }).catch(error => {
-        _this2.propagateError(error);
+      _this2.emit("finish", {
+        target: _this2,
+        handle: _this2.handle,
+        metadata: _this2.metadata
       });
     })();
-  }
-
-  uploadFile() {
-    var _this3 = this;
-
-    return _asyncToGenerator(function* () {
-      const readStream = new _this3.data.reader(_this3.data, _this3.options.params);
-      _this3.readStream = readStream;
-      _this3.encryptStream = new EncryptStream(_this3.key, _this3.options.params);
-      _this3.uploadStream = new UploadStream(_this3.account, _this3.hash, _this3.uploadSize, _this3.options.endpoint, _this3.options.params);
-
-      _this3.uploadStream.on("progress", progress => {
-        _this3.emit("upload-progress", {
-          target: _this3,
-          handle: _this3.handle,
-          progress
-        });
-      });
-
-      _this3.readStream.pipe(_this3.encryptStream).pipe(_this3.uploadStream).on("finish", _this3.finishUpload);
-
-      _this3.readStream.on("error", _this3.propagateError);
-
-      _this3.encryptStream.on("error", _this3.propagateError);
-
-      _this3.uploadStream.on("error", _this3.propagateError);
-    })();
-  }
-
-  finishUpload() {
-    var _this4 = this;
-
-    return _asyncToGenerator(function* () {
-      _this4.emit("finish", {
-        target: _this4,
-        handle: _this4.handle,
-        metadata: _this4.metadata
-      });
-    })();
-  }
-
-  propagateError(error) {
-    process.nextTick(() => this.emit("error", error));
   }
 
 }
@@ -1123,4 +1250,4 @@ class FolderMeta {
 
 }
 
-export { AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, Upload };
+export { AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };

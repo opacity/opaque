@@ -12,14 +12,14 @@ export function generateFileKeys() {
     const hash = Forge.md.sha256
         .create()
         .update(Forge.random.getBytesSync(32))
-        .digest();
+        .digest().toHex();
     const key = Forge.md.sha256
         .create()
         .update(Forge.random.getBytesSync(32))
-        .digest();
-    const handle = hash.toHex() + key.toHex();
+        .digest().toHex();
+    const handle = hash + key;
     return {
-        hash: hash.toHex(),
+        hash,
         key,
         handle
     };
@@ -33,7 +33,7 @@ export function keysFromHandle(handle) {
     const key = buf.getBytes(32);
     return {
         hash: Forge.util.bytesToHex(hash),
-        key: new ByteBuffer(key),
+        key: Forge.util.bytesToHex(key),
         handle
     };
 }
@@ -58,6 +58,7 @@ export function getFileData(file, nameFallback = "file") {
         };
     }
     else if (file && file.data && isBuffer(file.data)) {
+        file = file;
         return {
             data: file.data,
             size: file.data.length,
@@ -77,4 +78,13 @@ export function getUploadSize(size, params) {
     const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
     const blockCount = Math.ceil(size / blockSize);
     return size + blockCount * BLOCK_OVERHEAD;
+}
+// get
+export function getEndIndex(uploadSize, params) {
+    const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+    const chunkSize = blockSize + BLOCK_OVERHEAD;
+    const chunkCount = Math.ceil(uploadSize / chunkSize);
+    const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+    const endIndex = Math.ceil(chunkCount / chunksPerPart);
+    return endIndex;
 }

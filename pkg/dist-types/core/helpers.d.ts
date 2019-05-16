@@ -1,15 +1,17 @@
-import { util as ForgeUtil } from "node-forge";
+import FileSourceStream from "../streams/fileSourceStream";
+import BufferSourceStream from "../streams/bufferSourceStream";
 import { Readable } from "readable-stream";
+import { FileMetaOptions } from "./metadata";
 import { Buffer } from "safe-buffer";
 export declare function generateFileKeys(): {
     hash: string;
-    key: ForgeUtil.ByteStringBuffer;
+    key: string;
     handle: string;
 };
-export declare function keysFromHandle(handle: any): {
+export declare function keysFromHandle(handle: string): {
     hash: string;
-    key: ForgeUtil.ByteStringBuffer;
-    handle: any;
+    key: string;
+    handle: string;
 };
 export declare function sanitizeFilename(filename: string): string;
 export declare type FileData = {
@@ -17,7 +19,8 @@ export declare type FileData = {
     size: number;
     name: string;
     type: string;
-    reader: Readable;
+    reader: typeof Readable | typeof BufferSourceStream | typeof FileSourceStream;
 };
 export declare function getFileData(file: Buffer | FileData, nameFallback?: string): FileData;
-export declare function getUploadSize(size: any, params: any): any;
+export declare function getUploadSize(size: number, params: FileMetaOptions): number;
+export declare function getEndIndex(uploadSize: any, params: any): number;

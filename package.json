@@ -1,6 +1,13 @@
 {
   "name": "opaque",
-  "main": "src/index.ts",
+  "files": [
+    "pkg/dist-*/",
+    "pkg/bin/"
+  ],
+  "source": "pkg/dist-src/index.js",
+  "types": "pkg/dist-types/index.d.ts",
+  "main": "pkg/dist-node/index.js",
+  "module": "pkg/dist-web/index.js",
   "scripts": {
     "build": "pack build"
   },
@@ -18,9 +25,15 @@
     ]
   },
   "dependencies": {
-    "bip39": "^3.0.1",
+    "axios": "^0.18.0",
     "bn.js": "^4.11.8",
+    "bip39": "^3.0.2",
+    "ethereumjs-util": "^6.1.0",
+    "form-data": "^2.3.3",
     "hdkey": "^1.1.1",
+    "mime": "^2.4.2",
+    "node-forge": "^0.8.2",
+    "readable-stream": "^2.3.6",
     "web3-utils": "^1.0.0-beta.54"
   },
   "devDependencies": {

@@ -6,19 +6,19 @@ const Forge = { util: ForgeUtil };
 
 const PROTOCOL_VERSION = 1;
 
-type FileMetaOpts = {
-  blockSize: number
-  chunkSize: number
+export type FileMetaOptions = {
+  blockSize?: number
+  chunkSize?: number
 }
 
 export type FileMeta = {
   name: string
   type: string
   size: number
-  p: FileMetaOpts
+  p: FileMetaOptions
 }
 
-export function createMetadata (file: FileData, opts: FileMetaOpts) {
+export function createMetadata (file: FileData, opts: FileMetaOptions) {
   const filename = sanitizeFilename(file.name);
 
   const metadata: FileMeta = {

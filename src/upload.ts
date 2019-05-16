@@ -1,20 +1,30 @@
 import Axios from "axios";
 import { EventEmitter } from "events";
-import { createMetadata, encryptMetadata, FileMeta } from "./core/metadata";
-import { FileEntryMeta } from "./core/account/metadata";
+import { createMetadata, encryptMetadata, FileMeta, FileMetaOptions } from "./core/metadata";
 import {
   generateFileKeys,
   getUploadSize,
-  getFileData
+  getFileData,
+  getEndIndex,
+  FileData
 } from "./core/helpers";
 // import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
 import FormDataNode from "form-data";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
+import { Readable } from "readable-stream";
+import { getPayloadFD } from "./core/request";
+import HDKey from "hdkey";
 
 const PART_MIN_SIZE = 1024 * 1024 * 5;
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
-const DEFAULT_OPTIONS = Object.freeze({
+
+type UploadOptions = {
+  autoStart?: boolean,
+  endpoint?: boolean,
+  params?: FileMetaOptions
+}
+const DEFAULT_OPTIONS: UploadOptions = Object.freeze({
   autoStart: true
 });
 const DEFAULT_FILE_PARAMS = {
@@ -22,37 +32,33 @@ const DEFAULT_FILE_PARAMS = {
 }
 
 export default class Upload extends EventEmitter {
-  account
-  options
-  data
+  account: HDKey
+  options: UploadOptions
+  data: FileData
   uploadSize
-  key
-  hash
-  handle
-  metadata
-  readStream
-  encryptStream
-  uploadStream
+  key: string
+  hash: string
+  handle: string
+  metadata: FileMeta
+  readStream: Readable
+  encryptStream: EncryptStream
+  uploadStream: UploadStream
 
-  constructor(file, account, opts = {}) {
-    const options: { [key: string]: any } = Object.assign({}, DEFAULT_OPTIONS, opts);
+  constructor(file, account, opts: UploadOptions = {}) {
+    super();
+
+    const options = Object.assign({}, DEFAULT_OPTIONS, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
 
     const { handle, hash, key } = generateFileKeys();
     const data = getFileData(file, handle);
     const size = getUploadSize(file.size, options.params);
 
-    super();
-    this.startUpload = this.startUpload.bind(this);
-    this.uploadMetadata = this.uploadMetadata.bind(this);
-    this.uploadFile = this.uploadFile.bind(this);
-    this.finishUpload = this.finishUpload.bind(this);
-
     this.account = account;
     this.options = options;
     this.data = data;
     this.uploadSize = size;
-    this.key = Buffer.from(key, "hex"); // Encryption key
+    this.key = key; // Encryption key
     this.hash = hash; // Datamap entry hash
     this.handle = handle; // File handle - hex(hash) + hex(key)
     this.metadata = createMetadata(data, options.params);
@@ -62,7 +68,7 @@ export default class Upload extends EventEmitter {
     }
   }
 
-  async startUpload() {
+  startUpload = async () => {
     try {
       await this.uploadMetadata();
       await this.uploadFile();
@@ -71,29 +77,19 @@ export default class Upload extends EventEmitter {
     }
   }
 
-  async uploadMetadata() {
+  uploadMetadata = async () => {
     const meta = createMetadata(this.data, this.options.params);
     const encryptedMeta = encryptMetadata(meta, this.key);
-    const data = new FormDataNode();
-    const raw = POLYFILL_FORMDATA
-                  ? Buffer.from(encryptedMeta.buffer)
-                  : new Blob([encryptedMeta], {type: "application/octet-stream"})
-    const length = (raw as Blob).size ? (raw as Blob).size : (raw as Buffer).length;
+    const data = getPayloadFD({
+      fileHandle: this.hash,
+      fileSizeInByte: this.uploadSize,
+      endIndex: getEndIndex(this.uploadSize, this.options.params)
+    }, {
+      metadata: encryptedMeta
+    }, this.account);
 
-    // TODO: Actual account
-    data.append("account", this.account);
-    // TODO: Use separate metadata hash
-    data.append("hash", this.hash);
-    // Just used to prematurely return an error if not enough space
-    data.append("size", this.uploadSize);
-    data.append("metadata", raw, {
-      filename: 'metadata',
-      contentType: "application/octet-stream",
-      knownLength: length
-    });
-
-    return Axios.put(this.options.endpoint + "/upload/metadata", data, {
-      headers: data.getHeaders ? data.getHeaders() : {}
+    return Axios.post(this.options.endpoint + "/api/v1/init-upload", data, {
+      headers: (data as FormDataNode).getHeaders ? (data as FormDataNode).getHeaders() : {}
     })
     .then(res => {
       this.emit("metadata", meta);
@@ -103,7 +99,7 @@ export default class Upload extends EventEmitter {
     })
   }
 
-  async uploadFile() {
+  uploadFile = async () => {
     const readStream = new this.data.reader(this.data, this.options.params);
 
     this.readStream = readStream;
@@ -136,7 +132,7 @@ export default class Upload extends EventEmitter {
     });
   }
 
-  propagateError(error) {
+  propagateError = (error) => {
     process.nextTick(() => this.emit("error", error));
   }
 }
