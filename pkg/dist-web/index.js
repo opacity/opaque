@@ -1327,13 +1327,125 @@ class MasterHandle extends HDKey {
    * @param account - the account to generate the handle from
    */
   constructor(_ref) {
+    var _this;
+
     let account = _ref.account,
         handle = _ref.handle;
     super();
+    _this = this;
+
+    this.uploadFile = (dir, file) => {
+      const upload = new Upload(file, this),
+            ee = new EventEmitter();
+      upload.on("progress", progress => {
+        ee.emit("progress", progress);
+      });
+      upload.on("error", err => {
+        ee.emit("error", err);
+        throw err;
+      });
+      upload.on("finish",
+      /*#__PURE__*/
+      function () {
+        var _ref3 = _asyncToGenerator(function* (_ref2) {
+          let handle = _ref2.handle;
+          const folderMeta = yield _this.getFolderMetadata(dir),
+                oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+                version = new FileVersion({
+            size: file.size,
+            handle: handle,
+            modified: file.lastModified
+          }),
+                meta = new FileEntryMeta({
+            name: file.name,
+            created: oldMeta.created,
+            versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+          }); // metadata existed previously
+
+          if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
+          const buf = Buffer.from(JSON.stringify(folderMeta));
+          const metaUpload = new Upload(buf, _this);
+          metaUpload.on("error", err => {
+            ee.emit("error", err);
+            throw err;
+          });
+          metaUpload.on("finish", (_ref4) => {
+            let metaHandle = _ref4.handle;
+            const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
+
+            setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+          });
+        });
+
+        return function (_x) {
+          return _ref3.apply(this, arguments);
+        };
+      }());
+      return ee;
+    };
 
     this.downloadFile = handle => {
       return new Download(handle);
     };
+    /**
+     * creates a file key seed for validating
+     *
+     * @param file - the location of the file on the network
+     */
+
+
+    this.getFileHDKey = file => {
+      return this.generateSubHDKey("file: " + file);
+    };
+    /**
+     * creates a dir key seed for validating and folder navigation
+     *
+     * @param dir - the folder path in the UI
+     */
+
+
+    this.getFolderHDKey = dir => {
+      return this.generateSubHDKey("folder: " + dir);
+    };
+
+    this.getFolderLocation = dir => {
+      return soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
+    };
+
+    this.getFolderHandle =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir) {
+        const folderKey = _this.getFolderHDKey(dir),
+              location = _this.getFolderLocation(dir),
+              key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
+
+
+        const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
+        return metaLocation + MasterHandle.getKey(_this, metaLocation);
+      });
+
+      return function (_x2) {
+        return _ref5.apply(this, arguments);
+      };
+    }();
+
+    this.getFolderMetadata =
+    /*#__PURE__*/
+    function () {
+      var _ref6 = _asyncToGenerator(function* (dir) {
+        const handle = yield _this.getFolderHandle(dir);
+        const meta = yield new Promise((resolve, reject) => {
+          new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
+        });
+        return meta;
+      });
+
+      return function (_x3) {
+        return _ref6.apply(this, arguments);
+      };
+    }();
 
     if (account && account.constructor == Account) {
       // TODO: fill in path
@@ -1356,111 +1468,8 @@ class MasterHandle extends HDKey {
     return pipe(Buffer.concat([this.privateKey, Buffer.from(soliditySha3(path), "hex")]).toString("hex")).through(soliditySha3, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
   }
 
-  uploadFile(dir, file) {
-    var _this = this;
-
-    const upload = new Upload(file, this),
-          ee = new EventEmitter();
-    upload.on("progress", progress => {
-      ee.emit("progress", progress);
-    });
-    upload.on("error", err => {
-      ee.emit("error", err);
-      throw err;
-    });
-    upload.on("finish",
-    /*#__PURE__*/
-    function () {
-      var _ref3 = _asyncToGenerator(function* (_ref2) {
-        let handle = _ref2.handle;
-        const folderMeta = yield _this.getFolderMetadata(dir),
-              oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
-              oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
-              version = new FileVersion({
-          size: file.size,
-          handle: handle,
-          modified: file.lastModified
-        }),
-              meta = new FileEntryMeta({
-          name: file.name,
-          created: oldMeta.created,
-          versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
-        }); // metadata existed previously
-
-        if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
-        const buf = Buffer.from(JSON.stringify(folderMeta));
-        const metaUpload = new Upload(buf, _this);
-        metaUpload.on("error", err => {
-          ee.emit("error", err);
-          throw err;
-        });
-        metaUpload.on("finish", (_ref4) => {
-          let metaHandle = _ref4.handle;
-          const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
-
-          setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
-        });
-      });
-
-      return function (_x) {
-        return _ref3.apply(this, arguments);
-      };
-    }());
-    return ee;
-  }
-
   static getKey(from, str) {
     return soliditySha3(from.privateKey.toString("hex"), str);
-  }
-  /**
-   * creates a file key seed for validating
-   *
-   * @param file - the location of the file on the network
-   */
-
-
-  getFileHDKey(file) {
-    return this.generateSubHDKey("file: " + file);
-  }
-  /**
-   * creates a dir key seed for validating and folder navigation
-   *
-   * @param dir - the folder path in the UI
-   */
-
-
-  getFolderHDKey(dir) {
-    return this.generateSubHDKey("folder: " + dir);
-  }
-
-  getFolderLocation(dir) {
-    return soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
-  }
-
-  getFolderHandle(dir) {
-    var _this2 = this;
-
-    return _asyncToGenerator(function* () {
-      const folderKey = _this2.getFolderHDKey(dir),
-            location = _this2.getFolderLocation(dir),
-            key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
-
-
-      const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
-      return metaLocation + MasterHandle.getKey(_this2, metaLocation);
-    })();
-  }
-
-  getFolderMetadata(dir) {
-    var _this3 = this;
-
-    return _asyncToGenerator(function* () {
-      const handle = yield _this3.getFolderHandle(dir);
-      const meta = yield new Promise((resolve, reject) => {
-        new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
-      });
-      return meta;
-    })();
   }
 
 }

@@ -102,7 +102,7 @@ class MasterHandle extends HDKey {
     ).through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
   }
 
-  uploadFile(dir: string, file: File) {
+  uploadFile = (dir: string, file: File) => {
     const upload = new Upload(file, this),
       ee = new EventEmitter();
 
@@ -181,7 +181,7 @@ class MasterHandle extends HDKey {
    *
    * @param file - the location of the file on the network
    */
-  getFileHDKey(file: string) {
+  getFileHDKey = (file: string) => {
     return this.generateSubHDKey("file: " + file);
   }
 
@@ -190,15 +190,15 @@ class MasterHandle extends HDKey {
    *
    * @param dir - the folder path in the UI
    */
-  getFolderHDKey(dir: string) {
+  getFolderHDKey = (dir: string) => {
     return this.generateSubHDKey("folder: " + dir);
   }
 
-  getFolderLocation(dir: string) {
+  getFolderLocation = (dir: string) => {
     return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
   }
 
-  async getFolderHandle(dir: string) {
+  getFolderHandle = async (dir: string) => {
     const folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(dir),
       key = hash(folderKey.privateKey.toString("hex"));
@@ -213,7 +213,7 @@ class MasterHandle extends HDKey {
     return metaLocation + MasterHandle.getKey(this, metaLocation);
   }
 
-  async getFolderMetadata(dir: string) {
+  getFolderMetadata = async (dir: string) => {
     const handle = await this.getFolderHandle(dir);
 
     const meta: FolderMeta = await new Promise((resolve, reject) => {

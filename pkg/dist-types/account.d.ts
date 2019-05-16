@@ -46,7 +46,7 @@ declare class MasterHandle extends HDKey {
      * @param path - the string to use as a sub path
      */
     private generateSubHDKey;
-    uploadFile(dir: string, file: File): EventEmitter;
+    uploadFile: (dir: string, file: File) => EventEmitter;
     downloadFile: (handle: string) => Download;
     static getKey(from: HDKey, str: string): string;
     /**
@@ -54,15 +54,15 @@ declare class MasterHandle extends HDKey {
      *
      * @param file - the location of the file on the network
      */
-    getFileHDKey(file: string): HDKey;
+    getFileHDKey: (file: string) => HDKey;
     /**
      * creates a dir key seed for validating and folder navigation
      *
      * @param dir - the folder path in the UI
      */
-    getFolderHDKey(dir: string): HDKey;
-    getFolderLocation(dir: string): string;
-    getFolderHandle(dir: string): Promise<string>;
-    getFolderMetadata(dir: string): Promise<FolderMeta>;
+    getFolderHDKey: (dir: string) => HDKey;
+    getFolderLocation: (dir: string) => string;
+    getFolderHandle: (dir: string) => Promise<string>;
+    getFolderMetadata: (dir: string) => Promise<FolderMeta>;
 }
 export { Account, MasterHandle };

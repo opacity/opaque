@@ -49,8 +49,82 @@ class MasterHandle extends HDKey {
      */
     constructor({ account, handle, }) {
         super();
+        this.uploadFile = (dir, file) => {
+            const upload = new Upload(file, this), ee = new EventEmitter();
+            upload.on("progress", progress => {
+                ee.emit("progress", progress);
+            });
+            upload.on("error", err => {
+                ee.emit("error", err);
+                throw err;
+            });
+            upload.on("finish", async ({ handle }) => {
+                const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
+                    ? folderMeta.files[oldMetaIndex]
+                    : {}, version = new FileVersion({
+                    size: file.size,
+                    handle: handle,
+                    modified: file.lastModified,
+                }), meta = new FileEntryMeta({
+                    name: file.name,
+                    created: oldMeta.created,
+                    versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions,
+                });
+                // metadata existed previously
+                if (oldMetaIndex !== -1)
+                    folderMeta.files.splice(oldMetaIndex, 1, meta);
+                else
+                    folderMeta.files.unshift(meta);
+                const buf = Buffer.from(JSON.stringify(folderMeta));
+                const metaUpload = new Upload(buf, this);
+                metaUpload.on("error", err => {
+                    ee.emit("error", err);
+                    throw err;
+                });
+                metaUpload.on("finish", ({ handle: metaHandle }) => {
+                    const encryptedHandle = encryptString(this.privateKey.toString("hex"), metaHandle);
+                    // TODO
+                    setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
+                });
+            });
+            return ee;
+        };
         this.downloadFile = (handle) => {
             return new Download(handle);
+        };
+        /**
+         * creates a file key seed for validating
+         *
+         * @param file - the location of the file on the network
+         */
+        this.getFileHDKey = (file) => {
+            return this.generateSubHDKey("file: " + file);
+        };
+        /**
+         * creates a dir key seed for validating and folder navigation
+         *
+         * @param dir - the folder path in the UI
+         */
+        this.getFolderHDKey = (dir) => {
+            return this.generateSubHDKey("folder: " + dir);
+        };
+        this.getFolderLocation = (dir) => {
+            return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
+        };
+        this.getFolderHandle = async (dir) => {
+            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex"));
+            // TODO
+            const metaLocation = decryptString(key, (await getMetadata("ENDPOINT", folderKey, location)), "hex");
+            return metaLocation + MasterHandle.getKey(this, metaLocation);
+        };
+        this.getFolderMetadata = async (dir) => {
+            const handle = await this.getFolderHandle(dir);
+            const meta = await new Promise((resolve, reject) => {
+                new Download(handle)
+                    .on("finish", text => resolve(JSON.parse(text)))
+                    .on("error", reject);
+            });
+            return meta;
         };
         if (account && account.constructor == Account) {
             // TODO: fill in path
@@ -72,82 +146,8 @@ class MasterHandle extends HDKey {
     generateSubHDKey(path) {
         return pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex")).through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
     }
-    uploadFile(dir, file) {
-        const upload = new Upload(file, this), ee = new EventEmitter();
-        upload.on("progress", progress => {
-            ee.emit("progress", progress);
-        });
-        upload.on("error", err => {
-            ee.emit("error", err);
-            throw err;
-        });
-        upload.on("finish", async ({ handle }) => {
-            const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
-                ? folderMeta.files[oldMetaIndex]
-                : {}, version = new FileVersion({
-                size: file.size,
-                handle: handle,
-                modified: file.lastModified,
-            }), meta = new FileEntryMeta({
-                name: file.name,
-                created: oldMeta.created,
-                versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions,
-            });
-            // metadata existed previously
-            if (oldMetaIndex !== -1)
-                folderMeta.files.splice(oldMetaIndex, 1, meta);
-            else
-                folderMeta.files.unshift(meta);
-            const buf = Buffer.from(JSON.stringify(folderMeta));
-            const metaUpload = new Upload(buf, this);
-            metaUpload.on("error", err => {
-                ee.emit("error", err);
-                throw err;
-            });
-            metaUpload.on("finish", ({ handle: metaHandle }) => {
-                const encryptedHandle = encryptString(this.privateKey.toString("hex"), metaHandle);
-                // TODO
-                setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
-            });
-        });
-        return ee;
-    }
     static getKey(from, str) {
         return hash(from.privateKey.toString("hex"), str);
-    }
-    /**
-     * creates a file key seed for validating
-     *
-     * @param file - the location of the file on the network
-     */
-    getFileHDKey(file) {
-        return this.generateSubHDKey("file: " + file);
-    }
-    /**
-     * creates a dir key seed for validating and folder navigation
-     *
-     * @param dir - the folder path in the UI
-     */
-    getFolderHDKey(dir) {
-        return this.generateSubHDKey("folder: " + dir);
-    }
-    getFolderLocation(dir) {
-        return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
-    }
-    async getFolderHandle(dir) {
-        const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex"));
-        // TODO
-        const metaLocation = decryptString(key, (await getMetadata("ENDPOINT", folderKey, location)), "hex");
-        return metaLocation + MasterHandle.getKey(this, metaLocation);
-    }
-    async getFolderMetadata(dir) {
-        const handle = await this.getFolderHandle(dir);
-        const meta = await new Promise((resolve, reject) => {
-            new Download(handle)
-                .on("finish", text => resolve(JSON.parse(text)))
-                .on("error", reject);
-        });
-        return meta;
     }
 }
 export { Account, MasterHandle };
