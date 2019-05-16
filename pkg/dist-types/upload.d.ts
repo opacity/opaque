@@ -27,7 +27,7 @@ export default class Upload extends EventEmitter {
     startUpload: () => Promise<void>;
     uploadMetadata: () => Promise<void>;
     uploadFile: () => Promise<void>;
-    finishUpload(): Promise<void>;
+    finishUpload: () => Promise<void>;
     propagateError: (error: any) => void;
 }
 export {};

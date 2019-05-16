@@ -124,7 +124,7 @@ export default class Upload extends EventEmitter {
     this.uploadStream.on("error", this.propagateError);
   }
 
-  async finishUpload() {
+  finishUpload = async () => {
     this.emit("finish", {
       target: this,
       handle: this.handle,

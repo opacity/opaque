@@ -1063,6 +1063,15 @@ class Upload extends events.EventEmitter {
 
       _this.uploadStream.on("error", _this.propagateError);
     });
+    this.finishUpload =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      _this.emit("finish", {
+        target: _this,
+        handle: _this.handle,
+        metadata: _this.metadata
+      });
+    });
 
     this.propagateError = error => {
       process.nextTick(() => this.emit("error", error));
@@ -1093,18 +1102,6 @@ class Upload extends events.EventEmitter {
     if (options.autoStart) {
       this.startUpload();
     }
-  }
-
-  finishUpload() {
-    var _this2 = this;
-
-    return _asyncToGenerator(function* () {
-      _this2.emit("finish", {
-        target: _this2,
-        handle: _this2.handle,
-        metadata: _this2.metadata
-      });
-    })();
   }
 
 }
