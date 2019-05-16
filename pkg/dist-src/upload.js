@@ -65,6 +65,13 @@ export default class Upload extends EventEmitter {
             this.encryptStream.on("error", this.propagateError);
             this.uploadStream.on("error", this.propagateError);
         };
+        this.finishUpload = async () => {
+            this.emit("finish", {
+                target: this,
+                handle: this.handle,
+                metadata: this.metadata
+            });
+        };
         this.propagateError = (error) => {
             process.nextTick(() => this.emit("error", error));
         };
@@ -84,12 +91,5 @@ export default class Upload extends EventEmitter {
         if (options.autoStart) {
             this.startUpload();
         }
-    }
-    async finishUpload() {
-        this.emit("finish", {
-            target: this,
-            handle: this.handle,
-            metadata: this.metadata
-        });
     }
 }
