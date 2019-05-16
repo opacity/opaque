@@ -240,9 +240,9 @@ const Forge$1 = {
 const ByteBuffer$1 = Forge$1.util.ByteBuffer; // Encryption
 
 function encrypt(key, byteBuffer) {
-  key.read = 0;
+  const keyBuf = new ByteBuffer$1(Buffer.from(key, "hex"));
   const iv = Forge$1.random.getBytesSync(IV_BYTE_LENGTH);
-  const cipher = Forge$1.cipher.createCipher("AES-GCM", key);
+  const cipher = Forge$1.cipher.createCipher("AES-GCM", keyBuf);
   cipher.start({
     iv,
     tagLength: TAG_BIT_LENGTH

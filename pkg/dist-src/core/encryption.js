@@ -4,9 +4,9 @@ const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil, random: Forge
 const ByteBuffer = Forge.util.ByteBuffer;
 // Encryption
 export function encrypt(key, byteBuffer) {
-    key.read = 0;
+    const keyBuf = new ByteBuffer(Buffer.from(key, "hex"));
     const iv = Forge.random.getBytesSync(IV_BYTE_LENGTH);
-    const cipher = Forge.cipher.createCipher("AES-GCM", key);
+    const cipher = Forge.cipher.createCipher("AES-GCM", keyBuf);
     cipher.start({
         iv,
         tagLength: TAG_BIT_LENGTH
