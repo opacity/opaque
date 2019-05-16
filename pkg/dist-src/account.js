@@ -47,10 +47,10 @@ class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor({ account, handle, }) {
+    constructor({ account, handle, }, { uploadOpts, downloadOpts }) {
         super();
         this.uploadFile = (dir, file) => {
-            const upload = new Upload(file, this), ee = new EventEmitter();
+            const upload = new Upload(file, this, this.uploadOpts), ee = new EventEmitter();
             upload.on("progress", progress => {
                 ee.emit("progress", progress);
             });
@@ -76,7 +76,7 @@ class MasterHandle extends HDKey {
                 else
                     folderMeta.files.unshift(meta);
                 const buf = Buffer.from(JSON.stringify(folderMeta));
-                const metaUpload = new Upload(buf, this);
+                const metaUpload = new Upload(buf, this, this.uploadOpts);
                 metaUpload.on("error", err => {
                     ee.emit("error", err);
                     throw err;
@@ -91,7 +91,7 @@ class MasterHandle extends HDKey {
             return ee;
         };
         this.downloadFile = (handle) => {
-            return new Download(handle);
+            return new Download(handle, this.downloadOpts);
         };
         /**
          * creates a file key seed for validating
@@ -127,6 +127,8 @@ class MasterHandle extends HDKey {
             });
             return meta;
         };
+        this.uploadOpts = uploadOpts;
+        this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
             // TODO: fill in path
             // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead

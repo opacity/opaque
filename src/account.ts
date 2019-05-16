@@ -61,6 +61,9 @@ class Account {
  *  - deterministic entropy for generating features of an account (such as file keys)
  */
 class MasterHandle extends HDKey {
+  uploadOpts
+  downloadOpts
+
   /**
    * creates a master handle from an account
    *
@@ -72,8 +75,15 @@ class MasterHandle extends HDKey {
   }: RequireOnlyOne<
     { account: Account; handle: string },
     "account" | "handle"
-  >) {
+  >,
+  {
+    uploadOpts,
+    downloadOpts
+  }) {
     super();
+
+    this.uploadOpts = uploadOpts
+    this.downloadOpts = downloadOpts
 
     if (account && account.constructor == Account) {
       // TODO: fill in path
@@ -103,7 +113,7 @@ class MasterHandle extends HDKey {
   }
 
   uploadFile = (dir: string, file: File) => {
-    const upload = new Upload(file, this),
+    const upload = new Upload(file, this, this.uploadOpts),
       ee = new EventEmitter();
 
     upload.on("progress", progress => {
@@ -142,7 +152,7 @@ class MasterHandle extends HDKey {
 
       const buf = Buffer.from(JSON.stringify(folderMeta));
 
-      const metaUpload = new Upload(buf, this);
+      const metaUpload = new Upload(buf, this, this.uploadOpts);
 
       metaUpload.on("error", err => {
         ee.emit("error", err);
@@ -171,7 +181,7 @@ class MasterHandle extends HDKey {
   }
 
   downloadFile = (handle: string) => {
-    return new Download(handle);
+    return new Download(handle, this.downloadOpts);
   };
 
   static getKey(from: HDKey, str: string) {

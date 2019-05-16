@@ -31,6 +31,8 @@ declare class Account {
  *  - deterministic entropy for generating features of an account (such as file keys)
  */
 declare class MasterHandle extends HDKey {
+    uploadOpts: any;
+    downloadOpts: any;
     /**
      * creates a master handle from an account
      *
@@ -39,7 +41,10 @@ declare class MasterHandle extends HDKey {
     constructor({ account, handle, }: RequireOnlyOne<{
         account: Account;
         handle: string;
-    }, "account" | "handle">);
+    }, "account" | "handle">, { uploadOpts, downloadOpts }: {
+        uploadOpts: any;
+        downloadOpts: any;
+    });
     /**
      * creates a sub key seed for validating
      *

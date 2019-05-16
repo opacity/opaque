@@ -1310,6 +1310,9 @@ class MasterHandle extends HDKey__default {
   constructor({
     account,
     handle
+  }, {
+    uploadOpts,
+    downloadOpts
   }) {
     var _this;
 
@@ -1317,7 +1320,7 @@ class MasterHandle extends HDKey__default {
     _this = this;
 
     this.uploadFile = (dir, file) => {
-      const upload = new Upload(file, this),
+      const upload = new Upload(file, this, this.uploadOpts),
             ee = new events.EventEmitter();
       upload.on("progress", progress => {
         ee.emit("progress", progress);
@@ -1346,7 +1349,7 @@ class MasterHandle extends HDKey__default {
 
           if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
           const buf = Buffer.from(JSON.stringify(folderMeta));
-          const metaUpload = new Upload(buf, _this);
+          const metaUpload = new Upload(buf, _this, _this.uploadOpts);
           metaUpload.on("error", err => {
             ee.emit("error", err);
             throw err;
@@ -1377,7 +1380,7 @@ class MasterHandle extends HDKey__default {
     };
 
     this.downloadFile = handle => {
-      return new Download(handle);
+      return new Download(handle, this.downloadOpts);
     };
     /**
      * creates a file key seed for validating
@@ -1437,6 +1440,9 @@ class MasterHandle extends HDKey__default {
         return _ref4.apply(this, arguments);
       };
     }();
+
+    this.uploadOpts = uploadOpts;
+    this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
       // TODO: fill in path

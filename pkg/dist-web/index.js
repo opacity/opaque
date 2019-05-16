@@ -1326,16 +1326,18 @@ class MasterHandle extends HDKey {
    *
    * @param account - the account to generate the handle from
    */
-  constructor(_ref) {
+  constructor(_ref, _ref2) {
     var _this;
 
     let account = _ref.account,
         handle = _ref.handle;
+    let uploadOpts = _ref2.uploadOpts,
+        downloadOpts = _ref2.downloadOpts;
     super();
     _this = this;
 
     this.uploadFile = (dir, file) => {
-      const upload = new Upload(file, this),
+      const upload = new Upload(file, this, this.uploadOpts),
             ee = new EventEmitter();
       upload.on("progress", progress => {
         ee.emit("progress", progress);
@@ -1347,7 +1349,7 @@ class MasterHandle extends HDKey {
       upload.on("finish",
       /*#__PURE__*/
       function () {
-        var _ref2 = _asyncToGenerator(function* (finishedUpload) {
+        var _ref3 = _asyncToGenerator(function* (finishedUpload) {
           const folderMeta = yield _this.getFolderMetadata(dir),
                 oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
@@ -1364,7 +1366,7 @@ class MasterHandle extends HDKey {
 
           if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
           const buf = Buffer.from(JSON.stringify(folderMeta));
-          const metaUpload = new Upload(buf, _this);
+          const metaUpload = new Upload(buf, _this, _this.uploadOpts);
           metaUpload.on("error", err => {
             ee.emit("error", err);
             throw err;
@@ -1372,8 +1374,8 @@ class MasterHandle extends HDKey {
           metaUpload.on("finish",
           /*#__PURE__*/
           function () {
-            var _ref4 = _asyncToGenerator(function* (_ref3) {
-              let metaHandle = _ref3.handle;
+            var _ref5 = _asyncToGenerator(function* (_ref4) {
+              let metaHandle = _ref4.handle;
               const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
               yield setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
@@ -1381,20 +1383,20 @@ class MasterHandle extends HDKey {
             });
 
             return function (_x2) {
-              return _ref4.apply(this, arguments);
+              return _ref5.apply(this, arguments);
             };
           }());
         });
 
         return function (_x) {
-          return _ref2.apply(this, arguments);
+          return _ref3.apply(this, arguments);
         };
       }());
       return ee;
     };
 
     this.downloadFile = handle => {
-      return new Download(handle);
+      return new Download(handle, this.downloadOpts);
     };
     /**
      * creates a file key seed for validating
@@ -1424,7 +1426,7 @@ class MasterHandle extends HDKey {
     this.getFolderHandle =
     /*#__PURE__*/
     function () {
-      var _ref5 = _asyncToGenerator(function* (dir) {
+      var _ref6 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
@@ -1435,14 +1437,14 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x3) {
-        return _ref5.apply(this, arguments);
+        return _ref6.apply(this, arguments);
       };
     }();
 
     this.getFolderMetadata =
     /*#__PURE__*/
     function () {
-      var _ref6 = _asyncToGenerator(function* (dir) {
+      var _ref7 = _asyncToGenerator(function* (dir) {
         const handle = yield _this.getFolderHandle(dir);
         const meta = yield new Promise((resolve, reject) => {
           new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
@@ -1451,9 +1453,12 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x4) {
-        return _ref6.apply(this, arguments);
+        return _ref7.apply(this, arguments);
       };
     }();
+
+    this.uploadOpts = uploadOpts;
+    this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
       // TODO: fill in path
