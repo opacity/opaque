@@ -574,9 +574,10 @@ class Download extends EventEmitter {
       } else {
         const endpoint = _this.options.endpoint;
         const path = METADATA_PATH + _this.hash;
-        req = _this.metadataRequest = Axios.get(_this.downloadURL + "/metadata", {
+        req = Axios.get(_this.downloadURL + "/metadata", {
           responseType: "arraybuffer"
         });
+        _this.metadataRequest = req;
       }
 
       const res = yield req;
@@ -633,6 +634,7 @@ class Download extends EventEmitter {
     this.handle = handle;
     this.hash = hash;
     this.key = key;
+    this.downloadURLRequest = null;
     this.metadataRequest = null;
     this.isDownloading = false;
 
@@ -662,12 +664,22 @@ class Download extends EventEmitter {
   }
 
   getDownloadURL() {
-    var _this3 = this;
+    var _this3 = this,
+        _arguments = arguments;
 
     return _asyncToGenerator(function* () {
-      const req = Axios.post(_this3.options.endpoint + "/api/v1/download", {
-        fileID: _this3.hash
-      });
+      let overwrite = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
+      let req;
+
+      if (!overwrite && _this3.downloadURLRequest) {
+        req = _this3.downloadURLRequest;
+      } else {
+        req = Axios.post(_this3.options.endpoint + "/api/v1/download", {
+          fileID: _this3.hash
+        });
+        _this3.downloadURLRequest = req;
+      }
+
       const res = yield req;
 
       if (res.status === 200) {

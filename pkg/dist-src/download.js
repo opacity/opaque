@@ -68,9 +68,10 @@ export default class Download extends EventEmitter {
             else {
                 const endpoint = this.options.endpoint;
                 const path = METADATA_PATH + this.hash;
-                req = this.metadataRequest = Axios.get(this.downloadURL + "/metadata", {
+                req = Axios.get(this.downloadURL + "/metadata", {
                     responseType: "arraybuffer"
                 });
+                this.metadataRequest = req;
             }
             const res = await req;
             const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
@@ -115,6 +116,7 @@ export default class Download extends EventEmitter {
         this.handle = handle;
         this.hash = hash;
         this.key = key;
+        this.downloadURLRequest = null;
         this.metadataRequest = null;
         this.isDownloading = false;
         if (options.autoStart) {
@@ -131,10 +133,17 @@ export default class Download extends EventEmitter {
             }
         });
     }
-    async getDownloadURL() {
-        const req = Axios.post(this.options.endpoint + "/api/v1/download", {
-            fileID: this.hash
-        });
+    async getDownloadURL(overwrite = false) {
+        let req;
+        if (!overwrite && this.downloadURLRequest) {
+            req = this.downloadURLRequest;
+        }
+        else {
+            req = Axios.post(this.options.endpoint + "/api/v1/download", {
+                fileID: this.hash
+            });
+            this.downloadURLRequest = req;
+        }
         const res = await req;
         if (res.status === 200) {
             this.downloadURL = res.data.fileDownloadUrl;
