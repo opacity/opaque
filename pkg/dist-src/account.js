@@ -47,14 +47,22 @@ class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor(account) {
+    constructor({ account, handle }) {
         super();
         this.downloadFile = (dir, location) => {
             return new Download(this.getFileHandle(dir, location));
         };
-        // TODO: fill in path
-        // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
-        Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+        if (account.constructor == Account) {
+            // TODO: fill in path
+            // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+            Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+        }
+        else if (handle.constructor == String) {
+            this.privateKey = Buffer.from(handle, "hex");
+        }
+        else {
+            throw new Error("master handle was not of expected type");
+        }
     }
     /**
      * creates a sub key seed for validating

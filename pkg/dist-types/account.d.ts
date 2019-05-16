@@ -35,7 +35,10 @@ declare class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor(account: Account);
+    constructor({ account, handle }: RequireOnlyOne<{
+        account: Account;
+        handle: string;
+    }, "account" | "handle">);
     /**
      * creates a sub key seed for validating
      *

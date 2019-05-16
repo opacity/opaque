@@ -55,12 +55,18 @@ class MasterHandle extends HDKey {
    *
    * @param account - the account to generate the handle from
    */
-  constructor (account: Account) {
+  constructor ({ account, handle }: RequireOnlyOne<{ account: Account, handle: string }, "account" | "handle">) {
     super()
 
-    // TODO: fill in path
-    // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
-    Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"))
+    if (account.constructor == Account) {
+      // TODO: fill in path
+      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"))
+    } else if (handle.constructor == String) {
+      this.privateKey = Buffer.from(handle, "hex")
+    } else {
+      throw new Error("master handle was not of expected type")
+    }
   }
 
   /**

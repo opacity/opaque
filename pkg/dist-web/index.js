@@ -1324,16 +1324,24 @@ class MasterHandle extends HDKey {
    *
    * @param account - the account to generate the handle from
    */
-  constructor(account) {
+  constructor(_ref) {
+    let account = _ref.account,
+        handle = _ref.handle;
     super();
 
     this.downloadFile = (dir, location) => {
       return new Download(this.getFileHandle(dir, location));
-    }; // TODO: fill in path
-    // ethereum/EIPs#1175 is very close to ready, it would be better to use it instead
+    };
 
-
-    Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+    if (account.constructor == Account) {
+      // TODO: fill in path
+      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+    } else if (handle.constructor == String) {
+      this.privateKey = Buffer.from(handle, "hex");
+    } else {
+      throw new Error("master handle was not of expected type");
+    }
   }
   /**
    * creates a sub key seed for validating
@@ -1361,7 +1369,7 @@ class MasterHandle extends HDKey {
     upload.on("finish",
     /*#__PURE__*/
     function () {
-      var _ref = _asyncToGenerator(function* (h) {
+      var _ref2 = _asyncToGenerator(function* (h) {
         const folderMeta = yield _this.getFolderMetadata(dir),
               oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
               oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
@@ -1391,7 +1399,7 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x) {
-        return _ref.apply(this, arguments);
+        return _ref2.apply(this, arguments);
       };
     }());
     return ee;
