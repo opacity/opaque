@@ -3,6 +3,7 @@ import HDKey from "hdkey";
 import Download from "./download";
 import { EventEmitter } from "events";
 import { FolderMeta } from "./core/account/metadata";
+import { RequireOnlyOne } from "./types/require-only-one";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -46,7 +47,7 @@ declare class MasterHandle extends HDKey {
      */
     private generateSubHDKey;
     uploadFile(dir: string, file: File): EventEmitter;
-    downloadFile: (dir: string, location: string) => Download;
+    downloadFile: (handle: string) => Download;
     static getKey(from: HDKey, str: string): string;
     /**
      * creates a file key seed for validating
@@ -54,7 +55,6 @@ declare class MasterHandle extends HDKey {
      * @param file - the location of the file on the network
      */
     getFileHDKey(file: string): HDKey;
-    getFileHandle(dir: string, location: string): Promise<string>;
     /**
      * creates a dir key seed for validating and folder navigation
      *

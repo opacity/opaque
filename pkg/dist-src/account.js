@@ -49,8 +49,8 @@ class MasterHandle extends HDKey {
      */
     constructor({ account, handle }) {
         super();
-        this.downloadFile = (dir, location) => {
-            return new Download(this.getFileHandle(dir, location));
+        this.downloadFile = (handle) => {
+            return new Download(handle);
         };
         if (account.constructor == Account) {
             // TODO: fill in path
@@ -82,10 +82,10 @@ class MasterHandle extends HDKey {
             ee.emit("error", err);
             throw err;
         });
-        upload.on("finish", async (h) => {
+        upload.on("finish", async ({ handle }) => {
             const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {}, version = new FileVersion({
                 size: file.size,
-                location: h.slice(0, 32),
+                handle: handle,
                 modified: file.lastModified
             }), meta = new FileEntryMeta({
                 name: file.name,
@@ -103,8 +103,8 @@ class MasterHandle extends HDKey {
                 ee.emit("error", err);
                 throw err;
             });
-            metaUpload.on("finish", (h) => {
-                const encryptedHandle = encryptString(this.privateKey.toString("hex"), h);
+            metaUpload.on("finish", ({ handle: metaHandle }) => {
+                const encryptedHandle = encryptString(this.privateKey.toString("hex"), metaHandle);
                 // TODO
                 setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
             });
@@ -121,10 +121,6 @@ class MasterHandle extends HDKey {
      */
     getFileHDKey(file) {
         return this.generateSubHDKey("file: " + file);
-    }
-    async getFileHandle(dir, location) {
-        const folder = this.getFolderHDKey(dir);
-        return location + MasterHandle.getKey(folder, location);
     }
     /**
      * creates a dir key seed for validating and folder navigation

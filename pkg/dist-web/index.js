@@ -1201,19 +1201,21 @@ class FileVersion {
    * create metadata for a file version
    *
    * @param size - size in bytes of the file
-   * @param location - location on the network of the file
+   * @param location - // DEPRECATED location on the network of the file
+   * @param handle - the file handle
    * @param hash - a hash of the file
    *   NOTE: probably `sha1`
    * @param modified - the date in `ms` that this version of the file was originally changed
    */
   constructor(_ref) {
     let size = _ref.size,
-        location = _ref.location,
+        handle = _ref.handle,
         hash = _ref.hash,
         _ref$modified = _ref.modified,
         modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
-    this.size = size;
-    this.location = location;
+    this.size = size; // this.location = location
+
+    this.handle = handle;
     this.hash = hash;
     this.modified = modified;
   }
@@ -1329,8 +1331,8 @@ class MasterHandle extends HDKey {
         handle = _ref.handle;
     super();
 
-    this.downloadFile = (dir, location) => {
-      return new Download(this.getFileHandle(dir, location));
+    this.downloadFile = handle => {
+      return new Download(handle);
     };
 
     if (account.constructor == Account) {
@@ -1369,13 +1371,14 @@ class MasterHandle extends HDKey {
     upload.on("finish",
     /*#__PURE__*/
     function () {
-      var _ref2 = _asyncToGenerator(function* (h) {
+      var _ref3 = _asyncToGenerator(function* (_ref2) {
+        let handle = _ref2.handle;
         const folderMeta = yield _this.getFolderMetadata(dir),
               oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
               oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
               version = new FileVersion({
           size: file.size,
-          location: h.slice(0, 32),
+          handle: handle,
           modified: file.lastModified
         }),
               meta = new FileEntryMeta({
@@ -1391,15 +1394,16 @@ class MasterHandle extends HDKey {
           ee.emit("error", err);
           throw err;
         });
-        metaUpload.on("finish", h => {
-          const encryptedHandle = encryptString(_this.privateKey.toString("hex"), h); // TODO
+        metaUpload.on("finish", (_ref4) => {
+          let metaHandle = _ref4.handle;
+          const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
           setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
         });
       });
 
       return function (_x) {
-        return _ref2.apply(this, arguments);
+        return _ref3.apply(this, arguments);
       };
     }());
     return ee;
@@ -1418,16 +1422,6 @@ class MasterHandle extends HDKey {
   getFileHDKey(file) {
     return this.generateSubHDKey("file: " + file);
   }
-
-  getFileHandle(dir, location) {
-    var _this2 = this;
-
-    return _asyncToGenerator(function* () {
-      const folder = _this2.getFolderHDKey(dir);
-
-      return location + MasterHandle.getKey(folder, location);
-    })();
-  }
   /**
    * creates a dir key seed for validating and folder navigation
    *
@@ -1444,24 +1438,24 @@ class MasterHandle extends HDKey {
   }
 
   getFolderHandle(dir) {
-    var _this3 = this;
+    var _this2 = this;
 
     return _asyncToGenerator(function* () {
-      const folderKey = _this3.getFolderHDKey(dir),
-            location = _this3.getFolderLocation(dir),
+      const folderKey = _this2.getFolderHDKey(dir),
+            location = _this2.getFolderLocation(dir),
             key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
 
 
       const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
-      return metaLocation + MasterHandle.getKey(_this3, metaLocation);
+      return metaLocation + MasterHandle.getKey(_this2, metaLocation);
     })();
   }
 
   getFolderMetadata(dir) {
-    var _this4 = this;
+    var _this3 = this;
 
     return _asyncToGenerator(function* () {
-      const handle = yield _this4.getFolderHandle(dir);
+      const handle = yield _this3.getFolderHandle(dir);
       const meta = yield new Promise((resolve, reject) => {
         new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
       });

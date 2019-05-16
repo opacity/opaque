@@ -10,6 +10,8 @@ import { decryptString, encryptString } from "./core/encryption"
 import { FolderMeta, FileEntryMeta, FileVersion } from "./core/account/metadata"
 import { getMetadata, setMetadata } from "./core/requests/metadata"
 
+import { RequireOnlyOne } from "./types/require-only-one"
+
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -100,14 +102,14 @@ class MasterHandle extends HDKey {
       throw err
     })
 
-    upload.on("finish", async (h: string) => {
+    upload.on("finish", async ({ handle }: { handle: string }) => {
       const
         folderMeta = await this.getFolderMetadata(dir),
         oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
         oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] as FileEntryMeta : {} as FileEntryMeta,
         version = new FileVersion({
           size: file.size,
-          location: h.slice(0, 32),
+          handle: handle,
           modified: file.lastModified
         }),
         meta = new FileEntryMeta({
@@ -131,8 +133,8 @@ class MasterHandle extends HDKey {
         throw err
       })
 
-      metaUpload.on("finish", (h: string) => {
-        const encryptedHandle = encryptString(this.privateKey.toString("hex"), h)
+      metaUpload.on("finish", ({ handle: metaHandle }: { handle: string }) => {
+        const encryptedHandle = encryptString(this.privateKey.toString("hex"), metaHandle)
 
         // TODO
         setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle)
@@ -142,8 +144,8 @@ class MasterHandle extends HDKey {
     return ee
   }
 
-  downloadFile = (dir: string, location: string) => {
-    return new Download(this.getFileHandle(dir, location))
+  downloadFile = (handle: string) => {
+    return new Download(handle)
   }
 
   static getKey (from: HDKey, str: string) {
@@ -157,12 +159,6 @@ class MasterHandle extends HDKey {
    */
   getFileHDKey (file: string) {
     return this.generateSubHDKey("file: " + file)
-  }
-
-  async getFileHandle (dir: string, location: string) {
-    const folder = this.getFolderHDKey(dir)
-
-    return location + MasterHandle.getKey(folder, location)
   }
 
   /**
