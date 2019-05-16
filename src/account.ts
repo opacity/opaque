@@ -6,8 +6,9 @@ import Download from "./download"
 import { EventEmitter } from "events"
 import { pipe } from "./utils/pipe"
 import { hash } from "./core/hashing"
-import { decryptString } from "./core/encryption"
+import { decryptString, encryptString } from "./core/encryption"
 import { FolderMeta, FileEntryMeta, FileVersion } from "./core/account/metadata"
+import { getMetadata, setMetadata } from "./core/requests/metadata"
 
 /**
  * **_this should never be shared or left in storage_**
@@ -15,7 +16,11 @@ import { FolderMeta, FileEntryMeta, FileVersion } from "./core/account/metadata"
  * a class for representing the account mnemonic
  */
 class Account {
-  mnemonic: string
+  private _mnemonic: string
+
+  get mnemonic () {
+    return this._mnemonic.trim().split(/\s+/g)
+  }
 
   /**
    * creates an account from a mnemonic if provided, otherwise from entropy
@@ -26,11 +31,11 @@ class Account {
     if (!validateMnemonic(mnemonic))
       throw new Error("mnemonic provided was not valid")
 
-    this.mnemonic = mnemonic
+    this._mnemonic = mnemonic
   }
 
   get seed () {
-    return mnemonicToSeedSync(this.mnemonic)
+    return mnemonicToSeedSync(this._mnemonic)
   }
 }
 
@@ -120,9 +125,11 @@ class MasterHandle extends HDKey {
         throw err
       })
 
-      metaUpload.on("finish", h => {
+      metaUpload.on("finish", (h: string) => {
+        const encryptedHandle = encryptString(this.privateKey.toString("hex"), h)
+
         // TODO
-        requestSetFolderMeta(this.getFolderLocation(dir))
+        setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle)
       })
     })
 
@@ -172,7 +179,7 @@ class MasterHandle extends HDKey {
       key = hash(folderKey.privateKey.toString("hex"))
 
     // TODO
-    const metaLocation = decryptString(key, await requestGetFolderMeta(location), "hex")
+    const metaLocation = decryptString(key, await getMetadata("ENDPOINT", folderKey, location) as any, "hex")
 
     return metaLocation + MasterHandle.getKey(this, metaLocation)
   }

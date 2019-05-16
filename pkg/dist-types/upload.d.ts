@@ -5,13 +5,14 @@ import { FileData } from "./core/helpers";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
 import { Readable } from "readable-stream";
+import HDKey from "hdkey";
 declare type UploadOptions = {
     autoStart?: boolean;
     endpoint?: boolean;
     params?: FileMetaOptions;
 };
 export default class Upload extends EventEmitter {
-    account: string;
+    account: HDKey;
     options: UploadOptions;
     data: FileData;
     uploadSize: any;

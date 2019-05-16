@@ -252,8 +252,9 @@ function encrypt(key, byteBuffer) {
   byteBuffer.putBytes(iv);
   return byteBuffer;
 }
-function encryptString(key, string, encoding) {
-  const buf = Forge$1.util.createBuffer(string, encoding || "utf8");
+function encryptString(key, string) {
+  let encoding = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "utf8";
+  const buf = Forge$1.util.createBuffer(string, encoding);
   return encrypt(key, buf);
 }
 function encryptBytes(key, bytes) {
@@ -1124,11 +1125,10 @@ class AccountPreferences {
   }
 
 }
+
 /**
  * a metadata class to describe a file as it relates to the UI
  */
-
-
 class FileEntryMeta {
   /**
    * create metadata for a file entry in the UI
@@ -1137,22 +1137,23 @@ class FileEntryMeta {
    * @param created - the date in `ms` that this file was initially updated
    * @param hidden - if the file should be hidden (this could also be automatically generated within the UI, ie. `.files`)
    * @param locked - if the file is encrypted
-     *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
+   *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
    * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
    * @param tags - tags assigned to the file for organization/searching
    */
-  constructor(_ref2) {
-    let name = _ref2.name,
-        _ref2$created = _ref2.created,
-        created = _ref2$created === void 0 ? Date.now() : _ref2$created,
-        _ref2$hidden = _ref2.hidden,
-        hidden = _ref2$hidden === void 0 ? false : _ref2$hidden,
-        _ref2$locked = _ref2.locked,
-        locked = _ref2$locked === void 0 ? false : _ref2$locked,
-        _ref2$versions = _ref2.versions,
-        versions = _ref2$versions === void 0 ? [] : _ref2$versions,
-        _ref2$tags = _ref2.tags,
-        tags = _ref2$tags === void 0 ? [] : _ref2$tags;
+  constructor(_ref) {
+    let name = _ref.name,
+        _ref$created = _ref.created,
+        created = _ref$created === void 0 ? Date.now() : _ref$created,
+        _ref$hidden = _ref.hidden,
+        hidden = _ref$hidden === void 0 ? false : _ref$hidden,
+        _ref$locked = _ref.locked,
+        locked = _ref$locked === void 0 ? false : _ref$locked,
+        _ref$versions = _ref.versions,
+        versions = _ref$versions === void 0 ? [] : _ref$versions,
+        _ref$tags = _ref.tags,
+        tags = _ref$tags === void 0 ? [] : _ref$tags;
+    this.type = "file";
     this.name = name;
     this.created = created;
     this.hidden = hidden;
@@ -1162,11 +1163,10 @@ class FileEntryMeta {
   }
 
 }
+
 /**
  * a metadata class to describe a version of a file as it relates to a filesystem
  */
-
-
 class FileVersion {
   /**
    * create metadata for a file version
@@ -1174,15 +1174,15 @@ class FileVersion {
    * @param size - size in bytes of the file
    * @param location - location on the network of the file
    * @param hash - a hash of the file
-     *   NOTE: probably `sha1`
+   *   NOTE: probably `sha1`
    * @param modified - the date in `ms` that this version of the file was originally changed
    */
-  constructor(_ref3) {
-    let size = _ref3.size,
-        location = _ref3.location,
-        hash = _ref3.hash,
-        _ref3$modified = _ref3.modified,
-        modified = _ref3$modified === void 0 ? Date.now() : _ref3$modified;
+  constructor(_ref) {
+    let size = _ref.size,
+        location = _ref.location,
+        hash = _ref.hash,
+        _ref$modified = _ref.modified,
+        modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
     this.size = size;
     this.location = location;
     this.hash = hash;
@@ -1190,11 +1190,10 @@ class FileVersion {
   }
 
 }
+
 /**
  * a metadata class to describe where a folder can be found (for root metadata of an account)
  */
-
-
 class FolderEntryMeta {
   /**
    * create metadata entry for a folder
@@ -1203,19 +1202,19 @@ class FolderEntryMeta {
    * @param location - the public key for the metadata file
    *   it is how the file will be queried for (using the same system as for the account metadata)
    */
-  constructor(_ref4) {
-    let name = _ref4.name,
-        location = _ref4.location;
+  constructor(_ref) {
+    let name = _ref.name,
+        location = _ref.location;
+    this.type = "folder";
     this.name = name;
     this.location = location;
   }
 
 }
+
 /**
  * a metadata class to describe a folder for the UI
  */
-
-
 class FolderMeta {
   /**
    * create metadata for a folder
@@ -1228,18 +1227,18 @@ class FolderMeta {
    *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
    * @param tags - tags assigned to the folder for organization/searching
    */
-  constructor(_ref5) {
-    let name = _ref5.name,
-        _ref5$files = _ref5.files,
-        files = _ref5$files === void 0 ? [] : _ref5$files,
-        _ref5$created = _ref5.created,
-        created = _ref5$created === void 0 ? Date.now() : _ref5$created,
-        _ref5$hidden = _ref5.hidden,
-        hidden = _ref5$hidden === void 0 ? false : _ref5$hidden,
-        _ref5$locked = _ref5.locked,
-        locked = _ref5$locked === void 0 ? false : _ref5$locked,
-        _ref5$tags = _ref5.tags,
-        tags = _ref5$tags === void 0 ? [] : _ref5$tags;
+  constructor(_ref) {
+    let name = _ref.name,
+        _ref$files = _ref.files,
+        files = _ref$files === void 0 ? [] : _ref$files,
+        _ref$created = _ref.created,
+        created = _ref$created === void 0 ? Date.now() : _ref$created,
+        _ref$hidden = _ref.hidden,
+        hidden = _ref$hidden === void 0 ? false : _ref$hidden,
+        _ref$locked = _ref.locked,
+        locked = _ref$locked === void 0 ? false : _ref$locked,
+        _ref$tags = _ref.tags,
+        tags = _ref$tags === void 0 ? [] : _ref$tags;
     this.name = name;
     this.files = files;
     this.created = created;

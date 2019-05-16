@@ -1,6 +1,6 @@
-import { util as ForgeUtil } from "node-forge";
+import { util as ForgeUtil, Encoding } from "node-forge";
 export declare function encrypt(key: any, byteBuffer: any): any;
-export declare function encryptString(key: any, string: any, encoding: any): any;
+export declare function encryptString(key: string, string: string, encoding?: Encoding): any;
 export declare function encryptBytes(key: any, bytes: any): any;
 export declare function decrypt(key: string, byteBuffer: ForgeUtil.ByteBuffer): false | ForgeUtil.ByteStringBuffer;
 export declare function decryptBytes(key: any, bytes: any): false | Uint8Array;

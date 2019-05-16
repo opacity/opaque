@@ -19,8 +19,8 @@ export function encrypt(key, byteBuffer) {
     byteBuffer.putBytes(iv);
     return byteBuffer;
 }
-export function encryptString(key, string, encoding) {
-    const buf = Forge.util.createBuffer(string, encoding || "utf8");
+export function encryptString(key, string, encoding = "utf8") {
+    const buf = Forge.util.createBuffer(string, encoding);
     return encrypt(key, buf);
 }
 export function encryptBytes(key, bytes) {

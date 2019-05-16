@@ -1,4 +1,4 @@
-import { cipher as ForgeCipher, md as ForgeMd, util as ForgeUtil, random as ForgeRandom } from "node-forge"
+import { cipher as ForgeCipher, md as ForgeMd, util as ForgeUtil, random as ForgeRandom, Encoding } from "node-forge"
 import { IV_BYTE_LENGTH, TAG_BYTE_LENGTH, TAG_BIT_LENGTH, BLOCK_OVERHEAD } from "./constants";
 
 const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil, random: ForgeRandom };
@@ -26,8 +26,8 @@ export function encrypt(key, byteBuffer) {
   return byteBuffer;
 }
 
-export function encryptString(key, string, encoding) {
-  const buf = Forge.util.createBuffer(string, encoding || "utf8");
+export function encryptString(key: string, string: string, encoding: Encoding = "utf8") {
+  const buf = Forge.util.createBuffer(string, encoding);
   return encrypt(key, buf);
 }
 

@@ -123,7 +123,7 @@ export default class UploadStream extends Writable {
     }, this.account);
 
     const upload = Axios.post(this.endpoint + "/api/v1/upload", data, {
-      headers: data.getHeaders ? data.getHeaders() : {},
+      headers: (data as FormDataNode).getHeaders ? (data as FormDataNode).getHeaders() : {},
       onUploadProgress: (event) => {
         return
       }

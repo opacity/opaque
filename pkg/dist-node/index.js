@@ -255,8 +255,8 @@ function encrypt(key, byteBuffer) {
   byteBuffer.putBytes(iv);
   return byteBuffer;
 }
-function encryptString(key, string, encoding) {
-  const buf = Forge$1.util.createBuffer(string, encoding || "utf8");
+function encryptString(key, string, encoding = "utf8") {
+  const buf = Forge$1.util.createBuffer(string, encoding);
   return encrypt(key, buf);
 }
 function encryptBytes(key, bytes) {
@@ -1128,11 +1128,10 @@ class AccountPreferences {
   }
 
 }
+
 /**
  * a metadata class to describe a file as it relates to the UI
  */
-
-
 class FileEntryMeta {
   /**
    * create metadata for a file entry in the UI
@@ -1141,7 +1140,7 @@ class FileEntryMeta {
    * @param created - the date in `ms` that this file was initially updated
    * @param hidden - if the file should be hidden (this could also be automatically generated within the UI, ie. `.files`)
    * @param locked - if the file is encrypted
-     *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
+   *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
    * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
    * @param tags - tags assigned to the file for organization/searching
    */
@@ -1153,6 +1152,7 @@ class FileEntryMeta {
     versions = [],
     tags = []
   }) {
+    this.type = "file";
     this.name = name;
     this.created = created;
     this.hidden = hidden;
@@ -1162,11 +1162,10 @@ class FileEntryMeta {
   }
 
 }
+
 /**
  * a metadata class to describe a version of a file as it relates to a filesystem
  */
-
-
 class FileVersion {
   /**
    * create metadata for a file version
@@ -1174,7 +1173,7 @@ class FileVersion {
    * @param size - size in bytes of the file
    * @param location - location on the network of the file
    * @param hash - a hash of the file
-     *   NOTE: probably `sha1`
+   *   NOTE: probably `sha1`
    * @param modified - the date in `ms` that this version of the file was originally changed
    */
   constructor({
@@ -1190,11 +1189,10 @@ class FileVersion {
   }
 
 }
+
 /**
  * a metadata class to describe where a folder can be found (for root metadata of an account)
  */
-
-
 class FolderEntryMeta {
   /**
    * create metadata entry for a folder
@@ -1207,16 +1205,16 @@ class FolderEntryMeta {
     name,
     location
   }) {
+    this.type = "folder";
     this.name = name;
     this.location = location;
   }
 
 }
+
 /**
  * a metadata class to describe a folder for the UI
  */
-
-
 class FolderMeta {
   /**
    * create metadata for a folder
