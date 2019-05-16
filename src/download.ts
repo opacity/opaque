@@ -2,6 +2,7 @@ import Axios from "axios";
 import { EventEmitter } from "events";
 import { pipeline } from "readable-stream";
 import { decryptMetadata } from "./core/metadata";
+import { getPayload } from "./core/request";
 import {
   getUploadSize,
   keysFromHandle
@@ -26,6 +27,7 @@ export default class Download extends EventEmitter {
   hash
   key
   metadataRequest
+  downloadURL: string
   isDownloading: boolean
   decryptStream
   downloadStream
@@ -107,6 +109,7 @@ export default class Download extends EventEmitter {
 
   async startDownload() {
     try {
+      await this.getDownloadURL()
       await this.downloadMetadata();
       await this.downloadFile();
     } catch(e) {
@@ -114,22 +117,38 @@ export default class Download extends EventEmitter {
     }
   }
 
+  async getDownloadURL() {
+    const req = Axios.post(this.options.endpoint + "/api/v1/download", {
+      fileID: this.hash
+    });
+    const res = await req;
+
+    if(res.status === 200) {
+      this.downloadURL = res.data.fileDownloadUrl;
+      return this.downloadURL;
+    }
+  }
+
   async downloadMetadata(overwrite = false) {
     let req;
+
+    if(!this.downloadURL) {
+      await this.getDownloadURL();
+    }
 
     if(!overwrite && this.metadataRequest) {
       req = this.metadataRequest;
     } else {
       const endpoint = this.options.endpoint;
       const path = METADATA_PATH + this.hash;
-      req = this.metadataRequest = Axios.get(endpoint + path, {
+      req = this.metadataRequest = Axios.get(this.downloadURL + "/metadata", {
         responseType: "arraybuffer"
       });
     }
 
-
     const res = await req;
     const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
+
     this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
 
@@ -142,9 +161,7 @@ export default class Download extends EventEmitter {
     }
 
     this.isDownloading = true;
-    this.downloadStream = new DownloadStream(this.hash, await this.metadata, this.size, {
-      endpoint: this.options.endpoint
-    });
+    this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
     this.decryptStream = new DecryptStream(this.key);
     // this.targetStream = new targetStream(this.metadata);
 

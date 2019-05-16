@@ -1,11 +1,13 @@
 import Axios from "axios";
 import FormDataNode from "form-data";
 import { Writable } from "readable-stream";
+import { getPayload, getPayloadFD } from "../core/request";
+import { getEndIndex } from "../core/helpers";
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 const PART_MIME = "application/octet-stream";
 const DEFAULT_OPTIONS = Object.freeze({
-  maxParallelUploads: 2,
+  maxParallelUploads: 3,
   maxRetries: 0,
   partSize: 256, // 5 << 20, // 5 MiB data chunks
   objectMode: false
@@ -38,9 +40,7 @@ export default class UploadStream extends Writable {
     this.endpoint = endpoint;
     this.options = opts;
     this.size = size;
-    this.endIndex = Math.ceil(size / opts.partSize);
-
-    console.log(`Uploading new file with ${this.endIndex} parts.`);
+    this.endIndex = getEndIndex(size, opts);
 
     // Internal
     this.bytesUploaded = 0;
@@ -114,25 +114,15 @@ export default class UploadStream extends Writable {
       this.cork();
     }
 
-    const data = new FormDataNode();
-    const filename = `${this.hash}.${part.partIndex}.part`;
-    const raw = POLYFILL_FORMDATA
-                  ? Buffer.from(part.data.buffer)
-                  : new Blob([part.data], { type: "application/octet-stream" });
-    const length = (raw as Blob).size ? (raw as Blob).size : (raw as Buffer).length;
+    const data = getPayloadFD({
+      fileHandle: this.hash,
+      partIndex: part.partIndex,
+      endIndex: this.endIndex
+    }, {
+      chunkData: part.data
+    }, this.account);
 
-    // TODO: Actual account / signature
-    data.append("hash", this.hash);
-    data.append("account", this.account);
-    data.append("partIndex", part.partIndex);
-    data.append("endIndex", this.endIndex);
-    data.append("part", raw, {
-      filename: filename,
-      contentType: "application/octet-stream",
-      knownLength: part.data.length
-    });
-
-    const upload = Axios.put(this.endpoint + "/upload/file", data, {
+    const upload = Axios.post(this.endpoint + "/api/v1/upload", data, {
       headers: data.getHeaders ? data.getHeaders() : {},
       onUploadProgress: (event) => {
         return
@@ -150,7 +140,6 @@ export default class UploadStream extends Writable {
     this.ongoingUploads--;
     this.bytesUploaded += part.data.length;
 
-    // TODO: Progress
     this.emit("progress", this.bytesUploaded / this.size);
 
     // Upload until done
@@ -161,12 +150,23 @@ export default class UploadStream extends Writable {
     if (this.finalCallback) {
       // Finish
       if (this.ongoingUploads === 0) {
-        this.finalCallback();
+        this._finishUpload();
       }
     } else {
       // Continue
       process.nextTick(() => this.uncork());
     }
+  }
+
+  async _finishUpload() {
+    const data = getPayload({
+      fileHandle: this.hash
+    }, this.account);
+
+    const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
+    const res = await req;
+
+    this.finalCallback();
   }
 
   _uploadError(error, part) {

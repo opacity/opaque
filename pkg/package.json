@@ -15,10 +15,13 @@
   "sideEffects": false,
   "dependencies": {
     "axios": "^0.18.0",
+    "bip39": "^3.0.2",
+    "ethereumjs-util": "^6.1.0",
     "form-data": "^2.3.3",
+    "hdkey": "^1.1.1",
     "mime": "^2.4.2",
     "node-forge": "^0.8.2",
-    "readable-stream": "^3.3.0"
+    "readable-stream": "^2.3.6"
   },
   "devDependencies": {
     "@pika/pack": "^0.3.7",
