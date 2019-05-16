@@ -1347,14 +1347,13 @@ class MasterHandle extends HDKey {
       upload.on("finish",
       /*#__PURE__*/
       function () {
-        var _ref3 = _asyncToGenerator(function* (_ref2) {
-          let handle = _ref2.handle;
+        var _ref2 = _asyncToGenerator(function* (finishedUpload) {
           const folderMeta = yield _this.getFolderMetadata(dir),
                 oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
                 version = new FileVersion({
             size: file.size,
-            handle: handle,
+            handle: finishedUpload.handle,
             modified: file.lastModified
           }),
                 meta = new FileEntryMeta({
@@ -1370,16 +1369,25 @@ class MasterHandle extends HDKey {
             ee.emit("error", err);
             throw err;
           });
-          metaUpload.on("finish", (_ref4) => {
-            let metaHandle = _ref4.handle;
-            const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
+          metaUpload.on("finish",
+          /*#__PURE__*/
+          function () {
+            var _ref4 = _asyncToGenerator(function* (_ref3) {
+              let metaHandle = _ref3.handle;
+              const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
-            setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
-          });
+              yield setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+              ee.emit("finish", finishedUpload);
+            });
+
+            return function (_x2) {
+              return _ref4.apply(this, arguments);
+            };
+          }());
         });
 
         return function (_x) {
-          return _ref3.apply(this, arguments);
+          return _ref2.apply(this, arguments);
         };
       }());
       return ee;
@@ -1426,7 +1434,7 @@ class MasterHandle extends HDKey {
         return metaLocation + MasterHandle.getKey(_this, metaLocation);
       });
 
-      return function (_x2) {
+      return function (_x3) {
         return _ref5.apply(this, arguments);
       };
     }();
@@ -1442,7 +1450,7 @@ class MasterHandle extends HDKey {
         return meta;
       });
 
-      return function (_x3) {
+      return function (_x4) {
         return _ref6.apply(this, arguments);
       };
     }();

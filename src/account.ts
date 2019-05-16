@@ -115,7 +115,7 @@ class MasterHandle extends HDKey {
       throw err;
     });
 
-    upload.on("finish", async ({ handle }: { handle: string }) => {
+    upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
       const folderMeta = await this.getFolderMetadata(dir),
         oldMetaIndex = folderMeta.files.findIndex(
           e => e.name == file.name && e.type == "file"
@@ -126,7 +126,7 @@ class MasterHandle extends HDKey {
             : ({} as FileEntryMeta),
         version = new FileVersion({
           size: file.size,
-          handle: handle,
+          handle: finishedUpload.handle,
           modified: file.lastModified,
         }),
         meta = new FileEntryMeta({
@@ -149,19 +149,21 @@ class MasterHandle extends HDKey {
         throw err;
       });
 
-      metaUpload.on("finish", ({ handle: metaHandle }: { handle: string }) => {
+      metaUpload.on("finish", async ({ handle: metaHandle }: { handle: string }) => {
         const encryptedHandle = encryptString(
           this.privateKey.toString("hex"),
           metaHandle
         );
 
         // TODO
-        setMetadata(
+        await setMetadata(
           "ENDPOINT",
           this.getFolderHDKey(dir),
           this.getFolderLocation(dir),
           encryptedHandle
         );
+
+        ee.emit("finish", finishedUpload)
       });
     });
 

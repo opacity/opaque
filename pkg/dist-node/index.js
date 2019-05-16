@@ -1329,15 +1329,13 @@ class MasterHandle extends HDKey__default {
       upload.on("finish",
       /*#__PURE__*/
       function () {
-        var _ref = _asyncToGenerator(function* ({
-          handle
-        }) {
+        var _ref = _asyncToGenerator(function* (finishedUpload) {
           const folderMeta = yield _this.getFolderMetadata(dir),
                 oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
                 version = new FileVersion({
             size: file.size,
-            handle: handle,
+            handle: finishedUpload.handle,
             modified: file.lastModified
           }),
                 meta = new FileEntryMeta({
@@ -1353,13 +1351,22 @@ class MasterHandle extends HDKey__default {
             ee.emit("error", err);
             throw err;
           });
-          metaUpload.on("finish", ({
-            handle: metaHandle
-          }) => {
-            const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
+          metaUpload.on("finish",
+          /*#__PURE__*/
+          function () {
+            var _ref2 = _asyncToGenerator(function* ({
+              handle: metaHandle
+            }) {
+              const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
-            setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
-          });
+              yield setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+              ee.emit("finish", finishedUpload);
+            });
+
+            return function (_x2) {
+              return _ref2.apply(this, arguments);
+            };
+          }());
         });
 
         return function (_x) {
@@ -1400,7 +1407,7 @@ class MasterHandle extends HDKey__default {
     this.getFolderHandle =
     /*#__PURE__*/
     function () {
-      var _ref2 = _asyncToGenerator(function* (dir) {
+      var _ref3 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = web3Utils.soliditySha3(folderKey.privateKey.toString("hex")); // TODO
@@ -1410,15 +1417,15 @@ class MasterHandle extends HDKey__default {
         return metaLocation + MasterHandle.getKey(_this, metaLocation);
       });
 
-      return function (_x2) {
-        return _ref2.apply(this, arguments);
+      return function (_x3) {
+        return _ref3.apply(this, arguments);
       };
     }();
 
     this.getFolderMetadata =
     /*#__PURE__*/
     function () {
-      var _ref3 = _asyncToGenerator(function* (dir) {
+      var _ref4 = _asyncToGenerator(function* (dir) {
         const handle = yield _this.getFolderHandle(dir);
         const meta = yield new Promise((resolve, reject) => {
           new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
@@ -1426,8 +1433,8 @@ class MasterHandle extends HDKey__default {
         return meta;
       });
 
-      return function (_x3) {
-        return _ref3.apply(this, arguments);
+      return function (_x4) {
+        return _ref4.apply(this, arguments);
       };
     }();
 
