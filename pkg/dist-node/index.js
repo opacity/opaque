@@ -210,7 +210,7 @@ function getFileData(file, nameFallback = "file") {
       data: file.data,
       size: file.data.length,
       name: file.name || nameFallback,
-      type: file.type || mime.getType(file.name) || "application/octet-stream",
+      type: file.type || mime.getType(file.name) || "",
       reader: BufferSourceStream
     };
   } else {
@@ -219,6 +219,9 @@ function getFileData(file, nameFallback = "file") {
   }
 
   return file;
+}
+function getMimeType(metadata) {
+  return metadata.type || mime.getType(metadata.name) || "";
 } // get true upload size, accounting for encryption overhead
 
 function getUploadSize(size, params) {
@@ -568,8 +571,9 @@ class Download extends events.EventEmitter {
         _this.decryptStream.once("finish",
         /*#__PURE__*/
         _asyncToGenerator(function* () {
-          resolve(new File(chunks, (yield _this.metadata).name, {
-            type: "text/plain"
+          const meta = yield _this.metadata();
+          resolve(new File(chunks, meta.name, {
+            type: getMimeType(meta)
           }));
         }));
       }).catch(err => {

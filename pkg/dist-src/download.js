@@ -1,7 +1,7 @@
 import Axios from "axios";
 import { EventEmitter } from "events";
 import { decryptMetadata } from "./core/metadata";
-import { getUploadSize, keysFromHandle } from "./core/helpers";
+import { getMimeType, getUploadSize, keysFromHandle } from "./core/helpers";
 import DecryptStream from "./streams/decryptStream";
 import DownloadStream from "./streams/downloadStream";
 const METADATA_PATH = "/download/metadata/";
@@ -56,8 +56,9 @@ export default class Download extends EventEmitter {
                     totalLength += data.length;
                 });
                 this.decryptStream.once("finish", async () => {
-                    resolve(new File(chunks, (await this.metadata).name, {
-                        type: "text/plain"
+                    const meta = await this.metadata();
+                    resolve(new File(chunks, meta.name, {
+                        type: getMimeType(meta)
                     }));
                 });
             }).catch(err => {
