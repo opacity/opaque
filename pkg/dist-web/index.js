@@ -11,6 +11,7 @@ import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
 export { default as HDKey } from 'hdkey';
 import { hash as hash$1 } from 'eth-ens-namehash';
+import { fromPrivateKey } from 'ethereumjs-wallet';
 import { soliditySha3 } from 'web3-utils';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1564,6 +1565,32 @@ class MasterHandle extends HDKey {
         });
       });
     });
+    /**
+     * creates a V3 keystore file for the master handle
+     *
+     * @param password - the password to encrypt the key with. make it strong!
+     */
+
+    this.toV3 =
+    /*#__PURE__*/
+    function () {
+      var _ref10 = _asyncToGenerator(function* (password) {
+        if (!password) {
+          return false;
+        }
+
+        const wallet = fromPrivateKey(_this.privateKey);
+        const filename = wallet.getV3Filename();
+        const content = wallet.toV3(password);
+        const file = new File([JSON.stringify(content, null, 2)], filename);
+        return file;
+      });
+
+      return function (_x5) {
+        return _ref10.apply(this, arguments);
+      };
+    }();
+
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 
@@ -1591,9 +1618,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref10 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref10$prefix = _ref10.prefix,
-      prefix = _ref10$prefix === void 0 ? false : _ref10$prefix;
+  let _ref11 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref11$prefix = _ref11.prefix,
+      prefix = _ref11$prefix === void 0 ? false : _ref11$prefix;
 
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";

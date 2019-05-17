@@ -1,6 +1,7 @@
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
+import * as EthWallet from "ethereumjs-wallet";
 import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
@@ -192,6 +193,21 @@ class MasterHandle extends HDKey {
                     })
                 });
             });
+        };
+        /**
+         * creates a V3 keystore file for the master handle
+         *
+         * @param password - the password to encrypt the key with. make it strong!
+         */
+        this.toV3 = async (password) => {
+            if (!password) {
+                return false;
+            }
+            const wallet = EthWallet.fromPrivateKey(this.privateKey);
+            const filename = wallet.getV3Filename();
+            const content = wallet.toV3(password);
+            const file = new File([JSON.stringify(content, null, 2)], filename);
+            return file;
         };
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;

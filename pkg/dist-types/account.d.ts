@@ -74,5 +74,11 @@ declare class MasterHandle extends HDKey {
     getFolderMetadata: (dir: string) => Promise<any>;
     isPaid: () => Promise<boolean>;
     register: () => Promise<{}>;
+    /**
+     * creates a V3 keystore file for the master handle
+     *
+     * @param password - the password to encrypt the key with. make it strong!
+     */
+    toV3: (password: any) => Promise<false | File>;
 }
 export { Account, MasterHandle, HDKey };

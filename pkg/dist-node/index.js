@@ -16,6 +16,7 @@ var bip39 = require('bip39');
 var HDKey = require('hdkey');
 var HDKey__default = _interopDefault(HDKey);
 var namehash = require('eth-ens-namehash');
+var EthWallet = require('ethereumjs-wallet');
 var web3Utils = require('web3-utils');
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1560,6 +1561,32 @@ class MasterHandle extends HDKey__default {
         });
       });
     });
+    /**
+     * creates a V3 keystore file for the master handle
+     *
+     * @param password - the password to encrypt the key with. make it strong!
+     */
+
+    this.toV3 =
+    /*#__PURE__*/
+    function () {
+      var _ref8 = _asyncToGenerator(function* (password) {
+        if (!password) {
+          return false;
+        }
+
+        const wallet = EthWallet.fromPrivateKey(_this.privateKey);
+        const filename = wallet.getV3Filename();
+        const content = wallet.toV3(password);
+        const file = new File([JSON.stringify(content, null, 2)], filename);
+        return file;
+      });
+
+      return function (_x5) {
+        return _ref8.apply(this, arguments);
+      };
+    }();
+
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 
