@@ -182,7 +182,9 @@ class MasterHandle extends HDKey {
                     data: createAccountResponse.data,
                     waitForPayment: () => new Promise(resolve => {
                         const interval = setInterval(async () => {
-                            if (await this.isPaid()) {
+                            // don't perform run if it takes more than 5 seconds for response
+                            const time = Date.now();
+                            if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
                                 clearInterval(interval);
                                 resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
                             }
@@ -200,11 +202,15 @@ class MasterHandle extends HDKey {
             Object.assign(this, fromMasterSeed(account.seed).derive(path));
         }
         else if (handle && handle.constructor == String) {
-            this.privateKey = Buffer.from(handle, "hex");
+            this.privateKey = Buffer.from(handle.slice(0, 32), "hex");
+            this.chainCode = Buffer.from(handle.slice(32), "hex");
         }
         else {
             throw new Error("master handle was not of expected type");
         }
+    }
+    get handle() {
+        return this.privateKey.toString("hex") + this.chainCode.toString("hex");
     }
     static getKey(from, str) {
         return hash(from.privateKey.toString("hex"), str);

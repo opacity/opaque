@@ -45,6 +45,7 @@ declare class MasterHandle extends HDKey {
         uploadOpts?: {};
         downloadOpts?: {};
     });
+    readonly handle: string;
     private static hashToPath;
     /**
      * creates a sub key seed for validating
