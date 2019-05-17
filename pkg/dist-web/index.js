@@ -9,6 +9,7 @@ import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
 import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
+export { default as HDKey } from 'hdkey';
 import { hash as hash$1 } from 'eth-ens-namehash';
 import { soliditySha3 } from 'web3-utils';
 

@@ -215,4 +215,4 @@ MasterHandle.hashToPath = (h, { prefix = false } = {}) => {
         throw new Error("hash length must be multiple of two bytes");
     return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
-export { Account, MasterHandle };
+export { Account, MasterHandle, HDKey };

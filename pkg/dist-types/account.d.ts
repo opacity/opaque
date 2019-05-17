@@ -74,4 +74,4 @@ declare class MasterHandle extends HDKey {
     isPaid: () => Promise<boolean>;
     register: () => Promise<{}>;
 }
-export { Account, MasterHandle };
+export { Account, MasterHandle, HDKey };

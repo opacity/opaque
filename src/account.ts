@@ -319,4 +319,4 @@ class MasterHandle extends HDKey {
   }
 }
 
-export { Account, MasterHandle };
+export { Account, MasterHandle, HDKey };

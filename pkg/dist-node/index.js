@@ -1572,6 +1572,7 @@ MasterHandle.hashToPath = (h, {
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
+exports.HDKey = HDKey__default;
 exports.Account = Account;
 exports.AccountMeta = AccountMeta;
 exports.AccountPreferences = AccountPreferences;
