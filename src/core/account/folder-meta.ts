@@ -33,20 +33,20 @@ class FolderMeta {
 	 * @param tags - tags assigned to the folder for organization/searching
 	 */
 	constructor ({
-		name,
+		name = "Folder",
 		files = [],
 		created = Date.now(),
 		hidden = false,
 		locked = false,
 		tags = []
 	}: {
-		name: string
+		name?: string
 		files?: (FileEntryMeta | FolderEntryMeta)[]
-		created: number
+		created?: number
 		hidden?: boolean
 		locked?: boolean
 		tags?: string[]
-	}) {
+	} = {}) {
 		this.name = name
 		this.files = files
 		this.created = created

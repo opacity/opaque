@@ -1247,13 +1247,13 @@ class FolderMeta {
    * @param tags - tags assigned to the folder for organization/searching
    */
   constructor({
-    name,
+    name = "Folder",
     files = [],
     created = Date.now(),
     hidden = false,
     locked = false,
     tags = []
-  }) {
+  } = {}) {
     this.name = name;
     this.files = files;
     this.created = created;
@@ -1327,15 +1327,17 @@ class MasterHandle extends HDKey__default {
      * @param path - the string to use as a sub path
      */
     this.generateSubHDKey = pathString => {
-      const path = MasterHandle.hashToPath(hash(pathString));
+      const path = MasterHandle.hashToPath(hash(pathString), {
+        prefix: true
+      });
       return this.derive(path);
     };
 
     this.uploadFile = (dir, file) => {
       const upload = new Upload(file, this, this.uploadOpts),
             ee = new events.EventEmitter();
-      upload.on("progress", progress => {
-        ee.emit("progress", progress);
+      upload.on("upload-progress", progress => {
+        ee.emit("upload-progress", progress);
       });
       upload.on("error", err => {
         ee.emit("error", err);
@@ -1356,32 +1358,21 @@ class MasterHandle extends HDKey__default {
                 meta = new FileEntryMeta({
             name: file.name,
             created: oldMeta.created,
-            versions: (oldMeta.versions || []).unshift(version) && oldMeta.versions
+            versions: [version, ...(oldMeta.versions || [])]
           }); // metadata existed previously
 
           if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
           const buf = Buffer.from(JSON.stringify(folderMeta));
-          const metaUpload = new Upload(buf, _this, _this.uploadOpts);
+
+          const metaUpload = _this.uploadFolderMeta(dir, folderMeta);
+
           metaUpload.on("error", err => {
             ee.emit("error", err);
             throw err;
           });
-          metaUpload.on("finish",
-          /*#__PURE__*/
-          function () {
-            var _ref2 = _asyncToGenerator(function* ({
-              handle: metaHandle
-            }) {
-              const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
-
-              yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
-              ee.emit("finish", finishedUpload);
-            });
-
-            return function (_x2) {
-              return _ref2.apply(this, arguments);
-            };
-          }());
+          metaUpload.on("finish", finishedMeta => {
+            ee.emit("finish", finishedUpload);
+          });
         });
 
         return function (_x) {
@@ -1422,29 +1413,72 @@ class MasterHandle extends HDKey__default {
     this.getFolderHandle =
     /*#__PURE__*/
     function () {
-      var _ref3 = _asyncToGenerator(function* (dir) {
+      var _ref2 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
-              key = hash(folderKey.privateKey.toString("hex")); // TODO
+              key = hash(folderKey.privateKey.toString("hex")),
+              response = yield getMetadata(_this.uploadOpts.endpoint, folderKey, location); // TODO
+        // I have no idea why but the decrypted is correct hex without converting
 
 
-        const metaLocation = decryptString(key, (yield getMetadata(_this.uploadOpts.endpoint, folderKey, location)), "hex");
+        const metaLocation = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
         return metaLocation + MasterHandle.getKey(_this, metaLocation);
       });
 
-      return function (_x3) {
-        return _ref3.apply(this, arguments);
+      return function (_x2) {
+        return _ref2.apply(this, arguments);
       };
     }();
+
+    this.uploadFolderMeta = (dir, folderMeta) => {
+      const ee = new events.EventEmitter();
+      const file = new File([Buffer.from(JSON.stringify(folderMeta))], "metadata_" + dir);
+      const folderKey = this.getFolderHDKey(dir);
+      const metaUpload = new Upload(file, this, this.uploadOpts);
+      metaUpload.on("error", err => {
+        ee.emit("error", err);
+        throw err;
+      });
+      metaUpload.on("finish",
+      /*#__PURE__*/
+      function () {
+        var _ref3 = _asyncToGenerator(function* (finishedMeta) {
+          const encryptedHandle = encryptString(hash(folderKey.privateKey.toString("hex")), finishedMeta.handle).toHex(); // TODO
+
+          yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+          ee.emit("finish", finishedMeta);
+        });
+
+        return function (_x3) {
+          return _ref3.apply(this, arguments);
+        };
+      }());
+      return ee;
+    };
 
     this.getFolderMetadata =
     /*#__PURE__*/
     function () {
       var _ref4 = _asyncToGenerator(function* (dir) {
-        const handle = yield _this.getFolderHandle(dir);
-        const meta = yield new Promise((resolve, reject) => {
-          new Download(handle).on("finish", text => resolve(JSON.parse(text))).on("error", reject);
+        let handle;
+
+        try {
+          handle = yield _this.getFolderHandle(dir);
+        } catch (err) {
+          console.warn(err);
+          return new FolderMeta();
+        }
+
+        const download = new Download(handle, Object.assign({}, _this.downloadOpts, {
+          autoStart: true
+        }));
+        download.on("error", console.error);
+        const reader = new FileReader();
+        reader.readAsBinaryString((yield download.toFile()));
+        yield new Promise(resolve => {
+          reader.onloadend = resolve;
         });
+        const meta = JSON.parse(reader.result);
         return meta;
       });
 
@@ -1457,10 +1491,10 @@ class MasterHandle extends HDKey__default {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      const path = MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
+      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
       // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
 
-      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/" + path));
+      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive(path));
     } else if (handle && handle.constructor == String) {
       this.privateKey = Buffer.from(handle, "hex");
     } else {
@@ -1474,10 +1508,11 @@ class MasterHandle extends HDKey__default {
 
 }
 
-MasterHandle.hashToPath = h => {
-  console.log(h);
+MasterHandle.hashToPath = (h, {
+  prefix = false
+} = {}) => {
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
-  return "m/" + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+  return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
 exports.Account = Account;

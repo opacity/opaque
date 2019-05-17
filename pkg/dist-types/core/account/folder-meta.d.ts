@@ -30,10 +30,10 @@ declare class FolderMeta {
      *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
      * @param tags - tags assigned to the folder for organization/searching
      */
-    constructor({ name, files, created, hidden, locked, tags }: {
-        name: string;
+    constructor({ name, files, created, hidden, locked, tags }?: {
+        name?: string;
         files?: (FileEntryMeta | FolderEntryMeta)[];
-        created: number;
+        created?: number;
         hidden?: boolean;
         locked?: boolean;
         tags?: string[];

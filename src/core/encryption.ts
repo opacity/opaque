@@ -75,6 +75,7 @@ export function decryptBytes(key, bytes) {
 
 export function decryptString(key: string, byteBuffer: ForgeUtil.ByteBuffer, encoding = "utf8") {
   const output = decrypt(key, byteBuffer);
+
   if (output) {
     return new Buffer(output.toString()).toString(encoding);
   } else {

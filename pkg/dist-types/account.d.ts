@@ -69,6 +69,7 @@ declare class MasterHandle extends HDKey {
     getFolderHDKey: (dir: string) => HDKey;
     getFolderLocation: (dir: string) => string;
     getFolderHandle: (dir: string) => Promise<string>;
-    getFolderMetadata: (dir: string) => Promise<FolderMeta>;
+    uploadFolderMeta: (dir: string, folderMeta: FolderMeta) => EventEmitter;
+    getFolderMetadata: (dir: string) => Promise<any>;
 }
 export { Account, MasterHandle };

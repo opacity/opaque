@@ -13,7 +13,7 @@ class FolderMeta {
      *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
      * @param tags - tags assigned to the folder for organization/searching
      */
-    constructor({ name, files = [], created = Date.now(), hidden = false, locked = false, tags = [] }) {
+    constructor({ name = "Folder", files = [], created = Date.now(), hidden = false, locked = false, tags = [] } = {}) {
         this.name = name;
         this.files = files;
         this.created = created;
