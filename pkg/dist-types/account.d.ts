@@ -33,6 +33,12 @@ declare class Account {
 declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
+    safeToUploadMeta: {
+        [key: string]: any;
+    };
+    metadataQueue: {
+        [key: string]: any;
+    };
     /**
      * creates a master handle from an account
      *
@@ -54,6 +60,7 @@ declare class MasterHandle extends HDKey {
      */
     private generateSubHDKey;
     uploadFile: (dir: string, file: File) => EventEmitter;
+    processMetaQueue: (dir: string) => Promise<EventEmitter>;
     downloadFile: (handle: string) => Download;
     static getKey(from: HDKey, str: string): string;
     /**

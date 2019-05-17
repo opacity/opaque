@@ -65,6 +65,8 @@ class Account {
 class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
+  safeToUploadMeta: { [key: string]: any } = {}
+  metadataQueue: { [key: string]: any } = {}
 
   /**
    * creates a master handle from an account
@@ -143,33 +145,15 @@ class MasterHandle extends HDKey {
     });
 
     upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-      const folderMeta = await this.getFolderMetadata(dir),
-        oldMetaIndex = folderMeta.files.findIndex(
-          e => e.name == file.name && e.type == "file"
-        ),
-        oldMeta =
-          oldMetaIndex !== -1
-            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
-            : ({} as FileEntryMeta),
-        version = new FileVersion({
-          size: file.size,
-          handle: finishedUpload.handle,
-          modified: file.lastModified,
-        }),
-        meta = new FileEntryMeta({
-          name: file.name,
-          created: oldMeta.created,
-          versions:
-            [version, ...(oldMeta.versions || [])],
-        });
+      this.metadataQueue[dir] = this.metadataQueue[dir] || []
+      this.metadataQueue[dir].push({
+        file,
+        finishedUpload
+      })
 
-      // metadata existed previously
-      if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
-      else folderMeta.files.unshift(meta);
+      await this.safeToUploadMeta[dir] || Promise.resolve(true)
 
-      const buf = Buffer.from(JSON.stringify(folderMeta));
-
-      const metaUpload = this.uploadFolderMeta(dir, folderMeta)
+      const metaUpload = await this.processMetaQueue(dir)
 
       metaUpload.on("error", err => {
         ee.emit("error", err);
@@ -182,6 +166,40 @@ class MasterHandle extends HDKey {
     });
 
     return ee;
+  }
+
+  processMetaQueue = async (dir: string) => {
+    const folderMeta = await this.getFolderMetadata(dir)
+
+    await Promise.all(
+      this.metadataQueue[dir].map(async ({ file, finishedUpload }) => {
+        const
+          oldMetaIndex = folderMeta.files.findIndex(
+            e => e.type == "file" && e.name == file.name
+          ),
+          oldMeta =
+            oldMetaIndex !== -1
+              ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
+              : ({} as FileEntryMeta),
+          version = new FileVersion({
+            size: file.size,
+            handle: finishedUpload.handle,
+            modified: file.lastModified,
+          }),
+          meta = new FileEntryMeta({
+            name: file.name,
+            created: oldMeta.created,
+            versions:
+              [version, ...(oldMeta.versions || [])],
+          });
+
+        // metadata existed previously
+        if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
+        else folderMeta.files.unshift(meta);
+      })
+    )
+
+    return this.uploadFolderMeta(dir, folderMeta)
   }
 
   downloadFile = (handle: string) => {
