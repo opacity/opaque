@@ -1568,8 +1568,8 @@ class MasterHandle extends HDKey {
 
       Object.assign(this, fromMasterSeed(account.seed).derive(path));
     } else if (handle && handle.constructor == String) {
-      this.privateKey = Buffer.from(handle.slice(0, 32), "hex");
-      this.chainCode = Buffer.from(handle.slice(32), "hex");
+      this.privateKey = Buffer.from(handle.slice(0, 64), "hex");
+      this.chainCode = Buffer.from(handle.slice(64), "hex");
     } else {
       throw new Error("master handle was not of expected type");
     }
