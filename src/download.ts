@@ -61,14 +61,16 @@ export default class Download extends EventEmitter {
     }
   }
 
-  get metadata (): Promise<FileMeta> {
-    return new Promise(async resolve => {
+  metadata = async () => {
+    try {
       if(this._metadata) {
-        resolve(this._metadata);
+        return this._metadata;
       } else {
-        resolve(await this.downloadMetadata());
+        return await this.downloadMetadata();
       }
-    })
+    } catch(e) {
+      this.propagateError(e);
+    }
   }
 
   toBuffer = async () => {
@@ -85,11 +87,13 @@ export default class Download extends EventEmitter {
       this.decryptStream.on("data", (data) => {
         chunks.push(data);
         totalLength += data.length;
-      })
+      });
 
       this.decryptStream.once("finish", () => {
         resolve(Buffer.concat(chunks, totalLength));
-      })
+      });
+    }).catch(err => {
+      throw err;
     });
   }
 
@@ -110,7 +114,9 @@ export default class Download extends EventEmitter {
           type: "text/plain"
         }));
       })
-    });
+    }).catch(err => {
+      throw err;
+    })
   }
 
   startDownload = async () => {
@@ -123,7 +129,7 @@ export default class Download extends EventEmitter {
     }
   }
 
-  async getDownloadURL(overwrite = false) {
+  getDownloadURL = async (overwrite = false) => {
     let req;
 
     if(!overwrite && this.downloadURLRequest) {

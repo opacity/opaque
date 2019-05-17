@@ -507,6 +507,19 @@ class Download extends EventEmitter {
     let opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
     super();
     _this = this;
+    this.metadata =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        if (_this._metadata) {
+          return _this._metadata;
+        } else {
+          return yield _this.downloadMetadata();
+        }
+      } catch (e) {
+        _this.propagateError(e);
+      }
+    });
     this.toBuffer =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -527,6 +540,8 @@ class Download extends EventEmitter {
         _this.decryptStream.once("finish", () => {
           resolve(Buffer.concat(chunks, totalLength));
         });
+      }).catch(err => {
+        throw err;
       });
     });
     this.toFile =
@@ -548,6 +563,8 @@ class Download extends EventEmitter {
             type: "text/plain"
           }));
         }));
+      }).catch(err => {
+        throw err;
       });
     });
     this.startDownload =
@@ -559,6 +576,28 @@ class Download extends EventEmitter {
         yield _this.downloadFile();
       } catch (e) {
         _this.propagateError(e);
+      }
+    });
+    this.getDownloadURL =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      let overwrite = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+      let req;
+
+      if (!overwrite && _this.downloadURLRequest) {
+        req = _this.downloadURLRequest;
+      } else {
+        req = Axios.post(_this.options.endpoint + "/api/v1/download", {
+          fileID: _this.hash
+        });
+        _this.downloadURLRequest = req;
+      }
+
+      const res = yield req;
+
+      if (res.status === 200) {
+        _this.downloadURL = res.data.fileDownloadUrl;
+        return _this.downloadURL;
       }
     });
     this.downloadMetadata =
@@ -643,52 +682,6 @@ class Download extends EventEmitter {
     if (options.autoStart) {
       this.startDownload();
     }
-  }
-
-  get metadata() {
-    var _this2 = this;
-
-    return new Promise(
-    /*#__PURE__*/
-    function () {
-      var _ref7 = _asyncToGenerator(function* (resolve) {
-        if (_this2._metadata) {
-          resolve(_this2._metadata);
-        } else {
-          resolve((yield _this2.downloadMetadata()));
-        }
-      });
-
-      return function (_x) {
-        return _ref7.apply(this, arguments);
-      };
-    }());
-  }
-
-  getDownloadURL() {
-    var _this3 = this,
-        _arguments = arguments;
-
-    return _asyncToGenerator(function* () {
-      let overwrite = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : false;
-      let req;
-
-      if (!overwrite && _this3.downloadURLRequest) {
-        req = _this3.downloadURLRequest;
-      } else {
-        req = Axios.post(_this3.options.endpoint + "/api/v1/download", {
-          fileID: _this3.hash
-        });
-        _this3.downloadURLRequest = req;
-      }
-
-      const res = yield req;
-
-      if (res.status === 200) {
-        _this3.downloadURL = res.data.fileDownloadUrl;
-        return _this3.downloadURL;
-      }
-    })();
   }
 
 }
@@ -1042,13 +1035,14 @@ class Upload extends EventEmitter {
       }, {
         metadata: encryptedMeta
       }, _this.account);
-      return Axios.post(_this.options.endpoint + "/api/v1/init-upload", data, {
-        headers: data.getHeaders ? data.getHeaders() : {}
-      }).then(res => {
-        _this.emit("metadata", meta);
-      }).catch(error => {
-        _this.propagateError(error);
+      const url = _this.options.endpoint + "/api/v1/init-upload";
+      const headers = data.getHeaders || {};
+      const req = Axios.post(url, data, {
+        headers
       });
+      const res = yield req;
+
+      _this.emit("metadata", meta);
     });
     this.uploadFile =
     /*#__PURE__*/

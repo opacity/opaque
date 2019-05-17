@@ -35,15 +35,11 @@ export default class Upload extends EventEmitter {
             }, {
                 metadata: encryptedMeta
             }, this.account);
-            return Axios.post(this.options.endpoint + "/api/v1/init-upload", data, {
-                headers: data.getHeaders ? data.getHeaders() : {}
-            })
-                .then(res => {
-                this.emit("metadata", meta);
-            })
-                .catch(error => {
-                this.propagateError(error);
-            });
+            const url = this.options.endpoint + "/api/v1/init-upload";
+            const headers = data.getHeaders || {};
+            const req = Axios.post(url, data, { headers });
+            const res = await req;
+            this.emit("metadata", meta);
         };
         this.uploadFile = async () => {
             const readStream = new this.data.reader(this.data, this.options.params);
