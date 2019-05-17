@@ -126,6 +126,8 @@ class MasterHandle extends HDKey {
       upload = new Upload(file, this, this.uploadOpts),
       ee = new EventEmitter();
 
+    Object.defineProperty(ee, "handle", upload.handle);
+
     upload.on("upload-progress", progress => {
       ee.emit("upload-progress", progress);
     });
