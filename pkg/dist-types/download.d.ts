@@ -15,6 +15,7 @@ export default class Download extends EventEmitter {
     handle: string;
     hash: string;
     key: string;
+    downloadURLRequest: any;
     metadataRequest: any;
     downloadURL: string;
     isDownloading: boolean;
@@ -27,7 +28,7 @@ export default class Download extends EventEmitter {
     toBuffer: () => Promise<{}>;
     toFile: () => Promise<{}>;
     startDownload: () => Promise<void>;
-    getDownloadURL(): Promise<string>;
+    getDownloadURL(overwrite?: boolean): Promise<string>;
     downloadMetadata: (overwrite?: boolean) => Promise<FileMeta>;
     downloadFile: () => Promise<boolean>;
     finishDownload: (error: any) => void;
