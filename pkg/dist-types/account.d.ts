@@ -41,7 +41,7 @@ declare class MasterHandle extends HDKey {
     constructor({ account, handle, }: RequireOnlyOne<{
         account: Account;
         handle: string;
-    }, "account" | "handle">, { uploadOpts, downloadOpts }: {
+    }, "account" | "handle">, { uploadOpts, downloadOpts }?: {
         uploadOpts?: {};
         downloadOpts?: {};
     });

@@ -1,5 +1,6 @@
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
+import * as namehash from "eth-ens-namehash";
 import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
@@ -46,7 +47,7 @@ class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} }) {
+    constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
         /**
          * creates a sub key seed for validating
@@ -138,9 +139,10 @@ class MasterHandle extends HDKey {
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
+            const path = MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""));
             // TODO: fill in path
             // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
-            Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+            Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/" + path));
         }
         else if (handle && handle.constructor == String) {
             this.privateKey = Buffer.from(handle, "hex");

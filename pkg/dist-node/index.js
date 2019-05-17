@@ -15,6 +15,7 @@ var EthUtil = require('ethereumjs-util');
 var bip39 = require('bip39');
 var HDKey = require('hdkey');
 var HDKey__default = _interopDefault(HDKey);
+var namehash = require('eth-ens-namehash');
 var web3Utils = require('web3-utils');
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1310,7 +1311,7 @@ class MasterHandle extends HDKey__default {
   }, {
     uploadOpts = {},
     downloadOpts = {}
-  }) {
+  } = {}) {
     var _this;
 
     super();
@@ -1452,9 +1453,10 @@ class MasterHandle extends HDKey__default {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      // TODO: fill in path
+      const path = MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
       // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
-      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+
+      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/" + path));
     } else if (handle && handle.constructor == String) {
       this.privateKey = Buffer.from(handle, "hex");
     } else {

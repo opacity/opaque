@@ -9,6 +9,7 @@ import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
 import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
+import { hash } from 'eth-ens-namehash';
 import { soliditySha3 } from 'web3-utils';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1309,15 +1310,18 @@ class MasterHandle extends HDKey {
    *
    * @param account - the account to generate the handle from
    */
-  constructor(_ref, _ref2) {
+  constructor(_ref) {
     var _this;
 
     let account = _ref.account,
         handle = _ref.handle;
-    let _ref2$uploadOpts = _ref2.uploadOpts,
+
+    let _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+        _ref2$uploadOpts = _ref2.uploadOpts,
         uploadOpts = _ref2$uploadOpts === void 0 ? {} : _ref2$uploadOpts,
         _ref2$downloadOpts = _ref2.downloadOpts,
         downloadOpts = _ref2$downloadOpts === void 0 ? {} : _ref2$downloadOpts;
+
     super();
     _this = this;
 
@@ -1456,9 +1460,10 @@ class MasterHandle extends HDKey {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      // TODO: fill in path
+      const path = MasterHandle.hashToPath(hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
       // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
-      Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/path"));
+
+      Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/" + path));
     } else if (handle && handle.constructor == String) {
       this.privateKey = Buffer.from(handle, "hex");
     } else {

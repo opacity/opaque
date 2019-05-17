@@ -15,8 +15,9 @@
   "sideEffects": false,
   "dependencies": {
     "axios": "^0.18.0",
-    "bn.js": "^4.11.8",
     "bip39": "^3.0.2",
+    "bn.js": "^4.11.8",
+    "eth-ens-namehash": "^2.0.8",
     "ethereumjs-util": "^6.1.0",
     "form-data": "^2.3.3",
     "hdkey": "^1.1.1",
