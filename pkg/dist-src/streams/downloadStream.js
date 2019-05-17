@@ -69,7 +69,7 @@ export default class DownloadStream extends Readable {
                     range
                 }
             });
-            chunk.data = download.data;
+            chunk.data = new Uint8Array(download.data);
             this.bytesDownloaded += chunk.data.length;
             this.ongoingDownloads--;
             this.emit("progress", this.bytesDownloaded / this.size);
@@ -90,7 +90,7 @@ export default class DownloadStream extends Readable {
         const chunk = this.chunks[this.pushId];
         if (chunk && chunk.data !== null) {
             this.pushId++;
-            this.pushChunk = this.push(new Uint8Array(chunk.data));
+            this.pushChunk = this.push(chunk.data);
             chunk.data = null;
             this._pushChunk();
         }

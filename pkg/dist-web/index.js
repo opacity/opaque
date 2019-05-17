@@ -450,7 +450,7 @@ class DownloadStream extends Readable {
             range
           }
         });
-        chunk.data = download.data;
+        chunk.data = new Uint8Array(download.data);
         _this.bytesDownloaded += chunk.data.length;
         _this.ongoingDownloads--;
 
@@ -480,7 +480,7 @@ class DownloadStream extends Readable {
 
     if (chunk && chunk.data !== null) {
       this.pushId++;
-      this.pushChunk = this.push(new Uint8Array(chunk.data));
+      this.pushChunk = this.push(chunk.data);
       chunk.data = null;
 
       this._pushChunk();
