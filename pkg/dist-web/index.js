@@ -760,7 +760,7 @@ function _setMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "api/v1/metadata/set", signedPayload);
+    return Axios.post(endpoint + "/api/v1/metadata/set", signedPayload);
   });
   return _setMetadata.apply(this, arguments);
 }
@@ -777,7 +777,7 @@ function _getMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "api/v1/metadata/get", signedPayload);
+    return Axios.post(endpoint + "/api/v1/metadata/get", signedPayload);
   });
   return _getMetadata.apply(this, arguments);
 }
