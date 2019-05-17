@@ -1,9 +1,8 @@
-import { generateMnemonic, entropyToMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
-import { pipe } from "./utils/pipe";
 import { hash } from "./core/hashing";
 import { decryptString, encryptString } from "./core/encryption";
 import { FileEntryMeta, FileVersion, } from "./core/account/metadata";
@@ -47,8 +46,17 @@ class MasterHandle extends HDKey {
      *
      * @param account - the account to generate the handle from
      */
-    constructor({ account, handle, }, { uploadOpts, downloadOpts }) {
+    constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} }) {
         super();
+        /**
+         * creates a sub key seed for validating
+         *
+         * @param path - the string to use as a sub path
+         */
+        this.generateSubHDKey = (pathString) => {
+            const path = MasterHandle.hashToPath(hash(pathString));
+            return this.derive(path);
+        };
         this.uploadFile = (dir, file) => {
             const upload = new Upload(file, this, this.uploadOpts), ee = new EventEmitter();
             upload.on("progress", progress => {
@@ -141,16 +149,13 @@ class MasterHandle extends HDKey {
             throw new Error("master handle was not of expected type");
         }
     }
-    /**
-     * creates a sub key seed for validating
-     *
-     * @param path - the string to use as a sub path
-     */
-    generateSubHDKey(path) {
-        return pipe(Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString("hex")).through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
-    }
     static getKey(from, str) {
         return hash(from.privateKey.toString("hex"), str);
     }
 }
+MasterHandle.hashToPath = (h) => {
+    if (h.length % 4)
+        throw new Error("hash length must be multiple of two bytes");
+    return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+};
 export { Account, MasterHandle };

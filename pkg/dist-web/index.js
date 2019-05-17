@@ -7,7 +7,7 @@ import mime from 'mime/lite';
 import FormDataNode from 'form-data';
 import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
-import { generateMnemonic, validateMnemonic, mnemonicToSeedSync, entropyToMnemonic } from 'bip39';
+import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
 import { soliditySha3 } from 'web3-utils';
 
@@ -1102,32 +1102,6 @@ class Upload extends EventEmitter {
 
 }
 
-const pipe = function pipe() {
-  for (var _len = arguments.length, values = new Array(_len), _key = 0; _key < _len; _key++) {
-    values[_key] = arguments[_key];
-  }
-
-  return {
-    through: function through(fn) {
-      for (var _len2 = arguments.length, args = new Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-        args[_key2 - 1] = arguments[_key2];
-      }
-
-      return args.reduce((value, fn) => fn(value), fn(...values));
-    }
-  };
-};
-
-pipe.through = function (fn) {
-  for (var _len3 = arguments.length, args = new Array(_len3 > 1 ? _len3 - 1 : 0), _key3 = 1; _key3 < _len3; _key3++) {
-    args[_key3 - 1] = arguments[_key3];
-  }
-
-  return function () {
-    return args.reduce((value, fn) => fn(value), fn(...arguments));
-  };
-};
-
 class AccountMeta {
   constructor(_ref) {
     let planSize = _ref.planSize,
@@ -1328,10 +1302,22 @@ class MasterHandle extends HDKey {
 
     let account = _ref.account,
         handle = _ref.handle;
-    let uploadOpts = _ref2.uploadOpts,
-        downloadOpts = _ref2.downloadOpts;
+    let _ref2$uploadOpts = _ref2.uploadOpts,
+        uploadOpts = _ref2$uploadOpts === void 0 ? {} : _ref2$uploadOpts,
+        _ref2$downloadOpts = _ref2.downloadOpts,
+        downloadOpts = _ref2$downloadOpts === void 0 ? {} : _ref2$downloadOpts;
     super();
     _this = this;
+
+    /**
+     * creates a sub key seed for validating
+     *
+     * @param path - the string to use as a sub path
+     */
+    this.generateSubHDKey = pathString => {
+      const path = MasterHandle.hashToPath(soliditySha3(pathString));
+      return this.derive(path);
+    };
 
     this.uploadFile = (dir, file) => {
       const upload = new Upload(file, this, this.uploadOpts),
@@ -1467,21 +1453,16 @@ class MasterHandle extends HDKey {
       throw new Error("master handle was not of expected type");
     }
   }
-  /**
-   * creates a sub key seed for validating
-   *
-   * @param path - the string to use as a sub path
-   */
-
-
-  generateSubHDKey(path) {
-    return pipe(Buffer.concat([this.privateKey, Buffer.from(soliditySha3(path), "hex")]).toString("hex")).through(soliditySha3, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
-  }
 
   static getKey(from, str) {
     return soliditySha3(from.privateKey.toString("hex"), str);
   }
 
 }
+
+MasterHandle.hashToPath = h => {
+  if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
+  return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+};
 
 export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };

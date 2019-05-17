@@ -1106,16 +1106,6 @@ class Upload extends events.EventEmitter {
 
 }
 
-const pipe = (...values) => {
-  return {
-    through: (fn, ...args) => args.reduce((value, fn) => fn(value), fn(...values))
-  };
-};
-
-pipe.through = (fn, ...args) => (...values) => {
-  return args.reduce((value, fn) => fn(value), fn(...values));
-};
-
 class AccountMeta {
   constructor({
     planSize,
@@ -1308,13 +1298,23 @@ class MasterHandle extends HDKey__default {
     account,
     handle
   }, {
-    uploadOpts,
-    downloadOpts
+    uploadOpts = {},
+    downloadOpts = {}
   }) {
     var _this;
 
     super();
     _this = this;
+
+    /**
+     * creates a sub key seed for validating
+     *
+     * @param path - the string to use as a sub path
+     */
+    this.generateSubHDKey = pathString => {
+      const path = MasterHandle.hashToPath(web3Utils.soliditySha3(pathString));
+      return this.derive(path);
+    };
 
     this.uploadFile = (dir, file) => {
       const upload = new Upload(file, this, this.uploadOpts),
@@ -1451,22 +1451,17 @@ class MasterHandle extends HDKey__default {
       throw new Error("master handle was not of expected type");
     }
   }
-  /**
-   * creates a sub key seed for validating
-   *
-   * @param path - the string to use as a sub path
-   */
-
-
-  generateSubHDKey(path) {
-    return pipe(Buffer.concat([this.privateKey, Buffer.from(web3Utils.soliditySha3(path), "hex")]).toString("hex")).through(web3Utils.soliditySha3, bip39.entropyToMnemonic, bip39.mnemonicToSeedSync, HDKey.fromMasterSeed);
-  }
 
   static getKey(from, str) {
     return web3Utils.soliditySha3(from.privateKey.toString("hex"), str);
   }
 
 }
+
+MasterHandle.hashToPath = h => {
+  if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
+  return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+};
 
 exports.Account = Account;
 exports.AccountMeta = AccountMeta;

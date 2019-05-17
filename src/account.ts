@@ -77,8 +77,8 @@ class MasterHandle extends HDKey {
     "account" | "handle"
   >,
   {
-    uploadOpts,
-    downloadOpts
+    uploadOpts = {},
+    downloadOpts = {}
   }) {
     super();
 
@@ -99,17 +99,22 @@ class MasterHandle extends HDKey {
     }
   }
 
+  private static hashToPath = (h: string) => {
+    if (h.length % 4)
+      throw new Error("hash length must be multiple of two bytes")
+
+    return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'"
+  }
+
   /**
    * creates a sub key seed for validating
    *
    * @param path - the string to use as a sub path
    */
-  private generateSubHDKey(path: string): HDKey {
-    return pipe(
-      Buffer.concat([this.privateKey, Buffer.from(hash(path), "hex")]).toString(
-        "hex"
-      )
-    ).through(hash, entropyToMnemonic, mnemonicToSeedSync, fromMasterSeed);
+  private generateSubHDKey = (pathString: string): HDKey => {
+    const path = MasterHandle.hashToPath(hash(pathString))
+
+    return this.derive(path)
   }
 
   uploadFile = (dir: string, file: File) => {

@@ -42,9 +42,10 @@ declare class MasterHandle extends HDKey {
         account: Account;
         handle: string;
     }, "account" | "handle">, { uploadOpts, downloadOpts }: {
-        uploadOpts: any;
-        downloadOpts: any;
+        uploadOpts?: {};
+        downloadOpts?: {};
     });
+    private static hashToPath;
     /**
      * creates a sub key seed for validating
      *
