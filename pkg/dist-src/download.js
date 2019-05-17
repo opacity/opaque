@@ -120,7 +120,6 @@ export default class Download extends EventEmitter {
             this.isDownloading = true;
             this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
             this.decryptStream = new DecryptStream(this.key);
-            // this.targetStream = new targetStream(this.metadata);
             this.downloadStream.on("progress", progress => {
                 this.emit("download-progress", {
                     target: this,
@@ -142,6 +141,7 @@ export default class Download extends EventEmitter {
             }
         };
         this.propagateError = (error) => {
+            console.warn(error.msg || error);
             process.nextTick(() => this.emit("error", error));
         };
         const options = Object.assign({}, DEFAULT_OPTIONS, opts);

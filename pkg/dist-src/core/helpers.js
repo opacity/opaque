@@ -88,3 +88,14 @@ export function getEndIndex(uploadSize, params) {
     const endIndex = Math.ceil(chunkCount / chunksPerPart);
     return endIndex;
 }
+export function getBlockSize(params) {
+    if (params && params.blockSize) {
+        return params.blockSize;
+    }
+    else if (params && params.p && params.p.blockSize) {
+        return params.p.blockSize;
+    }
+    else {
+        return DEFAULT_BLOCK_SIZE;
+    }
+}

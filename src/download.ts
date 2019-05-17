@@ -121,7 +121,7 @@ export default class Download extends EventEmitter {
 
   startDownload = async () => {
     try {
-      await this.getDownloadURL()
+      await this.getDownloadURL();
       await this.downloadMetadata();
       await this.downloadFile();
     } catch(e) {
@@ -172,7 +172,6 @@ export default class Download extends EventEmitter {
 
     this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
-
     return metadata;
   }
 
@@ -184,7 +183,6 @@ export default class Download extends EventEmitter {
     this.isDownloading = true;
     this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
     this.decryptStream = new DecryptStream(this.key);
-    // this.targetStream = new targetStream(this.metadata);
 
     this.downloadStream.on("progress", progress => {
       this.emit("download-progress", {
@@ -210,6 +208,7 @@ export default class Download extends EventEmitter {
   }
 
   propagateError = (error) => {
+    console.warn(error.msg || error);
     process.nextTick(() => this.emit("error", error));
   }
 }

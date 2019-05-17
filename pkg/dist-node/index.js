@@ -235,6 +235,15 @@ function getEndIndex(uploadSize, params) {
   const endIndex = Math.ceil(chunkCount / chunksPerPart);
   return endIndex;
 }
+function getBlockSize(params) {
+  if (params && params.blockSize) {
+    return params.blockSize;
+  } else if (params && params.p && params.p.blockSize) {
+    return params.p.blockSize;
+  } else {
+    return DEFAULT_BLOCK_SIZE;
+  }
+}
 
 const Forge$1 = {
   cipher: nodeForge.cipher,
@@ -347,10 +356,11 @@ class DecryptStream extends readableStream.Transform {
     this.options = opts;
     this.key = key;
     this.iter = 0;
+    this.blockSize = getBlockSize(options);
   }
 
   _transform(chunk, encoding, callback) {
-    const blockSize = this.options.blockSize;
+    const blockSize = this.blockSize;
     const chunkSize = blockSize + BLOCK_OVERHEAD;
     const length = chunk.length;
 
@@ -395,7 +405,7 @@ class DownloadStream extends readableStream.Readable {
     this.isDownloadFinished = false;
     this.ongoingDownloads = 0;
     this.pushChunk = false;
-    const blockSize = metadata.p.blockSize || DEFAULT_BLOCK_SIZE;
+    const blockSize = getBlockSize(metadata);
     const blockCount = opts.partSize / (blockSize + BLOCK_OVERHEAD);
 
     if (blockCount !== Math.floor(blockCount)) {
@@ -648,7 +658,7 @@ class Download extends events.EventEmitter {
 
       _this.isDownloading = true;
       _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size);
-      _this.decryptStream = new DecryptStream(_this.key); // this.targetStream = new targetStream(this.metadata);
+      _this.decryptStream = new DecryptStream(_this.key);
 
       _this.downloadStream.on("progress", progress => {
         _this.emit("download-progress", {
@@ -674,6 +684,7 @@ class Download extends events.EventEmitter {
     };
 
     this.propagateError = error => {
+      console.warn(error.msg || error);
       process.nextTick(() => this.emit("error", error));
     };
 

@@ -5,9 +5,9 @@ import {
   DEFAULT_BLOCK_SIZE,
   BLOCK_OVERHEAD
 } from "../core/constants";
+import { getBlockSize } from "../core/helpers";
 
 const Forge = { util: ForgeUtil };
-
 const DEFAULT_OPTIONS = Object.freeze({
   binaryMode: false,
   objectMode: true,
@@ -16,6 +16,7 @@ const DEFAULT_OPTIONS = Object.freeze({
 
 export default class DecryptStream extends Transform {
   options
+  blockSize
   key
   iter
 
@@ -26,9 +27,11 @@ export default class DecryptStream extends Transform {
     this.options = opts;
     this.key = key;
     this.iter = 0;
+    this.blockSize = getBlockSize(options);
   }
+
   _transform(chunk, encoding, callback) {
-    const blockSize = this.options.blockSize;
+    const blockSize = this.blockSize;
     const chunkSize = blockSize + BLOCK_OVERHEAD;
     const length = chunk.length;
 
