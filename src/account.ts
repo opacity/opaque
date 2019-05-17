@@ -103,10 +103,12 @@ class MasterHandle extends HDKey {
   }
 
   private static hashToPath = (h: string) => {
+    console.log(h)
+
     if (h.length % 4)
       throw new Error("hash length must be multiple of two bytes")
 
-    return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'"
+    return "m/" + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'"
   }
 
   /**
@@ -121,7 +123,8 @@ class MasterHandle extends HDKey {
   }
 
   uploadFile = (dir: string, file: File) => {
-    const upload = new Upload(file, this, this.uploadOpts),
+    const
+      upload = new Upload(file, this, this.uploadOpts),
       ee = new EventEmitter();
 
     upload.on("progress", progress => {
@@ -175,7 +178,7 @@ class MasterHandle extends HDKey {
 
         // TODO
         await setMetadata(
-          "ENDPOINT",
+          this.uploadOpts.endpoint,
           this.getFolderHDKey(dir),
           this.getFolderLocation(dir),
           encryptedHandle
@@ -226,7 +229,7 @@ class MasterHandle extends HDKey {
     // TODO
     const metaLocation = decryptString(
       key,
-      (await getMetadata("ENDPOINT", folderKey, location)) as any,
+      (await getMetadata(this.uploadOpts.endpoint, folderKey, location)) as any,
       "hex"
     );
 

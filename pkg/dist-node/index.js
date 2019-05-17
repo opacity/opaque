@@ -765,7 +765,7 @@ function _setMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/set", signedPayload);
+    return Axios.post(endpoint + "api/v1/metadata/set", signedPayload);
   });
   return _setMetadata.apply(this, arguments);
 }
@@ -782,7 +782,7 @@ function _getMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/get", signedPayload);
+    return Axios.post(endpoint + "api/v1/metadata/get", signedPayload);
   });
   return _getMetadata.apply(this, arguments);
 }
@@ -1117,6 +1117,10 @@ class Upload extends events.EventEmitter {
 
 }
 
+const hash = (...val) => {
+  return web3Utils.soliditySha3(...val).replace(/^0x/, "");
+};
+
 class AccountMeta {
   constructor({
     planSize,
@@ -1323,7 +1327,7 @@ class MasterHandle extends HDKey__default {
      * @param path - the string to use as a sub path
      */
     this.generateSubHDKey = pathString => {
-      const path = MasterHandle.hashToPath(web3Utils.soliditySha3(pathString));
+      const path = MasterHandle.hashToPath(hash(pathString));
       return this.derive(path);
     };
 
@@ -1370,7 +1374,7 @@ class MasterHandle extends HDKey__default {
             }) {
               const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
-              yield setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+              yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
               ee.emit("finish", finishedUpload);
             });
 
@@ -1412,7 +1416,7 @@ class MasterHandle extends HDKey__default {
     };
 
     this.getFolderLocation = dir => {
-      return web3Utils.soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
+      return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
     };
 
     this.getFolderHandle =
@@ -1421,10 +1425,10 @@ class MasterHandle extends HDKey__default {
       var _ref3 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
-              key = web3Utils.soliditySha3(folderKey.privateKey.toString("hex")); // TODO
+              key = hash(folderKey.privateKey.toString("hex")); // TODO
 
 
-        const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
+        const metaLocation = decryptString(key, (yield getMetadata(_this.uploadOpts.endpoint, folderKey, location)), "hex");
         return metaLocation + MasterHandle.getKey(_this, metaLocation);
       });
 
@@ -1465,14 +1469,15 @@ class MasterHandle extends HDKey__default {
   }
 
   static getKey(from, str) {
-    return web3Utils.soliditySha3(from.privateKey.toString("hex"), str);
+    return hash(from.privateKey.toString("hex"), str);
   }
 
 }
 
 MasterHandle.hashToPath = h => {
+  console.log(h);
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
-  return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+  return "m/" + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
 exports.Account = Account;

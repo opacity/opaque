@@ -9,7 +9,7 @@ import * as EthUtil from 'ethereumjs-util';
 import { keccak256 } from 'ethereumjs-util';
 import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
-import { hash } from 'eth-ens-namehash';
+import { hash as hash$1 } from 'eth-ens-namehash';
 import { soliditySha3 } from 'web3-utils';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -760,7 +760,7 @@ function _setMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/set", signedPayload);
+    return Axios.post(endpoint + "api/v1/metadata/set", signedPayload);
   });
   return _setMetadata.apply(this, arguments);
 }
@@ -777,7 +777,7 @@ function _getMetadata() {
       metadataKey
     };
     const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/metadata/get", signedPayload);
+    return Axios.post(endpoint + "api/v1/metadata/get", signedPayload);
   });
   return _getMetadata.apply(this, arguments);
 }
@@ -1115,6 +1115,10 @@ class Upload extends EventEmitter {
 
 }
 
+const hash = function hash() {
+  return soliditySha3(...arguments).replace(/^0x/, "");
+};
+
 class AccountMeta {
   constructor(_ref) {
     let planSize = _ref.planSize,
@@ -1331,7 +1335,7 @@ class MasterHandle extends HDKey {
      * @param path - the string to use as a sub path
      */
     this.generateSubHDKey = pathString => {
-      const path = MasterHandle.hashToPath(soliditySha3(pathString));
+      const path = MasterHandle.hashToPath(hash(pathString));
       return this.derive(path);
     };
 
@@ -1377,7 +1381,7 @@ class MasterHandle extends HDKey {
               let metaHandle = _ref4.handle;
               const encryptedHandle = encryptString(_this.privateKey.toString("hex"), metaHandle); // TODO
 
-              yield setMetadata("ENDPOINT", _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
+              yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
               ee.emit("finish", finishedUpload);
             });
 
@@ -1419,7 +1423,7 @@ class MasterHandle extends HDKey {
     };
 
     this.getFolderLocation = dir => {
-      return soliditySha3(this.getFolderHDKey(dir).publicKey.toString("hex"));
+      return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
     };
 
     this.getFolderHandle =
@@ -1428,10 +1432,10 @@ class MasterHandle extends HDKey {
       var _ref6 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
-              key = soliditySha3(folderKey.privateKey.toString("hex")); // TODO
+              key = hash(folderKey.privateKey.toString("hex")); // TODO
 
 
-        const metaLocation = decryptString(key, (yield getMetadata("ENDPOINT", folderKey, location)), "hex");
+        const metaLocation = decryptString(key, (yield getMetadata(_this.uploadOpts.endpoint, folderKey, location)), "hex");
         return metaLocation + MasterHandle.getKey(_this, metaLocation);
       });
 
@@ -1460,7 +1464,7 @@ class MasterHandle extends HDKey {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      const path = MasterHandle.hashToPath(hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
+      const path = MasterHandle.hashToPath(hash$1("opacity.io").replace(/^0x/, "")); // TODO: fill in path
       // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
 
       Object.assign(this, fromMasterSeed(account.seed).derive("m/43'/60'/1775'/0'/" + path));
@@ -1472,14 +1476,15 @@ class MasterHandle extends HDKey {
   }
 
   static getKey(from, str) {
-    return soliditySha3(from.privateKey.toString("hex"), str);
+    return hash(from.privateKey.toString("hex"), str);
   }
 
 }
 
 MasterHandle.hashToPath = h => {
+  console.log(h);
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
-  return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+  return "m/" + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
 export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };

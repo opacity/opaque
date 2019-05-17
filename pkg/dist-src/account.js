@@ -93,7 +93,7 @@ class MasterHandle extends HDKey {
                 metaUpload.on("finish", async ({ handle: metaHandle }) => {
                     const encryptedHandle = encryptString(this.privateKey.toString("hex"), metaHandle);
                     // TODO
-                    await setMetadata("ENDPOINT", this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
+                    await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
                     ee.emit("finish", finishedUpload);
                 });
             });
@@ -124,7 +124,7 @@ class MasterHandle extends HDKey {
         this.getFolderHandle = async (dir) => {
             const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex"));
             // TODO
-            const metaLocation = decryptString(key, (await getMetadata("ENDPOINT", folderKey, location)), "hex");
+            const metaLocation = decryptString(key, (await getMetadata(this.uploadOpts.endpoint, folderKey, location)), "hex");
             return metaLocation + MasterHandle.getKey(this, metaLocation);
         };
         this.getFolderMetadata = async (dir) => {
@@ -156,8 +156,9 @@ class MasterHandle extends HDKey {
     }
 }
 MasterHandle.hashToPath = (h) => {
+    console.log(h);
     if (h.length % 4)
         throw new Error("hash length must be multiple of two bytes");
-    return h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+    return "m/" + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 export { Account, MasterHandle };

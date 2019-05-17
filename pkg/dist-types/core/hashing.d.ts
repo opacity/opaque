@@ -1,1 +1,2 @@
-export { soliditySha3 as hash } from "web3-utils";
+import { Mixed } from "web3-utils";
+export declare const hash: (...val: Mixed[]) => string;
