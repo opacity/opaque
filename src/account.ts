@@ -13,13 +13,13 @@ import { EventEmitter } from "events";
 import { pipe } from "./utils/pipe";
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
-import { util as ForgeUtil } from "node-forge"
+import { util as ForgeUtil } from "node-forge";
 import {
   FolderMeta,
   FileEntryMeta,
   FileVersion,
 } from "./core/account/metadata";
-import { getMetadata, setMetadata } from "./core/requests/metadata";
+import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
 
@@ -280,6 +280,40 @@ class MasterHandle extends HDKey {
     const meta = JSON.parse(reader.result as string)
 
     return meta;
+  }
+
+  isPaid = async () => {
+    try {
+      const accountInfoResponse = await checkPaymentStatus(this.uploadOpts.endpoint, this)
+
+      return accountInfoResponse.data.paymentStatus == "paid"
+    } catch {
+      return false
+    }
+  }
+
+  register = async () => {
+    if (await this.isPaid())
+      return Promise.resolve({
+        data: { invoice: { cost: 0, ethAddress: "0x0" } },
+        waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
+      })
+
+    const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"))
+
+    return new Promise(resolve => {
+      resolve({
+        data: createAccountResponse.data,
+        waitForPayment: () => new Promise(resolve => {
+          const interval = setInterval(async () => {
+            if (await this.isPaid()) {
+              clearInterval(interval)
+              resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
+            }
+          }, 10 * 1000)
+        })
+      })
+    })
   }
 }
 

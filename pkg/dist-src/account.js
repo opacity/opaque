@@ -8,7 +8,7 @@ import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
 import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
-import { getMetadata, setMetadata } from "./core/requests/metadata";
+import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -159,6 +159,36 @@ class MasterHandle extends HDKey {
             await new Promise(resolve => { reader.onloadend = resolve; });
             const meta = JSON.parse(reader.result);
             return meta;
+        };
+        this.isPaid = async () => {
+            try {
+                const accountInfoResponse = await checkPaymentStatus(this.uploadOpts.endpoint, this);
+                return accountInfoResponse.data.paymentStatus == "paid";
+            }
+            catch (_a) {
+                return false;
+            }
+        };
+        this.register = async () => {
+            if (await this.isPaid())
+                return Promise.resolve({
+                    data: { invoice: { cost: 0, ethAddress: "0x0" } },
+                    waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
+                });
+            const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"));
+            return new Promise(resolve => {
+                resolve({
+                    data: createAccountResponse.data,
+                    waitForPayment: () => new Promise(resolve => {
+                        const interval = setInterval(async () => {
+                            if (await this.isPaid()) {
+                                clearInterval(interval);
+                                resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
+                            }
+                        }, 10 * 1000);
+                    })
+                });
+            });
         };
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;

@@ -739,7 +739,8 @@ function _createAccount() {
     const payload = {
       metadataKey: metadataKey,
       durationInMonths: 12,
-      storageLimit: 100
+      // TODO: I'm not sure why this is like this, but it doesn't match what was planned
+      storageLimit: 128
     };
     const signedPayload = getPayload(payload, hdNode);
     return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
@@ -1498,6 +1499,59 @@ class MasterHandle extends HDKey {
       };
     }();
 
+    this.isPaid =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        const accountInfoResponse = yield checkPaymentStatus(_this.uploadOpts.endpoint, _this);
+        return accountInfoResponse.data.paymentStatus == "paid";
+      } catch (_a) {
+        return false;
+      }
+    });
+    this.register =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      if (yield _this.isPaid()) return Promise.resolve({
+        data: {
+          invoice: {
+            cost: 0,
+            ethAddress: "0x0"
+          }
+        },
+        waitForPayment: function () {
+          var _waitForPayment = _asyncToGenerator(function* () {
+            return {
+              data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+            };
+          });
+
+          function waitForPayment() {
+            return _waitForPayment.apply(this, arguments);
+          }
+
+          return waitForPayment;
+        }()
+      });
+      const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"));
+      return new Promise(resolve => {
+        resolve({
+          data: createAccountResponse.data,
+          waitForPayment: () => new Promise(resolve => {
+            const interval = setInterval(
+            /*#__PURE__*/
+            _asyncToGenerator(function* () {
+              if (yield _this.isPaid()) {
+                clearInterval(interval);
+                resolve({
+                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+                });
+              }
+            }), 10 * 1000);
+          })
+        });
+      });
+    });
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 
@@ -1520,9 +1574,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref7 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref7$prefix = _ref7.prefix,
-      prefix = _ref7$prefix === void 0 ? false : _ref7$prefix;
+  let _ref10 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref10$prefix = _ref10.prefix,
+      prefix = _ref10$prefix === void 0 ? false : _ref10$prefix;
 
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
