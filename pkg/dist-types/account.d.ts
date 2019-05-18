@@ -37,7 +37,7 @@ declare class MasterHandle extends HDKey {
         [key: string]: Promise<void>;
     };
     metadataQueue: {
-        [key: string]: any;
+        [key: string]: any[];
     };
     /**
      * creates a master handle from an account

@@ -66,7 +66,7 @@ class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
   safeToUploadMeta: { [key: string]: Promise<void> } = {}
-  metadataQueue: { [key: string]: any } = {}
+  metadataQueue: { [key: string]: any[] } = {}
 
   /**
    * creates a master handle from an account
@@ -176,19 +176,21 @@ class MasterHandle extends HDKey {
 
     const ee = new EventEmitter()
 
-    if (this.metadataQueue.length == 0) {
+    if (this.metadataQueue[dir].length == 0) {
       console.log("nothing left in queue")
       resolve()
       setTimeout(() => { ee.emit("finish") }, 100)
       return ee
     }
 
+    const copy = Object.assign([], this.metadataQueue[dir])
+
     console.log("uploading meta")
 
     const folderMeta = await this.getFolderMetadata(dir)
 
     await Promise.all(
-      this.metadataQueue[dir].map(async ({ file, finishedUpload }) => {
+      copy.map(async ({ file, finishedUpload }) => {
         const
           oldMetaIndex = folderMeta.files.findIndex(
             e => e.type == "file" && e.name == file.name
@@ -215,7 +217,7 @@ class MasterHandle extends HDKey {
       })
     )
 
-    this.metadataQueue = []
+    this.metadataQueue[dir].splice(0, copy.length)
 
     resolve()
 

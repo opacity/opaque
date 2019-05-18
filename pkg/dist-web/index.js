@@ -1410,7 +1410,7 @@ class MasterHandle extends HDKey {
         _this.safeToUploadMeta[dir] = promise;
         const ee = new EventEmitter();
 
-        if (_this.metadataQueue.length == 0) {
+        if (_this.metadataQueue[dir].length == 0) {
           console.log("nothing left in queue");
           resolve();
           setTimeout(() => {
@@ -1419,9 +1419,10 @@ class MasterHandle extends HDKey {
           return ee;
         }
 
+        const copy = Object.assign([], _this.metadataQueue[dir]);
         console.log("uploading meta");
         const folderMeta = yield _this.getFolderMetadata(dir);
-        yield Promise.all(_this.metadataQueue[dir].map(
+        yield Promise.all(copy.map(
         /*#__PURE__*/
         function () {
           var _ref6 = _asyncToGenerator(function* (_ref5) {
@@ -1447,7 +1448,9 @@ class MasterHandle extends HDKey {
             return _ref6.apply(this, arguments);
           };
         }()));
-        _this.metadataQueue = [];
+
+        _this.metadataQueue[dir].splice(0, copy.length);
+
         resolve();
         console.log("meta uploaded");
         return _this.uploadFolderMeta(dir, folderMeta);
