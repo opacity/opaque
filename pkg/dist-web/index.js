@@ -1372,8 +1372,8 @@ class MasterHandle extends HDKey {
       /*#__PURE__*/
       function () {
         var _ref3 = _asyncToGenerator(function* (finishedUpload) {
-          const folderMeta = yield _this.getFolderMetadata(dir),
-                oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"),
+          const folderMeta = yield _this.getFolderMeta(dir),
+                oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
                 version = new FileVersion({
             size: file.size,
@@ -1387,17 +1387,8 @@ class MasterHandle extends HDKey {
           }); // metadata existed previously
 
           if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
-          const buf = Buffer.from(JSON.stringify(folderMeta));
-
-          const metaUpload = _this.uploadFolderMeta(dir, folderMeta);
-
-          metaUpload.on("error", err => {
-            ee.emit("error", err);
-            throw err;
-          });
-          metaUpload.on("finish", finishedMeta => {
-            ee.emit("finish", finishedUpload);
-          });
+          yield _this.setFolderMeta(dir, folderMeta);
+          ee.emit("finish", finishedUpload);
         });
 
         return function (_x) {
@@ -1435,10 +1426,28 @@ class MasterHandle extends HDKey {
       return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
     };
 
-    this.getFolderHandle =
+    this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref4 = _asyncToGenerator(function* (dir) {
+      var _ref4 = _asyncToGenerator(function* (dir, folderMeta) {
+        const folderKey = _this.getFolderHDKey(dir),
+              key = hash(folderKey.privateKey.toString("hex")),
+              metaString = JSON.stringify(folderMeta),
+              encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO
+
+
+        yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
+      });
+
+      return function (_x2, _x3) {
+        return _ref4.apply(this, arguments);
+      };
+    }();
+
+    this.getFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1446,69 +1455,18 @@ class MasterHandle extends HDKey {
         // I have no idea why but the decrypted is correct hex without converting
 
 
-        const metaLocation = decrypt(key, new util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
-        return metaLocation + MasterHandle.getKey(_this, metaLocation);
-      });
-
-      return function (_x2) {
-        return _ref4.apply(this, arguments);
-      };
-    }();
-
-    this.uploadFolderMeta = (dir, folderMeta) => {
-      const ee = new EventEmitter();
-      const file = new File([Buffer.from(JSON.stringify(folderMeta))], "metadata_" + dir);
-      const folderKey = this.getFolderHDKey(dir);
-      const metaUpload = new Upload(file, this, this.uploadOpts);
-      metaUpload.on("error", err => {
-        ee.emit("error", err);
-        throw err;
-      });
-      metaUpload.on("finish",
-      /*#__PURE__*/
-      function () {
-        var _ref5 = _asyncToGenerator(function* (finishedMeta) {
-          const encryptedHandle = encryptString(hash(folderKey.privateKey.toString("hex")), finishedMeta.handle).toHex(); // TODO
-
-          yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedHandle);
-          ee.emit("finish", finishedMeta);
-        });
-
-        return function (_x3) {
-          return _ref5.apply(this, arguments);
-        };
-      }());
-      return ee;
-    };
-
-    this.getFolderMetadata =
-    /*#__PURE__*/
-    function () {
-      var _ref6 = _asyncToGenerator(function* (dir) {
-        let handle;
+        const metaString = decrypt(key, new util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
 
         try {
-          handle = yield _this.getFolderHandle(dir);
-        } catch (err) {
-          console.warn(err);
-          return new FolderMeta();
+          const meta = JSON.parse(metaString);
+          return meta;
+        } catch (_a) {
+          throw new Error("metadata corrupted");
         }
-
-        const download = new Download(handle, Object.assign({}, _this.downloadOpts, {
-          autoStart: true
-        }));
-        download.on("error", console.error);
-        const reader = new FileReader();
-        reader.readAsBinaryString((yield download.toFile()));
-        yield new Promise(resolve => {
-          reader.onloadend = resolve;
-        });
-        const meta = JSON.parse(reader.result);
-        return meta;
       });
 
       return function (_x4) {
-        return _ref6.apply(this, arguments);
+        return _ref5.apply(this, arguments);
       };
     }();
 
@@ -1595,9 +1553,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref10 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref10$prefix = _ref10.prefix,
-      prefix = _ref10$prefix === void 0 ? false : _ref10$prefix;
+  let _ref9 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref9$prefix = _ref9.prefix,
+      prefix = _ref9$prefix === void 0 ? false : _ref9$prefix;
 
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";

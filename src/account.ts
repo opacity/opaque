@@ -143,14 +143,16 @@ class MasterHandle extends HDKey {
     });
 
     upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-      const folderMeta = await this.getFolderMetadata(dir),
+      const
+        folderMeta = await this.getFolderMeta(dir),
         oldMetaIndex = folderMeta.files.findIndex(
-          e => e.name == file.name && e.type == "file"
+          e => e.type == "file" && e.name == file.name
         ),
-        oldMeta =
+        oldMeta = (
           oldMetaIndex !== -1
             ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
-            : ({} as FileEntryMeta),
+            : ({} as FileEntryMeta)
+        ),
         version = new FileVersion({
           size: file.size,
           handle: finishedUpload.handle,
@@ -167,18 +169,9 @@ class MasterHandle extends HDKey {
       if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
       else folderMeta.files.unshift(meta);
 
-      const buf = Buffer.from(JSON.stringify(folderMeta));
+      await this.setFolderMeta(dir, folderMeta)
 
-      const metaUpload = this.uploadFolderMeta(dir, folderMeta)
-
-      metaUpload.on("error", err => {
-        ee.emit("error", err);
-        throw err;
-      });
-
-      metaUpload.on("finish", finishedMeta => {
-        ee.emit("finish", finishedUpload)
-      });
+      ee.emit("finish", finishedUpload)
     });
 
     return ee;
@@ -214,7 +207,23 @@ class MasterHandle extends HDKey {
     return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
   }
 
-  getFolderHandle = async (dir: string) => {
+  setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {
+    const
+      folderKey = this.getFolderHDKey(dir),
+      key = hash(folderKey.privateKey.toString("hex")),
+      metaString = JSON.stringify(folderMeta),
+      encryptedMeta = encryptString(key, metaString, "utf8").toHex()
+
+    // TODO
+    await setMetadata(
+      this.uploadOpts.endpoint,
+      this.getFolderHDKey(dir),
+      this.getFolderLocation(dir),
+      encryptedMeta
+    );
+  }
+
+  getFolderMeta = async (dir: string) => {
     const
       folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(dir),
@@ -223,70 +232,20 @@ class MasterHandle extends HDKey {
 
     // TODO
     // I have no idea why but the decrypted is correct hex without converting
-    const metaLocation = (
+    const metaString = (
       decrypt(
         key,
         new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))
       ) as ForgeUtil.ByteBuffer
     ).toString();
 
-    return metaLocation + MasterHandle.getKey(this, metaLocation as unknown as string);
-  }
-
-  uploadFolderMeta = (dir: string, folderMeta: FolderMeta) => {
-    const ee = new EventEmitter()
-
-    const file = new File([Buffer.from(JSON.stringify(folderMeta))], "metadata_" + dir);
-    const folderKey = this.getFolderHDKey(dir);
-
-    const metaUpload = new Upload(file, this, this.uploadOpts);
-
-    metaUpload.on("error", err => {
-      ee.emit("error", err);
-      throw err;
-    });
-
-    metaUpload.on("finish", async (finishedMeta: { handle: string, [key: string]: any }) => {
-      const encryptedHandle = encryptString(
-        hash(folderKey.privateKey.toString("hex")),
-        finishedMeta.handle
-      ).toHex();
-
-      // TODO
-      await setMetadata(
-        this.uploadOpts.endpoint,
-        this.getFolderHDKey(dir),
-        this.getFolderLocation(dir),
-        encryptedHandle
-      );
-
-      ee.emit("finish", finishedMeta)
-    });
-
-    return ee
-  }
-
-  getFolderMetadata = async (dir: string) => {
-    let handle
-
     try {
-      handle = await this.getFolderHandle(dir);
-    } catch (err) {
-      console.warn(err)
+      const meta = JSON.parse(metaString)
 
-      return new FolderMeta()
+      return meta
+    } catch {
+      throw new Error("metadata corrupted")
     }
-
-    const download = new Download(handle, Object.assign({}, this.downloadOpts, { autoStart: true }));
-
-    download.on("error", console.error);
-
-    const reader = new FileReader()
-    reader.readAsBinaryString(await download.toFile() as File)
-    await new Promise(resolve => { reader.onloadend = resolve })
-    const meta = JSON.parse(reader.result as string)
-
-    return meta;
   }
 
   isPaid = async () => {
