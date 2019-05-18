@@ -7,7 +7,7 @@ import { EventEmitter } from "events";
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
-import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
+import { FileEntryMeta, FileVersion, } from "./core/account/metadata";
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 /**
  * **_this should never be shared or left in storage_**
@@ -70,9 +70,9 @@ class MasterHandle extends HDKey {
                 throw err;
             });
             upload.on("finish", async (finishedUpload) => {
-                const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
+                const folderMeta = await this.getFolderMeta(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
                     ? folderMeta.files[oldMetaIndex]
-                    : {}, version = new FileVersion({
+                    : {}), version = new FileVersion({
                     size: file.size,
                     handle: finishedUpload.handle,
                     modified: file.lastModified,
@@ -86,15 +86,8 @@ class MasterHandle extends HDKey {
                     folderMeta.files.splice(oldMetaIndex, 1, meta);
                 else
                     folderMeta.files.unshift(meta);
-                const buf = Buffer.from(JSON.stringify(folderMeta));
-                const metaUpload = this.uploadFolderMeta(dir, folderMeta);
-                metaUpload.on("error", err => {
-                    ee.emit("error", err);
-                    throw err;
-                });
-                metaUpload.on("finish", finishedMeta => {
-                    ee.emit("finish", finishedUpload);
-                });
+                await this.setFolderMeta(dir, folderMeta);
+                ee.emit("finish", finishedUpload);
             });
             return ee;
         };
@@ -120,46 +113,23 @@ class MasterHandle extends HDKey {
         this.getFolderLocation = (dir) => {
             return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
         };
-        this.getFolderHandle = async (dir) => {
+        this.setFolderMeta = async (dir, folderMeta) => {
+            const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
+            // TODO
+            await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedMeta);
+        };
+        this.getFolderMeta = async (dir) => {
             const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), response = await getMetadata(this.uploadOpts.endpoint, folderKey, location);
             // TODO
             // I have no idea why but the decrypted is correct hex without converting
-            const metaLocation = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
-            return metaLocation + MasterHandle.getKey(this, metaLocation);
-        };
-        this.uploadFolderMeta = (dir, folderMeta) => {
-            const ee = new EventEmitter();
-            const file = new File([Buffer.from(JSON.stringify(folderMeta))], "metadata_" + dir);
-            const folderKey = this.getFolderHDKey(dir);
-            const metaUpload = new Upload(file, this, this.uploadOpts);
-            metaUpload.on("error", err => {
-                ee.emit("error", err);
-                throw err;
-            });
-            metaUpload.on("finish", async (finishedMeta) => {
-                const encryptedHandle = encryptString(hash(folderKey.privateKey.toString("hex")), finishedMeta.handle).toHex();
-                // TODO
-                await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
-                ee.emit("finish", finishedMeta);
-            });
-            return ee;
-        };
-        this.getFolderMetadata = async (dir) => {
-            let handle;
+            const metaString = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
             try {
-                handle = await this.getFolderHandle(dir);
+                const meta = JSON.parse(metaString);
+                return meta;
             }
-            catch (err) {
-                console.warn(err);
-                return new FolderMeta();
+            catch (_a) {
+                throw new Error("metadata corrupted");
             }
-            const download = new Download(handle, Object.assign({}, this.downloadOpts, { autoStart: true }));
-            download.on("error", console.error);
-            const reader = new FileReader();
-            reader.readAsBinaryString(await download.toFile());
-            await new Promise(resolve => { reader.onloadend = resolve; });
-            const meta = JSON.parse(reader.result);
-            return meta;
         };
         this.isPaid = async () => {
             try {
