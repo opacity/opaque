@@ -11,6 +11,7 @@ import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
 export { default as HDKey } from 'hdkey';
 import { hash as hash$1 } from 'eth-ens-namehash';
+import { debounce } from 'debounce';
 import { soliditySha3 } from 'web3-utils';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1342,12 +1343,13 @@ class MasterHandle extends HDKey {
 
     super();
     _this = this;
-
+    this.metaQueue = {};
     /**
      * creates a sub key seed for validating
      *
      * @param path - the string to use as a sub path
      */
+
     this.generateSubHDKey = pathString => {
       const path = MasterHandle.hashToPath(hash(pathString), {
         prefix: true
@@ -1372,22 +1374,12 @@ class MasterHandle extends HDKey {
       /*#__PURE__*/
       function () {
         var _ref3 = _asyncToGenerator(function* (finishedUpload) {
-          const folderMeta = yield _this.getFolderMeta(dir),
-                oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
-                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
-                version = new FileVersion({
-            size: file.size,
-            handle: finishedUpload.handle,
-            modified: file.lastModified
-          }),
-                meta = new FileEntryMeta({
-            name: file.name,
-            created: oldMeta.created,
-            versions: [version, ...(oldMeta.versions || [])]
-          }); // metadata existed previously
-
-          if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
-          yield _this.setFolderMeta(dir, folderMeta);
+          // LOOK HERE
+          // TODO
+          yield _this.queueMeta(dir, {
+            file,
+            finishedUpload
+          });
           ee.emit("finish", finishedUpload);
         });
 
@@ -1426,10 +1418,86 @@ class MasterHandle extends HDKey {
       return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
     };
 
+    this.queueMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir, _ref4) {
+        let file = _ref4.file,
+            finishedUpload = _ref4.finishedUpload;
+        let resolve,
+            promise = new Promise(resolvePromise => {
+          resolve = resolvePromise;
+        });
+        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
+
+        _this.metaQueue[dir].push({
+          file,
+          finishedUpload,
+          resolve
+        });
+
+        _this._updateMetaFromQueue(dir);
+
+        yield promise;
+      });
+
+      return function (_x2, _x3) {
+        return _ref5.apply(this, arguments);
+      };
+    }();
+
+    this._updateMetaFromQueue = debounce(
+    /*#__PURE__*/
+    function () {
+      var _ref6 = _asyncToGenerator(function* (dir) {
+        const folderMeta = yield _this.getFolderMeta(dir),
+              copy = Object.assign([], _this.metaQueue[dir]),
+              finished = [];
+        copy.forEach((_ref7) => {
+          let file = _ref7.file,
+              finishedUpload = _ref7.finishedUpload,
+              resolve = _ref7.resolve;
+          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
+                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+                version = new FileVersion({
+            size: file.size,
+            handle: finishedUpload.handle,
+            modified: file.lastModified
+          }),
+                meta = new FileEntryMeta({
+            name: file.name,
+            created: oldMeta.created,
+            versions: [version, ...(oldMeta.versions || [])]
+          }); // metadata existed previously
+
+          if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
+          finished.push(resolve);
+        });
+
+        try {
+          yield _this.setFolderMeta(dir, folderMeta);
+        } catch (err) {
+          console.error("could not finish setting meta");
+          throw err;
+        } // clean queue
+
+
+        _this.metaQueue[dir].splice(0, copy.length);
+
+        finished.forEach(resolve => {
+          resolve();
+        });
+      });
+
+      return function (_x4) {
+        return _ref6.apply(this, arguments);
+      };
+    }(), 500);
+
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref4 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref8 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta),
@@ -1439,15 +1507,15 @@ class MasterHandle extends HDKey {
         yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x2, _x3) {
-        return _ref4.apply(this, arguments);
+      return function (_x5, _x6) {
+        return _ref8.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref5 = _asyncToGenerator(function* (dir) {
+      var _ref9 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1465,8 +1533,8 @@ class MasterHandle extends HDKey {
         }
       });
 
-      return function (_x4) {
-        return _ref5.apply(this, arguments);
+      return function (_x7) {
+        return _ref9.apply(this, arguments);
       };
     }();
 
@@ -1553,9 +1621,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref9 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref9$prefix = _ref9.prefix,
-      prefix = _ref9$prefix === void 0 ? false : _ref9$prefix;
+  let _ref13 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref13$prefix = _ref13.prefix,
+      prefix = _ref13$prefix === void 0 ? false : _ref13$prefix;
 
   if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";

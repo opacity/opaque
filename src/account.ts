@@ -11,6 +11,7 @@ import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
 import { pipe } from "./utils/pipe";
+import { debounce } from "debounce"
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
@@ -65,6 +66,21 @@ class Account {
 class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
+  metaQueue: {
+    [key: string]: {
+      resolve: () => void,
+      file: {
+        [key: string]: any,
+        name: string,
+        size: number,
+        lastModified: number
+      },
+      finishedUpload: {
+        [key: string]: any,
+        handle: string
+      }
+    }[]
+  } = {}
 
   /**
    * creates a master handle from an account
@@ -143,33 +159,9 @@ class MasterHandle extends HDKey {
     });
 
     upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-      const
-        folderMeta = await this.getFolderMeta(dir),
-        oldMetaIndex = folderMeta.files.findIndex(
-          e => e.type == "file" && e.name == file.name
-        ),
-        oldMeta = (
-          oldMetaIndex !== -1
-            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
-            : ({} as FileEntryMeta)
-        ),
-        version = new FileVersion({
-          size: file.size,
-          handle: finishedUpload.handle,
-          modified: file.lastModified,
-        }),
-        meta = new FileEntryMeta({
-          name: file.name,
-          created: oldMeta.created,
-          versions:
-            [version, ...(oldMeta.versions || [])],
-        });
-
-      // metadata existed previously
-      if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
-      else folderMeta.files.unshift(meta);
-
-      await this.setFolderMeta(dir, folderMeta)
+      // LOOK HERE
+      // TODO
+      await this.queueMeta(dir, { file, finishedUpload })
 
       ee.emit("finish", finishedUpload)
     });
@@ -206,6 +198,69 @@ class MasterHandle extends HDKey {
   getFolderLocation = (dir: string) => {
     return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
   }
+
+  queueMeta = async (dir: string, { file, finishedUpload }) => {
+    let
+      resolve,
+      promise = new Promise(resolvePromise => {
+        resolve = resolvePromise
+      })
+
+    this.metaQueue[dir] = this.metaQueue[dir] || []
+    this.metaQueue[dir].push({ file, finishedUpload, resolve })
+
+    this._updateMetaFromQueue(dir)
+
+    await promise
+  }
+
+  private _updateMetaFromQueue = debounce(async (dir: string) => {
+    const
+      folderMeta = await this.getFolderMeta(dir),
+      copy = Object.assign([], this.metaQueue[dir]),
+      finished: (() => void)[] = []
+
+    copy.forEach(({ file, finishedUpload, resolve }) => {
+      const
+        oldMetaIndex = folderMeta.files.findIndex(
+          e => e.type == "file" && e.name == file.name
+        ),
+        oldMeta = (
+          oldMetaIndex !== -1
+            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
+            : ({} as FileEntryMeta)
+        ),
+        version = new FileVersion({
+          size: file.size,
+          handle: finishedUpload.handle,
+          modified: file.lastModified,
+        }),
+        meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions:
+            [version, ...(oldMeta.versions || [])],
+        })
+
+      // metadata existed previously
+      if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
+      else folderMeta.files.unshift(meta);
+
+      finished.push(resolve)
+    })
+
+    try {
+      await this.setFolderMeta(dir, folderMeta)
+    } catch (err) {
+      console.error("could not finish setting meta")
+      throw err
+    }
+
+    // clean queue
+    this.metaQueue[dir].splice(0, copy.length)
+
+    finished.forEach(resolve => { resolve() })
+  }, 500)
 
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {
     const

@@ -4,6 +4,7 @@ import * as namehash from "eth-ens-namehash";
 import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
+import { debounce } from "debounce";
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
@@ -50,6 +51,7 @@ class MasterHandle extends HDKey {
      */
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
+        this.metaQueue = {};
         /**
          * creates a sub key seed for validating
          *
@@ -70,23 +72,9 @@ class MasterHandle extends HDKey {
                 throw err;
             });
             upload.on("finish", async (finishedUpload) => {
-                const folderMeta = await this.getFolderMeta(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
-                    ? folderMeta.files[oldMetaIndex]
-                    : {}), version = new FileVersion({
-                    size: file.size,
-                    handle: finishedUpload.handle,
-                    modified: file.lastModified,
-                }), meta = new FileEntryMeta({
-                    name: file.name,
-                    created: oldMeta.created,
-                    versions: [version, ...(oldMeta.versions || [])],
-                });
-                // metadata existed previously
-                if (oldMetaIndex !== -1)
-                    folderMeta.files.splice(oldMetaIndex, 1, meta);
-                else
-                    folderMeta.files.unshift(meta);
-                await this.setFolderMeta(dir, folderMeta);
+                // LOOK HERE
+                // TODO
+                await this.queueMeta(dir, { file, finishedUpload });
                 ee.emit("finish", finishedUpload);
             });
             return ee;
@@ -113,6 +101,47 @@ class MasterHandle extends HDKey {
         this.getFolderLocation = (dir) => {
             return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
         };
+        this.queueMeta = async (dir, { file, finishedUpload }) => {
+            let resolve, promise = new Promise(resolvePromise => {
+                resolve = resolvePromise;
+            });
+            this.metaQueue[dir] = this.metaQueue[dir] || [];
+            this.metaQueue[dir].push({ file, finishedUpload, resolve });
+            this._updateMetaFromQueue(dir);
+            await promise;
+        };
+        this._updateMetaFromQueue = debounce(async (dir) => {
+            const folderMeta = await this.getFolderMeta(dir), copy = Object.assign([], this.metaQueue[dir]), finished = [];
+            copy.forEach(({ file, finishedUpload, resolve }) => {
+                const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
+                    ? folderMeta.files[oldMetaIndex]
+                    : {}), version = new FileVersion({
+                    size: file.size,
+                    handle: finishedUpload.handle,
+                    modified: file.lastModified,
+                }), meta = new FileEntryMeta({
+                    name: file.name,
+                    created: oldMeta.created,
+                    versions: [version, ...(oldMeta.versions || [])],
+                });
+                // metadata existed previously
+                if (oldMetaIndex !== -1)
+                    folderMeta.files.splice(oldMetaIndex, 1, meta);
+                else
+                    folderMeta.files.unshift(meta);
+                finished.push(resolve);
+            });
+            try {
+                await this.setFolderMeta(dir, folderMeta);
+            }
+            catch (err) {
+                console.error("could not finish setting meta");
+                throw err;
+            }
+            // clean queue
+            this.metaQueue[dir].splice(0, copy.length);
+            finished.forEach(resolve => { resolve(); });
+        }, 500);
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
             // TODO

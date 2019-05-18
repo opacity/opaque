@@ -33,6 +33,21 @@ declare class Account {
 declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
+    metaQueue: {
+        [key: string]: {
+            resolve: () => void;
+            file: {
+                [key: string]: any;
+                name: string;
+                size: number;
+                lastModified: number;
+            };
+            finishedUpload: {
+                [key: string]: any;
+                handle: string;
+            };
+        }[];
+    };
     /**
      * creates a master handle from an account
      *
@@ -69,6 +84,11 @@ declare class MasterHandle extends HDKey {
      */
     getFolderHDKey: (dir: string) => HDKey;
     getFolderLocation: (dir: string) => string;
+    queueMeta: (dir: string, { file, finishedUpload }: {
+        file: any;
+        finishedUpload: any;
+    }) => Promise<void>;
+    private _updateMetaFromQueue;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<any>;
     isPaid: () => Promise<boolean>;
