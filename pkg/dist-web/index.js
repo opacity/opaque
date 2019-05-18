@@ -1302,7 +1302,11 @@ class Account {
 
   constructor() {
     let mnemonic = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : generateMnemonic();
-    if (!validateMnemonic(mnemonic)) throw new Error("mnemonic provided was not valid");
+
+    if (!validateMnemonic(mnemonic)) {
+      throw new Error("mnemonic provided was not valid");
+    }
+
     this._mnemonic = mnemonic;
   }
 
@@ -1468,7 +1472,12 @@ class MasterHandle extends HDKey {
             versions: [version, ...(oldMeta.versions || [])]
           }); // metadata existed previously
 
-          if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
+          if (oldMetaIndex !== -1) {
+            folderMeta.files[oldMetaIndex] = meta;
+          } else {
+            folderMeta.files.unshift(meta);
+          }
+
           finished.push(resolve);
         });
 
@@ -1548,27 +1557,30 @@ class MasterHandle extends HDKey {
     this.register =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      if (yield _this.isPaid()) return Promise.resolve({
-        data: {
-          invoice: {
-            cost: 0,
-            ethAddress: "0x0"
-          }
-        },
-        waitForPayment: function () {
-          var _waitForPayment = _asyncToGenerator(function* () {
-            return {
-              data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-            };
-          });
+      if (yield _this.isPaid()) {
+        return Promise.resolve({
+          data: {
+            invoice: {
+              cost: 0,
+              ethAddress: "0x0"
+            }
+          },
+          waitForPayment: function () {
+            var _waitForPayment = _asyncToGenerator(function* () {
+              return {
+                data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+              };
+            });
 
-          function waitForPayment() {
-            return _waitForPayment.apply(this, arguments);
-          }
+            function waitForPayment() {
+              return _waitForPayment.apply(this, arguments);
+            }
 
-          return waitForPayment;
-        }()
-      });
+            return waitForPayment;
+          }()
+        });
+      }
+
       const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"));
       return new Promise(resolve => {
         resolve({
@@ -1621,7 +1633,10 @@ MasterHandle.hashToPath = function (h) {
       _ref13$prefix = _ref13.prefix,
       prefix = _ref13$prefix === void 0 ? false : _ref13$prefix;
 
-  if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
+  if (h.length % 4) {
+    throw new Error("hash length must be multiple of two bytes");
+  }
+
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 

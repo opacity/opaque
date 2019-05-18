@@ -25,8 +25,9 @@ class Account {
      * @param mnemonic - the mnemonic to use for the account
      */
     constructor(mnemonic = generateMnemonic()) {
-        if (!validateMnemonic(mnemonic))
+        if (!validateMnemonic(mnemonic)) {
             throw new Error("mnemonic provided was not valid");
+        }
         this._mnemonic = mnemonic;
     }
     get seed() {
@@ -123,10 +124,12 @@ class MasterHandle extends HDKey {
                     versions: [version, ...(oldMeta.versions || [])],
                 });
                 // metadata existed previously
-                if (oldMetaIndex !== -1)
-                    folderMeta.files.splice(oldMetaIndex, 1, meta);
-                else
+                if (oldMetaIndex !== -1) {
+                    folderMeta.files[oldMetaIndex] = meta;
+                }
+                else {
                     folderMeta.files.unshift(meta);
+                }
                 finished.push(resolve);
             });
             try {
@@ -167,11 +170,12 @@ class MasterHandle extends HDKey {
             }
         };
         this.register = async () => {
-            if (await this.isPaid())
+            if (await this.isPaid()) {
                 return Promise.resolve({
                     data: { invoice: { cost: 0, ethAddress: "0x0" } },
                     waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
                 });
+            }
             const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"));
             return new Promise(resolve => {
                 resolve({
@@ -212,8 +216,9 @@ class MasterHandle extends HDKey {
     }
 }
 MasterHandle.hashToPath = (h, { prefix = false } = {}) => {
-    if (h.length % 4)
+    if (h.length % 4) {
         throw new Error("hash length must be multiple of two bytes");
+    }
     return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 export { Account, MasterHandle, HDKey };
