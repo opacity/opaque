@@ -77,19 +77,30 @@ class MasterHandle extends HDKey {
                     file,
                     finishedUpload
                 });
-                await this.safeToUploadMeta[dir] || Promise.resolve(true);
                 const metaUpload = await this.processMetaQueue(dir);
                 metaUpload.on("error", err => {
                     ee.emit("error", err);
                     throw err;
                 });
-                metaUpload.on("finish", finishedMeta => {
+                metaUpload.on("finish", () => {
                     ee.emit("finish", finishedUpload);
                 });
             });
             return ee;
         };
         this.processMetaQueue = async (dir) => {
+            await (this.safeToUploadMeta[dir] || Promise.resolve(true));
+            let resolve;
+            const promise = new Promise(resolvePromise => { resolve = resolvePromise; });
+            this.safeToUploadMeta[dir] = promise;
+            const ee = new EventEmitter();
+            if (this.metadataQueue.length == 0) {
+                console.log("nothing left in queue");
+                resolve();
+                setTimeout(() => { ee.emit("finish"); }, 100);
+                return ee;
+            }
+            console.log("uploading meta");
             const folderMeta = await this.getFolderMetadata(dir);
             await Promise.all(this.metadataQueue[dir].map(async ({ file, finishedUpload }) => {
                 const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = oldMetaIndex !== -1
@@ -109,6 +120,9 @@ class MasterHandle extends HDKey {
                 else
                     folderMeta.files.unshift(meta);
             }));
+            this.metadataQueue = [];
+            resolve();
+            console.log("meta uploaded");
             return this.uploadFolderMeta(dir, folderMeta);
         };
         this.downloadFile = (handle) => {

@@ -34,7 +34,7 @@ declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
     safeToUploadMeta: {
-        [key: string]: any;
+        [key: string]: Promise<void>;
     };
     metadataQueue: {
         [key: string]: any;

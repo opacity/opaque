@@ -65,7 +65,7 @@ class Account {
 class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
-  safeToUploadMeta: { [key: string]: any } = {}
+  safeToUploadMeta: { [key: string]: Promise<void> } = {}
   metadataQueue: { [key: string]: any } = {}
 
   /**
@@ -151,8 +151,6 @@ class MasterHandle extends HDKey {
         finishedUpload
       })
 
-      await this.safeToUploadMeta[dir] || Promise.resolve(true)
-
       const metaUpload = await this.processMetaQueue(dir)
 
       metaUpload.on("error", err => {
@@ -160,7 +158,7 @@ class MasterHandle extends HDKey {
         throw err;
       });
 
-      metaUpload.on("finish", finishedMeta => {
+      metaUpload.on("finish", () => {
         ee.emit("finish", finishedUpload)
       });
     });
@@ -169,6 +167,24 @@ class MasterHandle extends HDKey {
   }
 
   processMetaQueue = async (dir: string) => {
+    await (this.safeToUploadMeta[dir] || Promise.resolve(true))
+
+    let resolve
+    const promise = new Promise<void>(resolvePromise => { resolve = resolvePromise })
+
+    this.safeToUploadMeta[dir] = promise
+
+    const ee = new EventEmitter()
+
+    if (this.metadataQueue.length == 0) {
+      console.log("nothing left in queue")
+      resolve()
+      setTimeout(() => { ee.emit("finish") }, 100)
+      return ee
+    }
+
+    console.log("uploading meta")
+
     const folderMeta = await this.getFolderMetadata(dir)
 
     await Promise.all(
@@ -198,6 +214,12 @@ class MasterHandle extends HDKey {
         else folderMeta.files.unshift(meta);
       })
     )
+
+    this.metadataQueue = []
+
+    resolve()
+
+    console.log("meta uploaded")
 
     return this.uploadFolderMeta(dir, folderMeta)
   }

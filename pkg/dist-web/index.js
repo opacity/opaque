@@ -1381,13 +1381,12 @@ class MasterHandle extends HDKey {
             finishedUpload
           });
 
-          (yield _this.safeToUploadMeta[dir]) || Promise.resolve(true);
           const metaUpload = yield _this.processMetaQueue(dir);
           metaUpload.on("error", err => {
             ee.emit("error", err);
             throw err;
           });
-          metaUpload.on("finish", finishedMeta => {
+          metaUpload.on("finish", () => {
             ee.emit("finish", finishedUpload);
           });
         });
@@ -1403,6 +1402,24 @@ class MasterHandle extends HDKey {
     /*#__PURE__*/
     function () {
       var _ref4 = _asyncToGenerator(function* (dir) {
+        yield _this.safeToUploadMeta[dir] || Promise.resolve(true);
+        let resolve;
+        const promise = new Promise(resolvePromise => {
+          resolve = resolvePromise;
+        });
+        _this.safeToUploadMeta[dir] = promise;
+        const ee = new EventEmitter();
+
+        if (_this.metadataQueue.length == 0) {
+          console.log("nothing left in queue");
+          resolve();
+          setTimeout(() => {
+            ee.emit("finish");
+          }, 100);
+          return ee;
+        }
+
+        console.log("uploading meta");
         const folderMeta = yield _this.getFolderMetadata(dir);
         yield Promise.all(_this.metadataQueue[dir].map(
         /*#__PURE__*/
@@ -1430,6 +1447,9 @@ class MasterHandle extends HDKey {
             return _ref6.apply(this, arguments);
           };
         }()));
+        _this.metadataQueue = [];
+        resolve();
+        console.log("meta uploaded");
         return _this.uploadFolderMeta(dir, folderMeta);
       });
 
