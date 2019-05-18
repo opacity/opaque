@@ -1,5 +1,6 @@
 import Axios from "axios";
 import { Readable } from "readable-stream";
+import { getBlockSize } from "../core/helpers";
 import { DEFAULT_BLOCK_SIZE, BLOCK_OVERHEAD } from "../core/constants";
 const DEFAULT_OPTIONS = Object.freeze({
     autostart: true,
@@ -25,7 +26,7 @@ export default class DownloadStream extends Readable {
         this.isDownloadFinished = false;
         this.ongoingDownloads = 0;
         this.pushChunk = false;
-        const blockSize = metadata.p.blockSize || DEFAULT_BLOCK_SIZE;
+        const blockSize = getBlockSize(metadata);
         const blockCount = opts.partSize / (blockSize + BLOCK_OVERHEAD);
         if (blockCount !== Math.floor(blockCount)) {
             this.emit("error", "options.partSize must be a multiple of blockSize + blockOverhead");

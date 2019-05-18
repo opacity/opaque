@@ -1,7 +1,7 @@
 import Axios from "axios";
 import { EventEmitter } from "events";
 import { decryptMetadata } from "./core/metadata";
-import { getUploadSize, keysFromHandle } from "./core/helpers";
+import { getMimeType, getUploadSize, keysFromHandle } from "./core/helpers";
 import DecryptStream from "./streams/decryptStream";
 import DownloadStream from "./streams/downloadStream";
 const METADATA_PATH = "/download/metadata/";
@@ -14,6 +14,19 @@ const DEFAULT_OPTIONS = Object.freeze({
 export default class Download extends EventEmitter {
     constructor(handle, opts = {}) {
         super();
+        this.metadata = async () => {
+            try {
+                if (this._metadata) {
+                    return this._metadata;
+                }
+                else {
+                    return await this.downloadMetadata();
+                }
+            }
+            catch (e) {
+                this.propagateError(e);
+            }
+        };
         this.toBuffer = async () => {
             const chunks = [];
             let totalLength = 0;
@@ -29,6 +42,8 @@ export default class Download extends EventEmitter {
                 this.decryptStream.once("finish", () => {
                     resolve(Buffer.concat(chunks, totalLength));
                 });
+            }).catch(err => {
+                throw err;
             });
         };
         this.toFile = async () => {
@@ -41,10 +56,13 @@ export default class Download extends EventEmitter {
                     totalLength += data.length;
                 });
                 this.decryptStream.once("finish", async () => {
-                    resolve(new File(chunks, (await this.metadata).name, {
-                        type: "text/plain"
+                    const meta = await this.metadata();
+                    resolve(new File(chunks, meta.name, {
+                        type: getMimeType(meta)
                     }));
                 });
+            }).catch(err => {
+                throw err;
             });
         };
         this.startDownload = async () => {
@@ -55,6 +73,23 @@ export default class Download extends EventEmitter {
             }
             catch (e) {
                 this.propagateError(e);
+            }
+        };
+        this.getDownloadURL = async (overwrite = false) => {
+            let req;
+            if (!overwrite && this.downloadURLRequest) {
+                req = this.downloadURLRequest;
+            }
+            else {
+                req = Axios.post(this.options.endpoint + "/api/v1/download", {
+                    fileID: this.hash
+                });
+                this.downloadURLRequest = req;
+            }
+            const res = await req;
+            if (res.status === 200) {
+                this.downloadURL = res.data.fileDownloadUrl;
+                return this.downloadURL;
             }
         };
         this.downloadMetadata = async (overwrite = false) => {
@@ -86,7 +121,6 @@ export default class Download extends EventEmitter {
             this.isDownloading = true;
             this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
             this.decryptStream = new DecryptStream(this.key);
-            // this.targetStream = new targetStream(this.metadata);
             this.downloadStream.on("progress", progress => {
                 this.emit("download-progress", {
                     target: this,
@@ -108,6 +142,7 @@ export default class Download extends EventEmitter {
             }
         };
         this.propagateError = (error) => {
+            console.warn(error.msg || error);
             process.nextTick(() => this.emit("error", error));
         };
         const options = Object.assign({}, DEFAULT_OPTIONS, opts);
@@ -121,33 +156,6 @@ export default class Download extends EventEmitter {
         this.isDownloading = false;
         if (options.autoStart) {
             this.startDownload();
-        }
-    }
-    get metadata() {
-        return new Promise(async (resolve) => {
-            if (this._metadata) {
-                resolve(this._metadata);
-            }
-            else {
-                resolve(await this.downloadMetadata());
-            }
-        });
-    }
-    async getDownloadURL(overwrite = false) {
-        let req;
-        if (!overwrite && this.downloadURLRequest) {
-            req = this.downloadURLRequest;
-        }
-        else {
-            req = Axios.post(this.options.endpoint + "/api/v1/download", {
-                fileID: this.hash
-            });
-            this.downloadURLRequest = req;
-        }
-        const res = await req;
-        if (res.status === 200) {
-            this.downloadURL = res.data.fileDownloadUrl;
-            return this.downloadURL;
         }
     }
 }

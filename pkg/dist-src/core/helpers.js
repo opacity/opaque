@@ -63,7 +63,7 @@ export function getFileData(file, nameFallback = "file") {
             data: file.data,
             size: file.data.length,
             name: file.name || nameFallback,
-            type: file.type || mime.getType(file.name) || "application/octet-stream",
+            type: file.type || mime.getType(file.name) || "",
             reader: BufferSourceStream
         };
     }
@@ -72,6 +72,9 @@ export function getFileData(file, nameFallback = "file") {
         file.reader = FileSourceStream;
     }
     return file;
+}
+export function getMimeType(metadata) {
+    return metadata.type || mime.getType(metadata.name) || "";
 }
 // get true upload size, accounting for encryption overhead
 export function getUploadSize(size, params) {
@@ -87,4 +90,15 @@ export function getEndIndex(uploadSize, params) {
     const chunksPerPart = Math.ceil(params.partSize / chunkSize);
     const endIndex = Math.ceil(chunkCount / chunksPerPart);
     return endIndex;
+}
+export function getBlockSize(params) {
+    if (params && params.blockSize) {
+        return params.blockSize;
+    }
+    else if (params && params.p && params.p.blockSize) {
+        return params.p.blockSize;
+    }
+    else {
+        return DEFAULT_BLOCK_SIZE;
+    }
 }

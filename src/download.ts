@@ -4,6 +4,7 @@ import { pipeline } from "readable-stream";
 import { decryptMetadata } from "./core/metadata";
 import { getPayload } from "./core/request";
 import {
+  getMimeType,
   getUploadSize,
   keysFromHandle
 } from "./core/helpers";
@@ -61,14 +62,16 @@ export default class Download extends EventEmitter {
     }
   }
 
-  get metadata (): Promise<FileMeta> {
-    return new Promise(async resolve => {
+  metadata = async () => {
+    try {
       if(this._metadata) {
-        resolve(this._metadata);
+        return this._metadata;
       } else {
-        resolve(await this.downloadMetadata());
+        return await this.downloadMetadata();
       }
-    })
+    } catch(e) {
+      this.propagateError(e);
+    }
   }
 
   toBuffer = async () => {
@@ -85,11 +88,13 @@ export default class Download extends EventEmitter {
       this.decryptStream.on("data", (data) => {
         chunks.push(data);
         totalLength += data.length;
-      })
+      });
 
       this.decryptStream.once("finish", () => {
         resolve(Buffer.concat(chunks, totalLength));
-      })
+      });
+    }).catch(err => {
+      throw err;
     });
   }
 
@@ -106,16 +111,19 @@ export default class Download extends EventEmitter {
       })
 
       this.decryptStream.once("finish", async () => {
-        resolve(new File(chunks, (await this.metadata).name, {
-          type: "text/plain"
+        const meta = await this.metadata();
+        resolve(new File(chunks, meta.name, {
+          type: getMimeType(meta)
         }));
       })
-    });
+    }).catch(err => {
+      throw err;
+    })
   }
 
   startDownload = async () => {
     try {
-      await this.getDownloadURL()
+      await this.getDownloadURL();
       await this.downloadMetadata();
       await this.downloadFile();
     } catch(e) {
@@ -123,7 +131,7 @@ export default class Download extends EventEmitter {
     }
   }
 
-  async getDownloadURL(overwrite = false) {
+  getDownloadURL = async (overwrite = false) => {
     let req;
 
     if(!overwrite && this.downloadURLRequest) {
@@ -166,7 +174,6 @@ export default class Download extends EventEmitter {
 
     this._metadata = metadata;
     this.size = getUploadSize(metadata.size, metadata.p || {});
-
     return metadata;
   }
 
@@ -178,7 +185,6 @@ export default class Download extends EventEmitter {
     this.isDownloading = true;
     this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
     this.decryptStream = new DecryptStream(this.key);
-    // this.targetStream = new targetStream(this.metadata);
 
     this.downloadStream.on("progress", progress => {
       this.emit("download-progress", {
@@ -204,6 +210,7 @@ export default class Download extends EventEmitter {
   }
 
   propagateError = (error) => {
+    console.warn(error.msg || error);
     process.nextTick(() => this.emit("error", error));
   }
 }

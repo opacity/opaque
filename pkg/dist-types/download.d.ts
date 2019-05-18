@@ -24,11 +24,11 @@ export default class Download extends EventEmitter {
     _metadata: FileMeta;
     private size;
     constructor(handle: any, opts?: DownloadOptions);
-    readonly metadata: Promise<FileMeta>;
+    metadata: () => Promise<FileMeta>;
     toBuffer: () => Promise<{}>;
     toFile: () => Promise<{}>;
     startDownload: () => Promise<void>;
-    getDownloadURL(overwrite?: boolean): Promise<string>;
+    getDownloadURL: (overwrite?: boolean) => Promise<string>;
     downloadMetadata: (overwrite?: boolean) => Promise<FileMeta>;
     downloadFile: () => Promise<boolean>;
     finishDownload: (error: any) => void;
