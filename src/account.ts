@@ -106,8 +106,7 @@ class MasterHandle extends HDKey {
     if (account && account.constructor == Account) {
       const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""))
 
-      // TODO: fill in path
-      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      // ethereum/EIPs#1775
       Object.assign(
         this,
         fromMasterSeed(account.seed).derive(path)
@@ -159,8 +158,6 @@ class MasterHandle extends HDKey {
     });
 
     upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-      // LOOK HERE
-      // TODO
       await this.queueMeta(dir, { file, finishedUpload })
 
       ee.emit("finish", finishedUpload)
@@ -269,7 +266,6 @@ class MasterHandle extends HDKey {
       metaString = JSON.stringify(folderMeta),
       encryptedMeta = encryptString(key, metaString, "utf8").toHex()
 
-    // TODO
     await setMetadata(
       this.uploadOpts.endpoint,
       this.getFolderHDKey(dir),

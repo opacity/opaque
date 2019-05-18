@@ -1370,8 +1370,6 @@ class MasterHandle extends HDKey__default {
       /*#__PURE__*/
       function () {
         var _ref = _asyncToGenerator(function* (finishedUpload) {
-          // LOOK HERE
-          // TODO
           yield _this.queueMeta(dir, {
             file,
             finishedUpload
@@ -1499,8 +1497,7 @@ class MasterHandle extends HDKey__default {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta),
-              encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO
-
+              encryptedMeta = encryptString(key, metaString, "utf8").toHex();
 
         yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
       });
@@ -1596,8 +1593,7 @@ class MasterHandle extends HDKey__default {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
-      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
 
       Object.assign(this, HDKey.fromMasterSeed(account.seed).derive(path));
     } else if (handle && handle.constructor == String) {

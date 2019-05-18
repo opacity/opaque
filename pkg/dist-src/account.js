@@ -72,8 +72,6 @@ class MasterHandle extends HDKey {
                 throw err;
             });
             upload.on("finish", async (finishedUpload) => {
-                // LOOK HERE
-                // TODO
                 await this.queueMeta(dir, { file, finishedUpload });
                 ee.emit("finish", finishedUpload);
             });
@@ -144,7 +142,6 @@ class MasterHandle extends HDKey {
         }, 500);
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
-            // TODO
             await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedMeta);
         };
         this.getFolderMeta = async (dir) => {
@@ -196,8 +193,7 @@ class MasterHandle extends HDKey {
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
             const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""));
-            // TODO: fill in path
-            // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+            // ethereum/EIPs#1775
             Object.assign(this, fromMasterSeed(account.seed).derive(path));
         }
         else if (handle && handle.constructor == String) {
