@@ -50,8 +50,6 @@ class MasterHandle extends HDKey {
      */
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
-        this.safeToUploadMeta = {};
-        this.metadataQueue = {};
         /**
          * creates a sub key seed for validating
          *
@@ -72,39 +70,7 @@ class MasterHandle extends HDKey {
                 throw err;
             });
             upload.on("finish", async (finishedUpload) => {
-                this.metadataQueue[dir] = this.metadataQueue[dir] || [];
-                this.metadataQueue[dir].push({
-                    file,
-                    finishedUpload
-                });
-                const metaUpload = await this.processMetaQueue(dir);
-                metaUpload.on("error", err => {
-                    ee.emit("error", err);
-                    throw err;
-                });
-                metaUpload.on("finish", () => {
-                    ee.emit("finish", finishedUpload);
-                });
-            });
-            return ee;
-        };
-        this.processMetaQueue = async (dir) => {
-            await (this.safeToUploadMeta[dir] || Promise.resolve(true));
-            let resolve;
-            const promise = new Promise(resolvePromise => { resolve = resolvePromise; });
-            this.safeToUploadMeta[dir] = promise;
-            const ee = new EventEmitter();
-            if (this.metadataQueue[dir].length == 0) {
-                console.log("nothing left in queue");
-                resolve();
-                setTimeout(() => { ee.emit("finish"); }, 100);
-                return ee;
-            }
-            const copy = Object.assign([], this.metadataQueue[dir]);
-            console.log("uploading meta");
-            const folderMeta = await this.getFolderMetadata(dir);
-            await Promise.all(copy.map(async ({ file, finishedUpload }) => {
-                const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = oldMetaIndex !== -1
+                const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
                     ? folderMeta.files[oldMetaIndex]
                     : {}, version = new FileVersion({
                     size: file.size,
@@ -120,11 +86,17 @@ class MasterHandle extends HDKey {
                     folderMeta.files.splice(oldMetaIndex, 1, meta);
                 else
                     folderMeta.files.unshift(meta);
-            }));
-            this.metadataQueue[dir].splice(0, copy.length);
-            resolve();
-            console.log("meta uploaded");
-            return this.uploadFolderMeta(dir, folderMeta);
+                const buf = Buffer.from(JSON.stringify(folderMeta));
+                const metaUpload = this.uploadFolderMeta(dir, folderMeta);
+                metaUpload.on("error", err => {
+                    ee.emit("error", err);
+                    throw err;
+                });
+                metaUpload.on("finish", finishedMeta => {
+                    ee.emit("finish", finishedUpload);
+                });
+            });
+            return ee;
         };
         this.downloadFile = (handle) => {
             return new Download(handle, this.downloadOpts);
