@@ -11,6 +11,7 @@ import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
 import { pipe } from "./utils/pipe";
+import { debounce } from "debounce"
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
@@ -41,8 +42,9 @@ class Account {
    * @param mnemonic - the mnemonic to use for the account
    */
   constructor(mnemonic: string = generateMnemonic()) {
-    if (!validateMnemonic(mnemonic))
+    if (!validateMnemonic(mnemonic)) {
       throw new Error("mnemonic provided was not valid");
+    }
 
     this._mnemonic = mnemonic;
   }
@@ -65,6 +67,21 @@ class Account {
 class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
+  metaQueue: {
+    [key: string]: {
+      resolve: () => void,
+      file: {
+        [key: string]: any,
+        name: string,
+        size: number,
+        lastModified: number
+      },
+      finishedUpload: {
+        [key: string]: any,
+        handle: string
+      }
+    }[]
+  } = {}
 
   /**
    * creates a master handle from an account
@@ -90,8 +107,7 @@ class MasterHandle extends HDKey {
     if (account && account.constructor == Account) {
       const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""))
 
-      // TODO: fill in path
-      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      // ethereum/EIPs#1775
       Object.assign(
         this,
         fromMasterSeed(account.seed).derive(path)
@@ -109,8 +125,9 @@ class MasterHandle extends HDKey {
   }
 
   private static hashToPath = (h: string, { prefix = false }: { prefix?: boolean } = {}) => {
-    if (h.length % 4)
+    if (h.length % 4) {
       throw new Error("hash length must be multiple of two bytes")
+    }
 
     return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'"
   }
@@ -143,33 +160,7 @@ class MasterHandle extends HDKey {
     });
 
     upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-      const
-        folderMeta = await this.getFolderMeta(dir),
-        oldMetaIndex = folderMeta.files.findIndex(
-          e => e.type == "file" && e.name == file.name
-        ),
-        oldMeta = (
-          oldMetaIndex !== -1
-            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
-            : ({} as FileEntryMeta)
-        ),
-        version = new FileVersion({
-          size: file.size,
-          handle: finishedUpload.handle,
-          modified: file.lastModified,
-        }),
-        meta = new FileEntryMeta({
-          name: file.name,
-          created: oldMeta.created,
-          versions:
-            [version, ...(oldMeta.versions || [])],
-        });
-
-      // metadata existed previously
-      if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);
-      else folderMeta.files.unshift(meta);
-
-      await this.setFolderMeta(dir, folderMeta)
+      await this.queueMeta(dir, { file, finishedUpload })
 
       ee.emit("finish", finishedUpload)
     });
@@ -207,6 +198,72 @@ class MasterHandle extends HDKey {
     return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
   }
 
+  queueMeta = async (dir: string, { file, finishedUpload }) => {
+    let
+      resolve,
+      promise = new Promise(resolvePromise => {
+        resolve = resolvePromise
+      })
+
+    this.metaQueue[dir] = this.metaQueue[dir] || []
+    this.metaQueue[dir].push({ file, finishedUpload, resolve })
+
+    this._updateMetaFromQueue(dir)
+
+    await promise
+  }
+
+  private _updateMetaFromQueue = debounce(async (dir: string) => {
+    const
+      folderMeta = await this.getFolderMeta(dir),
+      copy = Object.assign([], this.metaQueue[dir]),
+      finished: (() => void)[] = []
+
+    copy.forEach(({ file, finishedUpload, resolve }) => {
+      const
+        oldMetaIndex = folderMeta.files.findIndex(
+          e => e.type == "file" && e.name == file.name
+        ),
+        oldMeta = (
+          oldMetaIndex !== -1
+            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
+            : ({} as FileEntryMeta)
+        ),
+        version = new FileVersion({
+          size: file.size,
+          handle: finishedUpload.handle,
+          modified: file.lastModified,
+        }),
+        meta = new FileEntryMeta({
+          name: file.name,
+          created: oldMeta.created,
+          versions:
+            [version, ...(oldMeta.versions || [])],
+        })
+
+      // metadata existed previously
+      if (oldMetaIndex !== -1) {
+        folderMeta.files[oldMetaIndex] = meta;
+      } else {
+        folderMeta.files.unshift(meta);
+      }
+
+      finished.push(resolve)
+    })
+
+    try {
+      await this.setFolderMeta(dir, folderMeta)
+    } catch (err) {
+      console.error("could not finish setting meta")
+      throw err
+    }
+
+    // clean queue
+    this.metaQueue[dir].splice(0, copy.length)
+
+    finished.forEach(resolve => { resolve() })
+  }, 500)
+
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {
     const
       folderKey = this.getFolderHDKey(dir),
@@ -214,7 +271,6 @@ class MasterHandle extends HDKey {
       metaString = JSON.stringify(folderMeta),
       encryptedMeta = encryptString(key, metaString, "utf8").toHex()
 
-    // TODO
     await setMetadata(
       this.uploadOpts.endpoint,
       this.getFolderHDKey(dir),
@@ -259,11 +315,12 @@ class MasterHandle extends HDKey {
   }
 
   register = async () => {
-    if (await this.isPaid())
+    if (await this.isPaid()) {
       return Promise.resolve({
         data: { invoice: { cost: 0, ethAddress: "0x0" } },
         waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
       })
+    }
 
     const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"))
 
@@ -276,8 +333,6 @@ class MasterHandle extends HDKey {
             const time = Date.now()
             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
               clearInterval(interval)
-
-
 
               resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
             }

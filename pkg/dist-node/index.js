@@ -16,6 +16,7 @@ var bip39 = require('bip39');
 var HDKey = require('hdkey');
 var HDKey__default = _interopDefault(HDKey);
 var namehash = require('eth-ens-namehash');
+var debounce = require('debounce');
 var web3Utils = require('web3-utils');
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
@@ -1300,7 +1301,10 @@ class Account {
 
 
   constructor(mnemonic = bip39.generateMnemonic()) {
-    if (!bip39.validateMnemonic(mnemonic)) throw new Error("mnemonic provided was not valid");
+    if (!bip39.validateMnemonic(mnemonic)) {
+      throw new Error("mnemonic provided was not valid");
+    }
+
     this._mnemonic = mnemonic;
   }
 
@@ -1338,12 +1342,13 @@ class MasterHandle extends HDKey__default {
 
     super();
     _this = this;
-
+    this.metaQueue = {};
     /**
      * creates a sub key seed for validating
      *
      * @param path - the string to use as a sub path
      */
+
     this.generateSubHDKey = pathString => {
       const path = MasterHandle.hashToPath(hash(pathString), {
         prefix: true
@@ -1368,22 +1373,10 @@ class MasterHandle extends HDKey__default {
       /*#__PURE__*/
       function () {
         var _ref = _asyncToGenerator(function* (finishedUpload) {
-          const folderMeta = yield _this.getFolderMeta(dir),
-                oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
-                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
-                version = new FileVersion({
-            size: file.size,
-            handle: finishedUpload.handle,
-            modified: file.lastModified
-          }),
-                meta = new FileEntryMeta({
-            name: file.name,
-            created: oldMeta.created,
-            versions: [version, ...(oldMeta.versions || [])]
-          }); // metadata existed previously
-
-          if (oldMetaIndex !== -1) folderMeta.files.splice(oldMetaIndex, 1, meta);else folderMeta.files.unshift(meta);
-          yield _this.setFolderMeta(dir, folderMeta);
+          yield _this.queueMeta(dir, {
+            file,
+            finishedUpload
+          });
           ee.emit("finish", finishedUpload);
         });
 
@@ -1422,17 +1415,28 @@ class MasterHandle extends HDKey__default {
       return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
     };
 
-    this.setFolderMeta =
+    this.queueMeta =
     /*#__PURE__*/
     function () {
-      var _ref2 = _asyncToGenerator(function* (dir, folderMeta) {
-        const folderKey = _this.getFolderHDKey(dir),
-              key = hash(folderKey.privateKey.toString("hex")),
-              metaString = JSON.stringify(folderMeta),
-              encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO
+      var _ref2 = _asyncToGenerator(function* (dir, {
+        file,
+        finishedUpload
+      }) {
+        let resolve,
+            promise = new Promise(resolvePromise => {
+          resolve = resolvePromise;
+        });
+        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
 
+        _this.metaQueue[dir].push({
+          file,
+          finishedUpload,
+          resolve
+        });
 
-        yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
+        _this._updateMetaFromQueue(dir);
+
+        yield promise;
       });
 
       return function (_x2, _x3) {
@@ -1440,10 +1444,81 @@ class MasterHandle extends HDKey__default {
       };
     }();
 
-    this.getFolderMeta =
+    this._updateMetaFromQueue = debounce.debounce(
     /*#__PURE__*/
     function () {
       var _ref3 = _asyncToGenerator(function* (dir) {
+        const folderMeta = yield _this.getFolderMeta(dir),
+              copy = Object.assign([], _this.metaQueue[dir]),
+              finished = [];
+        copy.forEach(({
+          file,
+          finishedUpload,
+          resolve
+        }) => {
+          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
+                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+                version = new FileVersion({
+            size: file.size,
+            handle: finishedUpload.handle,
+            modified: file.lastModified
+          }),
+                meta = new FileEntryMeta({
+            name: file.name,
+            created: oldMeta.created,
+            versions: [version, ...(oldMeta.versions || [])]
+          }); // metadata existed previously
+
+          if (oldMetaIndex !== -1) {
+            folderMeta.files[oldMetaIndex] = meta;
+          } else {
+            folderMeta.files.unshift(meta);
+          }
+
+          finished.push(resolve);
+        });
+
+        try {
+          yield _this.setFolderMeta(dir, folderMeta);
+        } catch (err) {
+          console.error("could not finish setting meta");
+          throw err;
+        } // clean queue
+
+
+        _this.metaQueue[dir].splice(0, copy.length);
+
+        finished.forEach(resolve => {
+          resolve();
+        });
+      });
+
+      return function (_x4) {
+        return _ref3.apply(this, arguments);
+      };
+    }(), 500);
+
+    this.setFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref4 = _asyncToGenerator(function* (dir, folderMeta) {
+        const folderKey = _this.getFolderHDKey(dir),
+              key = hash(folderKey.privateKey.toString("hex")),
+              metaString = JSON.stringify(folderMeta),
+              encryptedMeta = encryptString(key, metaString, "utf8").toHex();
+
+        yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
+      });
+
+      return function (_x5, _x6) {
+        return _ref4.apply(this, arguments);
+      };
+    }();
+
+    this.getFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1461,8 +1536,8 @@ class MasterHandle extends HDKey__default {
         }
       });
 
-      return function (_x4) {
-        return _ref3.apply(this, arguments);
+      return function (_x7) {
+        return _ref5.apply(this, arguments);
       };
     }();
 
@@ -1479,27 +1554,30 @@ class MasterHandle extends HDKey__default {
     this.register =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      if (yield _this.isPaid()) return Promise.resolve({
-        data: {
-          invoice: {
-            cost: 0,
-            ethAddress: "0x0"
-          }
-        },
-        waitForPayment: function () {
-          var _waitForPayment = _asyncToGenerator(function* () {
-            return {
-              data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-            };
-          });
+      if (yield _this.isPaid()) {
+        return Promise.resolve({
+          data: {
+            invoice: {
+              cost: 0,
+              ethAddress: "0x0"
+            }
+          },
+          waitForPayment: function () {
+            var _waitForPayment = _asyncToGenerator(function* () {
+              return {
+                data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+              };
+            });
 
-          function waitForPayment() {
-            return _waitForPayment.apply(this, arguments);
-          }
+            function waitForPayment() {
+              return _waitForPayment.apply(this, arguments);
+            }
 
-          return waitForPayment;
-        }()
-      });
+            return waitForPayment;
+          }()
+        });
+      }
+
       const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"));
       return new Promise(resolve => {
         resolve({
@@ -1526,8 +1604,7 @@ class MasterHandle extends HDKey__default {
     this.downloadOpts = downloadOpts;
 
     if (account && account.constructor == Account) {
-      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // TODO: fill in path
-      // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
 
       Object.assign(this, HDKey.fromMasterSeed(account.seed).derive(path));
     } else if (handle && handle.constructor == String) {
@@ -1551,7 +1628,10 @@ class MasterHandle extends HDKey__default {
 MasterHandle.hashToPath = (h, {
   prefix = false
 } = {}) => {
-  if (h.length % 4) throw new Error("hash length must be multiple of two bytes");
+  if (h.length % 4) {
+    throw new Error("hash length must be multiple of two bytes");
+  }
+
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
