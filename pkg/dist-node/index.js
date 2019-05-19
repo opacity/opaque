@@ -1522,17 +1522,24 @@ class MasterHandle extends HDKey__default {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
-              response = yield getMetadata(_this.uploadOpts.endpoint, folderKey, location); // TODO
-        // I have no idea why but the decrypted is correct hex without converting
-
-
-        const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
+              response = yield getMetadata(_this.uploadOpts.endpoint, folderKey, location);
 
         try {
-          const meta = JSON.parse(metaString);
-          return meta;
-        } catch (_a) {
-          throw new Error("metadata corrupted");
+          // TODO
+          // I have no idea why but the decrypted is correct hex without converting
+          const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
+
+          try {
+            const meta = JSON.parse(metaString);
+            return meta;
+          } catch (err) {
+            console.error(err);
+            console.log(metaString);
+            throw new Error("metadata corrupted");
+          }
+        } catch (err) {
+          console.error(err);
+          throw new Error("error decrypting meta");
         }
       });
 
@@ -1591,6 +1598,15 @@ class MasterHandle extends HDKey__default {
 
               if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
                 clearInterval(interval);
+
+                try {
+                  yield _this.getFolderMeta("/");
+                } catch (err) {
+                  console.warn(err);
+
+                  _this.setFolderMeta("/", new FolderMeta());
+                }
+
                 resolve({
                   data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
                 });

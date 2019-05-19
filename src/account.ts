@@ -286,21 +286,31 @@ class MasterHandle extends HDKey {
       key = hash(folderKey.privateKey.toString("hex")),
       response = await getMetadata(this.uploadOpts.endpoint, folderKey, location)
 
-    // TODO
-    // I have no idea why but the decrypted is correct hex without converting
-    const metaString = (
-      decrypt(
-        key,
-        new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))
-      ) as ForgeUtil.ByteBuffer
-    ).toString();
-
     try {
-      const meta = JSON.parse(metaString)
+      // TODO
+      // I have no idea why but the decrypted is correct hex without converting
+      const metaString = (
+        decrypt(
+          key,
+          new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))
+        ) as ForgeUtil.ByteBuffer
+      ).toString();
 
-      return meta
-    } catch {
-      throw new Error("metadata corrupted")
+      try {
+        const meta = JSON.parse(metaString)
+
+        return meta
+      } catch (err) {
+        console.error(err)
+
+        console.log(metaString)
+
+        throw new Error("metadata corrupted")
+      }
+    } catch (err) {
+      console.error(err)
+
+      throw new Error("error decrypting meta")
     }
   }
 
@@ -333,6 +343,13 @@ class MasterHandle extends HDKey {
             const time = Date.now()
             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
               clearInterval(interval)
+
+              try {
+                await this.getFolderMeta("/")
+              } catch (err) {
+                console.warn(err)
+                this.setFolderMeta("/", new FolderMeta())
+              }
 
               resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
             }
