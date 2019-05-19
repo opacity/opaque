@@ -32,6 +32,7 @@ export default class UploadStream extends Writable {
 
   constructor(account, hash, size, endpoint, options) {
     const opts = Object.assign({}, DEFAULT_OPTIONS, options);
+
     super(opts);
 
     // Input
@@ -158,31 +159,47 @@ export default class UploadStream extends Writable {
     }
   }
 
-  async _finishUpload() {
+  async _finishUpload () {
+    const confirmUpload = this._confirmUpload.bind(this);
     const data = getPayload({
       fileHandle: this.hash
     }, this.account);
 
-    await new Promise(resolve => {
-      const interval = setInterval(async () => {
-        const req = Axios.post(this.endpoint + "/api/v1/upload-status", data)
-        const res: {
-          data: {
-            status: string,
-            missingIndexes?: number[],
-            endIndex: number
-          }
-        } = await req as unknown as any
+    let uploadFinished = false;
 
-        if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
-          clearInterval(interval)
+    do {
+      uploadFinished = await confirmUpload(data);
 
-          resolve()
-        }
-      }, 5000)
-    })
+      if(!uploadFinished) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } while(!uploadFinished);
 
     this.finalCallback();
+  }
+
+  async _confirmUpload (data) {
+    try {
+      const req = Axios.post(this.endpoint + "/api/v1/upload-status", data)
+      const res: {
+        data: {
+          status: string,
+          missingIndexes?: number[],
+          endIndex: number
+        }
+      } = await req as unknown as any
+
+      if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
+        console.log("Upload finished");
+        return true;
+      } else {
+        console.log("Waiting for upload", res.data.missingIndexes);
+        return false;
+      }
+    } catch(err) {
+      console.warn(err.message || err);
+      return false;
+    }
   }
 
   _uploadError(error, part) {
