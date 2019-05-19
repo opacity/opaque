@@ -334,6 +334,13 @@ class MasterHandle extends HDKey {
             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
               clearInterval(interval)
 
+              try {
+                await this.getFolderMeta("/")
+              } catch (err) {
+                console.warn(err)
+                this.setFolderMeta("/", new FolderMeta())
+              }
+
               resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
             }
           }, 10 * 1000)
