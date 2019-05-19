@@ -1002,13 +1002,12 @@ class UploadStream extends readableStream.Writable {
         _asyncToGenerator(function* () {
           const req = Axios.post(_this.endpoint + "/api/v1/upload-status", data);
           const res = yield req;
-          console.log(res);
 
-          if (res.missingIndexes && res.missingIndexes.length) {
+          if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
             clearInterval(interval);
             resolve();
           }
-        }), 1000);
+        }), 5000);
       });
 
       _this.finalCallback();

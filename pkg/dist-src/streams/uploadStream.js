@@ -127,12 +127,11 @@ export default class UploadStream extends Writable {
             const interval = setInterval(async () => {
                 const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
                 const res = await req;
-                console.log(res);
-                if (res.missingIndexes && res.missingIndexes.length) {
+                if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
                     clearInterval(interval);
                     resolve();
                 }
-            }, 1000);
+            }, 5000);
         });
         this.finalCallback();
     }
