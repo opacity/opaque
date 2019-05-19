@@ -986,8 +986,20 @@ class UploadStream extends Writable {
       const data = getPayload({
         fileHandle: _this.hash
       }, _this.account);
-      const req = Axios.post(_this.endpoint + "/api/v1/upload-status", data);
-      const res = yield req;
+      yield new Promise(resolve => {
+        const interval = setInterval(
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          const req = Axios.post(_this.endpoint + "/api/v1/upload-status", data);
+          const res = yield req;
+          console.log(res);
+
+          if (res.missingIndexes && res.missingIndexes.length) {
+            clearInterval(interval);
+            resolve();
+          }
+        }), 1000);
+      });
 
       _this.finalCallback();
     })();
