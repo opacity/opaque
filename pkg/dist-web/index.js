@@ -1011,10 +1011,8 @@ class UploadStream extends Writable {
         const res = yield req;
 
         if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
-          console.log("Upload finished");
           return true;
         } else {
-          console.log("Waiting for upload", res.data.missingIndexes);
           return false;
         }
       } catch (err) {

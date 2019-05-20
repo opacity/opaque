@@ -138,11 +138,9 @@ export default class UploadStream extends Writable {
             const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
             const res = await req;
             if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
-                console.log("Upload finished");
                 return true;
             }
             else {
-                console.log("Waiting for upload", res.data.missingIndexes);
                 return false;
             }
         }
