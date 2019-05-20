@@ -120,12 +120,34 @@ export default class UploadStream extends Writable {
         }
     }
     async _finishUpload() {
+        const confirmUpload = this._confirmUpload.bind(this);
         const data = getPayload({
             fileHandle: this.hash
         }, this.account);
-        const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
-        const res = await req;
+        let uploadFinished = false;
+        do {
+            uploadFinished = await confirmUpload(data);
+            if (!uploadFinished) {
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        } while (!uploadFinished);
         this.finalCallback();
+    }
+    async _confirmUpload(data) {
+        try {
+            const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
+            const res = await req;
+            if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        catch (err) {
+            console.warn(err.message || err);
+            return false;
+        }
     }
     _uploadError(error, part) {
         this.ongoingUploads--;
