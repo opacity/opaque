@@ -1470,6 +1470,22 @@ class MasterHandle extends HDKey__default {
         return _ref2.apply(this, arguments);
       };
     }();
+
+    this.deleteVersion =
+    /*#__PURE__*/
+    function () {
+      var _ref4 = _asyncToGenerator(function* (dir, handle) {
+        const meta = yield _this.getFolderMeta(dir);
+        const file = meta.files.filter(file => file.type == "file").find(file => !!file.versions.find(version => version.handle == handle));
+        yield deleteFile(_this.uploadOpts.endpoint, _this, handle.slice(0, 64));
+        file.versions = file.versions.filter(version => version.handle != handle);
+        return yield _this.setFolderMeta(dir, meta);
+      });
+
+      return function (_x5, _x6) {
+        return _ref4.apply(this, arguments);
+      };
+    }();
     /**
      * creates a file key seed for validating
      *
@@ -1498,7 +1514,7 @@ class MasterHandle extends HDKey__default {
     this.queueMeta =
     /*#__PURE__*/
     function () {
-      var _ref4 = _asyncToGenerator(function* (dir, {
+      var _ref5 = _asyncToGenerator(function* (dir, {
         file,
         finishedUpload
       }) {
@@ -1519,15 +1535,15 @@ class MasterHandle extends HDKey__default {
         yield promise;
       });
 
-      return function (_x5, _x6) {
-        return _ref4.apply(this, arguments);
+      return function (_x7, _x8) {
+        return _ref5.apply(this, arguments);
       };
     }();
 
     this._updateMetaFromQueue = debounce.debounce(
     /*#__PURE__*/
     function () {
-      var _ref5 = _asyncToGenerator(function* (dir) {
+      var _ref6 = _asyncToGenerator(function* (dir) {
         const folderMeta = yield _this.getFolderMeta(dir),
               copy = Object.assign([], _this.metaQueue[dir]),
               finished = [];
@@ -1573,15 +1589,15 @@ class MasterHandle extends HDKey__default {
         });
       });
 
-      return function (_x7) {
-        return _ref5.apply(this, arguments);
+      return function (_x9) {
+        return _ref6.apply(this, arguments);
       };
     }(), 500);
 
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref6 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref7 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta),
@@ -1590,15 +1606,15 @@ class MasterHandle extends HDKey__default {
         yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x8, _x9) {
-        return _ref6.apply(this, arguments);
+      return function (_x10, _x11) {
+        return _ref7.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref7 = _asyncToGenerator(function* (dir) {
+      var _ref8 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1623,8 +1639,8 @@ class MasterHandle extends HDKey__default {
         }
       });
 
-      return function (_x10) {
-        return _ref7.apply(this, arguments);
+      return function (_x12) {
+        return _ref8.apply(this, arguments);
       };
     }();
 

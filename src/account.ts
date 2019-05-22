@@ -199,6 +199,19 @@ class MasterHandle extends HDKey {
     return await this.setFolderMeta(dir, meta)
   }
 
+  deleteVersion = async (dir: string, handle: string) => {
+    const meta = await this.getFolderMeta(dir)
+
+    const file = (meta.files.filter(file => file.type == "file") as FileEntryMeta[])
+      .find((file: FileEntryMeta) => !!file.versions.find(version => version.handle == handle))
+
+    await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64))
+
+    file.versions = file.versions.filter(version => version.handle != handle)
+
+    return await this.setFolderMeta(dir, meta)
+  }
+
   static getKey(from: HDKey, str: string) {
     return hash(from.privateKey.toString("hex"), str);
   }

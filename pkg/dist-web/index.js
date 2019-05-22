@@ -1475,6 +1475,22 @@ class MasterHandle extends HDKey {
         return _ref4.apply(this, arguments);
       };
     }();
+
+    this.deleteVersion =
+    /*#__PURE__*/
+    function () {
+      var _ref6 = _asyncToGenerator(function* (dir, handle) {
+        const meta = yield _this.getFolderMeta(dir);
+        const file = meta.files.filter(file => file.type == "file").find(file => !!file.versions.find(version => version.handle == handle));
+        yield deleteFile(_this.uploadOpts.endpoint, _this, handle.slice(0, 64));
+        file.versions = file.versions.filter(version => version.handle != handle);
+        return yield _this.setFolderMeta(dir, meta);
+      });
+
+      return function (_x5, _x6) {
+        return _ref6.apply(this, arguments);
+      };
+    }();
     /**
      * creates a file key seed for validating
      *
@@ -1503,9 +1519,9 @@ class MasterHandle extends HDKey {
     this.queueMeta =
     /*#__PURE__*/
     function () {
-      var _ref7 = _asyncToGenerator(function* (dir, _ref6) {
-        let file = _ref6.file,
-            finishedUpload = _ref6.finishedUpload;
+      var _ref8 = _asyncToGenerator(function* (dir, _ref7) {
+        let file = _ref7.file,
+            finishedUpload = _ref7.finishedUpload;
         let resolve,
             promise = new Promise(resolvePromise => {
           resolve = resolvePromise;
@@ -1523,22 +1539,22 @@ class MasterHandle extends HDKey {
         yield promise;
       });
 
-      return function (_x5, _x6) {
-        return _ref7.apply(this, arguments);
+      return function (_x7, _x8) {
+        return _ref8.apply(this, arguments);
       };
     }();
 
     this._updateMetaFromQueue = debounce(
     /*#__PURE__*/
     function () {
-      var _ref8 = _asyncToGenerator(function* (dir) {
+      var _ref9 = _asyncToGenerator(function* (dir) {
         const folderMeta = yield _this.getFolderMeta(dir),
               copy = Object.assign([], _this.metaQueue[dir]),
               finished = [];
-        copy.forEach((_ref9) => {
-          let file = _ref9.file,
-              finishedUpload = _ref9.finishedUpload,
-              resolve = _ref9.resolve;
+        copy.forEach((_ref10) => {
+          let file = _ref10.file,
+              finishedUpload = _ref10.finishedUpload,
+              resolve = _ref10.resolve;
           const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
                 version = new FileVersion({
@@ -1576,15 +1592,15 @@ class MasterHandle extends HDKey {
         });
       });
 
-      return function (_x7) {
-        return _ref8.apply(this, arguments);
+      return function (_x9) {
+        return _ref9.apply(this, arguments);
       };
     }(), 500);
 
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref10 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref11 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta),
@@ -1593,15 +1609,15 @@ class MasterHandle extends HDKey {
         yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x8, _x9) {
-        return _ref10.apply(this, arguments);
+      return function (_x10, _x11) {
+        return _ref11.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref11 = _asyncToGenerator(function* (dir) {
+      var _ref12 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1626,8 +1642,8 @@ class MasterHandle extends HDKey {
         }
       });
 
-      return function (_x10) {
-        return _ref11.apply(this, arguments);
+      return function (_x12) {
+        return _ref12.apply(this, arguments);
       };
     }();
 
@@ -1725,9 +1741,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref15 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref15$prefix = _ref15.prefix,
-      prefix = _ref15$prefix === void 0 ? false : _ref15$prefix;
+  let _ref16 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref16$prefix = _ref16.prefix,
+      prefix = _ref16$prefix === void 0 ? false : _ref16$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");

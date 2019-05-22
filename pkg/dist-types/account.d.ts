@@ -71,6 +71,7 @@ declare class MasterHandle extends HDKey {
     uploadFile: (dir: string, file: File) => EventEmitter;
     downloadFile: (handle: string) => Download;
     deleteFile: (dir: string, name: string) => Promise<void>;
+    deleteVersion: (dir: string, handle: string) => Promise<void>;
     static getKey(from: HDKey, str: string): string;
     /**
      * creates a file key seed for validating

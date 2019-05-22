@@ -101,6 +101,14 @@ class MasterHandle extends HDKey {
             }
             return await this.setFolderMeta(dir, meta);
         };
+        this.deleteVersion = async (dir, handle) => {
+            const meta = await this.getFolderMeta(dir);
+            const file = meta.files.filter(file => file.type == "file")
+                .find((file) => !!file.versions.find(version => version.handle == handle));
+            await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64));
+            file.versions = file.versions.filter(version => version.handle != handle);
+            return await this.setFolderMeta(dir, meta);
+        };
         /**
          * creates a file key seed for validating
          *
