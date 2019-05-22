@@ -89,15 +89,8 @@ class MasterHandle extends HDKey {
             const versions = Object.assign([], file.versions);
             try {
                 await Promise.all(versions.map(async (version) => {
-                    let deleted;
-                    try {
-                        deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64));
-                        file.versions = file.versions.filter(v => v != version);
-                    }
-                    catch (err) {
-                        console.error(err);
-                        throw err;
-                    }
+                    const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64));
+                    file.versions = file.versions.filter(v => v != version);
                     return deleted;
                 }));
                 meta.files = meta.files.filter(f => f != file);

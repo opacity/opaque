@@ -1453,16 +1453,8 @@ class MasterHandle extends HDKey {
           /*#__PURE__*/
           function () {
             var _ref5 = _asyncToGenerator(function* (version) {
-              let deleted;
-
-              try {
-                deleted = yield deleteFile(_this.uploadOpts.endpoint, _this, version.handle.slice(0, 64));
-                file.versions = file.versions.filter(v => v != version);
-              } catch (err) {
-                console.error(err);
-                throw err;
-              }
-
+              const deleted = yield deleteFile(_this.uploadOpts.endpoint, _this, version.handle.slice(0, 64));
+              file.versions = file.versions.filter(v => v != version);
               return deleted;
             });
 

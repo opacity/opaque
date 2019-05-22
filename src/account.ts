@@ -183,16 +183,9 @@ class MasterHandle extends HDKey {
 
     try {
       await Promise.all(versions.map(async version => {
-        let deleted
+        const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64))
 
-        try {
-          deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64))
-
-          file.versions = file.versions.filter(v => v != version)
-        } catch (err) {
-          console.error(err)
-          throw err
-        }
+        file.versions = file.versions.filter(v => v != version)
 
         return deleted
       }))
