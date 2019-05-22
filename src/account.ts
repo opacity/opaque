@@ -173,8 +173,37 @@ class MasterHandle extends HDKey {
     return new Download(handle, this.downloadOpts);
   };
 
-  deleteFile = (handle: string) => {
-    return deleteFile(this.uploadOpts, this, handle.slice(0, 64))
+  deleteFile = async (dir: string, name: string) => {
+    const meta = await this.getFolderMeta(dir)
+
+    const file = (meta.files.filter(file => file.type == "file") as FileEntryMeta[])
+      .find((file: FileEntryMeta) => file.name == name)
+
+    const versions = Object.assign([], file.versions)
+
+    try {
+      await Promise.all(versions.map(async version => {
+        let deleted
+
+        try {
+          deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64))
+
+          file.versions = file.versions.filter(v => v != version)
+        } catch (err) {
+          console.error(err)
+          throw err
+        }
+
+        return deleted
+      }))
+
+      meta.files = meta.files.filter(f => f != file)
+    } catch(err) {
+      console.error(err)
+      throw err
+    }
+
+    return await this.setFolderMeta(dir, meta)
   }
 
   static getKey(from: HDKey, str: string) {
@@ -284,7 +313,7 @@ class MasterHandle extends HDKey {
     );
   }
 
-  getFolderMeta = async (dir: string) => {
+  getFolderMeta = async (dir: string): Promise<FolderMeta> => {
     const
       folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(dir),
