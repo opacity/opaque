@@ -23,6 +23,7 @@ import {
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
+import { deleteFile } from "./core/requests/deleteFile";
 
 /**
  * **_this should never be shared or left in storage_**
@@ -171,6 +172,10 @@ class MasterHandle extends HDKey {
   downloadFile = (handle: string) => {
     return new Download(handle, this.downloadOpts);
   };
+
+  deleteFile = (handle: string) => {
+    return deleteFile(this.uploadOpts, this, handle.slice(0, 64))
+  }
 
   static getKey(from: HDKey, str: string) {
     return hash(from.privateKey.toString("hex"), str);
