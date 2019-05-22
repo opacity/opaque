@@ -70,6 +70,7 @@ declare class MasterHandle extends HDKey {
     private generateSubHDKey;
     uploadFile: (dir: string, file: File) => EventEmitter;
     downloadFile: (handle: string) => Download;
+    deleteFile: (dir: string, name: string) => Promise<void>;
     static getKey(from: HDKey, str: string): string;
     /**
      * creates a file key seed for validating
@@ -90,7 +91,7 @@ declare class MasterHandle extends HDKey {
     }) => Promise<void>;
     private _updateMetaFromQueue;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
-    getFolderMeta: (dir: string) => Promise<any>;
+    getFolderMeta: (dir: string) => Promise<FolderMeta>;
     isPaid: () => Promise<boolean>;
     register: () => Promise<{}>;
 }
