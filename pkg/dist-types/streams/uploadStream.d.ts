@@ -23,5 +23,6 @@ export default class UploadStream extends Writable {
     _upload(part: any): void;
     _afterUpload(part: any): void;
     _finishUpload(): Promise<void>;
+    _confirmUpload(data: any): Promise<boolean>;
     _uploadError(error: any, part: any): void;
 }

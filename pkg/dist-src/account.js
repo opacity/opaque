@@ -5,11 +5,13 @@ import * as EthWallet from "ethereumjs-wallet";
 import Upload from "./upload";
 import Download from "./download";
 import { EventEmitter } from "events";
+import { debounce } from "debounce";
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
 import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
+import { deleteFile } from "./core/requests/deleteFile";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -25,8 +27,9 @@ class Account {
      * @param mnemonic - the mnemonic to use for the account
      */
     constructor(mnemonic = generateMnemonic()) {
-        if (!validateMnemonic(mnemonic))
+        if (!validateMnemonic(mnemonic)) {
             throw new Error("mnemonic provided was not valid");
+        }
         this._mnemonic = mnemonic;
     }
     get seed() {
@@ -51,6 +54,7 @@ class MasterHandle extends HDKey {
      */
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
+        this.metaQueue = {};
         /**
          * creates a sub key seed for validating
          *
@@ -71,36 +75,40 @@ class MasterHandle extends HDKey {
                 throw err;
             });
             upload.on("finish", async (finishedUpload) => {
-                const folderMeta = await this.getFolderMetadata(dir), oldMetaIndex = folderMeta.files.findIndex(e => e.name == file.name && e.type == "file"), oldMeta = oldMetaIndex !== -1
-                    ? folderMeta.files[oldMetaIndex]
-                    : {}, version = new FileVersion({
-                    size: file.size,
-                    handle: finishedUpload.handle,
-                    modified: file.lastModified,
-                }), meta = new FileEntryMeta({
-                    name: file.name,
-                    created: oldMeta.created,
-                    versions: [version, ...(oldMeta.versions || [])],
-                });
-                // metadata existed previously
-                if (oldMetaIndex !== -1)
-                    folderMeta.files.splice(oldMetaIndex, 1, meta);
-                else
-                    folderMeta.files.unshift(meta);
-                const buf = Buffer.from(JSON.stringify(folderMeta));
-                const metaUpload = this.uploadFolderMeta(dir, folderMeta);
-                metaUpload.on("error", err => {
-                    ee.emit("error", err);
-                    throw err;
-                });
-                metaUpload.on("finish", finishedMeta => {
-                    ee.emit("finish", finishedUpload);
-                });
+                await this.queueMeta(dir, { file, finishedUpload });
+                ee.emit("finish", finishedUpload);
             });
             return ee;
         };
         this.downloadFile = (handle) => {
             return new Download(handle, this.downloadOpts);
+        };
+        this.deleteFile = async (dir, name) => {
+            const meta = await this.getFolderMeta(dir);
+            const file = meta.files.filter(file => file.type == "file")
+                .find((file) => file.name == name);
+            const versions = Object.assign([], file.versions);
+            try {
+                await Promise.all(versions.map(async (version) => {
+                    const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64));
+                    file.versions = file.versions.filter(v => v != version);
+                    return deleted;
+                }));
+                meta.files = meta.files.filter(f => f != file);
+            }
+            catch (err) {
+                console.error(err);
+                throw err;
+            }
+            return await this.setFolderMeta(dir, meta);
+        };
+        this.deleteVersion = async (dir, handle) => {
+            const meta = await this.getFolderMeta(dir);
+            const file = meta.files.filter(file => file.type == "file")
+                .find((file) => !!file.versions.find(version => version.handle == handle));
+            await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64));
+            file.versions = file.versions.filter(version => version.handle != handle);
+            return await this.setFolderMeta(dir, meta);
         };
         /**
          * creates a file key seed for validating
@@ -121,46 +129,73 @@ class MasterHandle extends HDKey {
         this.getFolderLocation = (dir) => {
             return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
         };
-        this.getFolderHandle = async (dir) => {
-            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), response = await getMetadata(this.uploadOpts.endpoint, folderKey, location);
-            // TODO
-            // I have no idea why but the decrypted is correct hex without converting
-            const metaLocation = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
-            return metaLocation + MasterHandle.getKey(this, metaLocation);
-        };
-        this.uploadFolderMeta = (dir, folderMeta) => {
-            const ee = new EventEmitter();
-            const file = new File([Buffer.from(JSON.stringify(folderMeta))], "metadata_" + dir);
-            const folderKey = this.getFolderHDKey(dir);
-            const metaUpload = new Upload(file, this, this.uploadOpts);
-            metaUpload.on("error", err => {
-                ee.emit("error", err);
-                throw err;
+        this.queueMeta = async (dir, { file, finishedUpload }) => {
+            let resolve, promise = new Promise(resolvePromise => {
+                resolve = resolvePromise;
             });
-            metaUpload.on("finish", async (finishedMeta) => {
-                const encryptedHandle = encryptString(hash(folderKey.privateKey.toString("hex")), finishedMeta.handle).toHex();
-                // TODO
-                await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedHandle);
-                ee.emit("finish", finishedMeta);
-            });
-            return ee;
+            this.metaQueue[dir] = this.metaQueue[dir] || [];
+            this.metaQueue[dir].push({ file, finishedUpload, resolve });
+            this._updateMetaFromQueue(dir);
+            await promise;
         };
-        this.getFolderMetadata = async (dir) => {
-            let handle;
+        this._updateMetaFromQueue = debounce(async (dir) => {
+            const folderMeta = await this.getFolderMeta(dir), copy = Object.assign([], this.metaQueue[dir]), finished = [];
+            copy.forEach(({ file, finishedUpload, resolve }) => {
+                const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
+                    ? folderMeta.files[oldMetaIndex]
+                    : {}), version = new FileVersion({
+                    size: file.size,
+                    handle: finishedUpload.handle,
+                    modified: file.lastModified,
+                }), meta = new FileEntryMeta({
+                    name: file.name,
+                    created: oldMeta.created,
+                    versions: [version, ...(oldMeta.versions || [])],
+                });
+                // metadata existed previously
+                if (oldMetaIndex !== -1) {
+                    folderMeta.files[oldMetaIndex] = meta;
+                }
+                else {
+                    folderMeta.files.unshift(meta);
+                }
+                finished.push(resolve);
+            });
             try {
-                handle = await this.getFolderHandle(dir);
+                await this.setFolderMeta(dir, folderMeta);
             }
             catch (err) {
-                console.warn(err);
-                return new FolderMeta();
+                console.error("could not finish setting meta");
+                throw err;
             }
-            const download = new Download(handle, Object.assign({}, this.downloadOpts, { autoStart: true }));
-            download.on("error", console.error);
-            const reader = new FileReader();
-            reader.readAsBinaryString(await download.toFile());
-            await new Promise(resolve => { reader.onloadend = resolve; });
-            const meta = JSON.parse(reader.result);
-            return meta;
+            // clean queue
+            this.metaQueue[dir].splice(0, copy.length);
+            finished.forEach(resolve => { resolve(); });
+        }, 500);
+        this.setFolderMeta = async (dir, folderMeta) => {
+            const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
+            await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedMeta);
+        };
+        this.getFolderMeta = async (dir) => {
+            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), response = await getMetadata(this.uploadOpts.endpoint, folderKey, location);
+            try {
+                // TODO
+                // I have no idea why but the decrypted is correct hex without converting
+                const metaString = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
+                try {
+                    const meta = JSON.parse(metaString);
+                    return meta;
+                }
+                catch (err) {
+                    console.error(err);
+                    console.log(metaString);
+                    throw new Error("metadata corrupted");
+                }
+            }
+            catch (err) {
+                console.error(err);
+                throw new Error("error decrypting meta");
+            }
         };
         this.isPaid = async () => {
             try {
@@ -172,11 +207,12 @@ class MasterHandle extends HDKey {
             }
         };
         this.register = async () => {
-            if (await this.isPaid())
+            if (await this.isPaid()) {
                 return Promise.resolve({
                     data: { invoice: { cost: 0, ethAddress: "0x0" } },
                     waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
                 });
+            }
             const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"));
             return new Promise(resolve => {
                 resolve({
@@ -187,6 +223,13 @@ class MasterHandle extends HDKey {
                             const time = Date.now();
                             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
                                 clearInterval(interval);
+                                try {
+                                    await this.getFolderMeta("/");
+                                }
+                                catch (err) {
+                                    console.warn(err);
+                                    this.setFolderMeta("/", new FolderMeta());
+                                }
                                 resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
                             }
                         }, 10 * 1000);
@@ -213,8 +256,7 @@ class MasterHandle extends HDKey {
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
             const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""));
-            // TODO: fill in path
-            // ethereum/EIPs#1775 is very close to ready, it would be better to use it instead
+            // ethereum/EIPs#1775
             Object.assign(this, fromMasterSeed(account.seed).derive(path));
         }
         else if (handle && handle.constructor == String) {
@@ -233,8 +275,9 @@ class MasterHandle extends HDKey {
     }
 }
 MasterHandle.hashToPath = (h, { prefix = false } = {}) => {
-    if (h.length % 4)
+    if (h.length % 4) {
         throw new Error("hash length must be multiple of two bytes");
+    }
     return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 export { Account, MasterHandle, HDKey };

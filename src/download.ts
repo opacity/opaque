@@ -4,6 +4,7 @@ import { pipeline } from "readable-stream";
 import { decryptMetadata } from "./core/metadata";
 import { getPayload } from "./core/request";
 import {
+  getMimeType,
   getUploadSize,
   keysFromHandle
 } from "./core/helpers";
@@ -110,8 +111,9 @@ export default class Download extends EventEmitter {
       })
 
       this.decryptStream.once("finish", async () => {
-        resolve(new File(chunks, (await this.metadata).name, {
-          type: "text/plain"
+        const meta = await this.metadata();
+        resolve(new File(chunks, meta.name, {
+          type: getMimeType(meta)
         }));
       })
     }).catch(err => {

@@ -33,6 +33,21 @@ declare class Account {
 declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
+    metaQueue: {
+        [key: string]: {
+            resolve: () => void;
+            file: {
+                [key: string]: any;
+                name: string;
+                size: number;
+                lastModified: number;
+            };
+            finishedUpload: {
+                [key: string]: any;
+                handle: string;
+            };
+        }[];
+    };
     /**
      * creates a master handle from an account
      *
@@ -55,6 +70,8 @@ declare class MasterHandle extends HDKey {
     private generateSubHDKey;
     uploadFile: (dir: string, file: File) => EventEmitter;
     downloadFile: (handle: string) => Download;
+    deleteFile: (dir: string, name: string) => Promise<void>;
+    deleteVersion: (dir: string, handle: string) => Promise<void>;
     static getKey(from: HDKey, str: string): string;
     /**
      * creates a file key seed for validating
@@ -69,9 +86,13 @@ declare class MasterHandle extends HDKey {
      */
     getFolderHDKey: (dir: string) => HDKey;
     getFolderLocation: (dir: string) => string;
-    getFolderHandle: (dir: string) => Promise<string>;
-    uploadFolderMeta: (dir: string, folderMeta: FolderMeta) => EventEmitter;
-    getFolderMetadata: (dir: string) => Promise<any>;
+    queueMeta: (dir: string, { file, finishedUpload }: {
+        file: any;
+        finishedUpload: any;
+    }) => Promise<void>;
+    private _updateMetaFromQueue;
+    setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
+    getFolderMeta: (dir: string) => Promise<FolderMeta>;
     isPaid: () => Promise<boolean>;
     register: () => Promise<{}>;
     /**

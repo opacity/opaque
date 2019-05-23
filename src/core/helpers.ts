@@ -4,7 +4,7 @@ import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import { Readable } from "readable-stream";
 import mime from "mime/lite";
-import { FileMetaOptions } from "./metadata"
+import { FileMeta, FileMetaOptions } from "./metadata"
 import {
   FILENAME_MAX_LENGTH,
   DEFAULT_BLOCK_SIZE,
@@ -87,7 +87,7 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
       data: file.data,
       size: file.data.length,
       name: file.name || nameFallback,
-      type: file.type || mime.getType(file.name) || "application/octet-stream",
+      type: file.type || mime.getType(file.name) || "",
       reader: BufferSourceStream
     }
   } else {
@@ -96,6 +96,10 @@ export function getFileData(file: Buffer | FileData, nameFallback = "file"): Fil
   }
 
   return file as FileData;
+}
+
+export function getMimeType(metadata: FileMeta) {
+  return metadata.type || mime.getType(metadata.name) || "";
 }
 
 // get true upload size, accounting for encryption overhead
