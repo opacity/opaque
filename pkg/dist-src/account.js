@@ -10,6 +10,7 @@ import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
 import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
+import { deleteFile } from "./core/requests/deleteFile";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -80,6 +81,33 @@ class MasterHandle extends HDKey {
         };
         this.downloadFile = (handle) => {
             return new Download(handle, this.downloadOpts);
+        };
+        this.deleteFile = async (dir, name) => {
+            const meta = await this.getFolderMeta(dir);
+            const file = meta.files.filter(file => file.type == "file")
+                .find((file) => file.name == name);
+            const versions = Object.assign([], file.versions);
+            try {
+                await Promise.all(versions.map(async (version) => {
+                    const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64));
+                    file.versions = file.versions.filter(v => v != version);
+                    return deleted;
+                }));
+                meta.files = meta.files.filter(f => f != file);
+            }
+            catch (err) {
+                console.error(err);
+                throw err;
+            }
+            return await this.setFolderMeta(dir, meta);
+        };
+        this.deleteVersion = async (dir, handle) => {
+            const meta = await this.getFolderMeta(dir);
+            const file = meta.files.filter(file => file.type == "file")
+                .find((file) => !!file.versions.find(version => version.handle == handle));
+            await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64));
+            file.versions = file.versions.filter(version => version.handle != handle);
+            return await this.setFolderMeta(dir, meta);
         };
         /**
          * creates a file key seed for validating

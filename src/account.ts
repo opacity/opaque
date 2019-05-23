@@ -23,6 +23,7 @@ import {
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
+import { deleteFile } from "./core/requests/deleteFile";
 
 /**
  * **_this should never be shared or left in storage_**
@@ -172,6 +173,45 @@ class MasterHandle extends HDKey {
     return new Download(handle, this.downloadOpts);
   };
 
+  deleteFile = async (dir: string, name: string) => {
+    const meta = await this.getFolderMeta(dir)
+
+    const file = (meta.files.filter(file => file.type == "file") as FileEntryMeta[])
+      .find((file: FileEntryMeta) => file.name == name)
+
+    const versions = Object.assign([], file.versions)
+
+    try {
+      await Promise.all(versions.map(async version => {
+        const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64))
+
+        file.versions = file.versions.filter(v => v != version)
+
+        return deleted
+      }))
+
+      meta.files = meta.files.filter(f => f != file)
+    } catch(err) {
+      console.error(err)
+      throw err
+    }
+
+    return await this.setFolderMeta(dir, meta)
+  }
+
+  deleteVersion = async (dir: string, handle: string) => {
+    const meta = await this.getFolderMeta(dir)
+
+    const file = (meta.files.filter(file => file.type == "file") as FileEntryMeta[])
+      .find((file: FileEntryMeta) => !!file.versions.find(version => version.handle == handle))
+
+    await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64))
+
+    file.versions = file.versions.filter(version => version.handle != handle)
+
+    return await this.setFolderMeta(dir, meta)
+  }
+
   static getKey(from: HDKey, str: string) {
     return hash(from.privateKey.toString("hex"), str);
   }
@@ -279,7 +319,7 @@ class MasterHandle extends HDKey {
     );
   }
 
-  getFolderMeta = async (dir: string) => {
+  getFolderMeta = async (dir: string): Promise<FolderMeta> => {
     const
       folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(dir),
