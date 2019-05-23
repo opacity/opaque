@@ -899,7 +899,7 @@ class UploadStream extends Writable {
 
       this._attemptUpload();
     } else if (this.ongoingUploads === 0) {
-      callback();
+      this._finishUpload();
     }
   } // Flatten inputs into a single ArrayBuffer for sending
 
