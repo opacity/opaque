@@ -1727,7 +1727,7 @@ class MasterHandle extends HDKey {
     function () {
       var _ref16 = _asyncToGenerator(function* (password) {
         if (!password) {
-          return false;
+          throw "A password is required to encrypt the keystore file.";
         }
 
         const wallet = fromPrivateKey(_this.privateKey);

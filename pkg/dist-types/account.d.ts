@@ -100,6 +100,6 @@ declare class MasterHandle extends HDKey {
      *
      * @param password - the password to encrypt the key with. make it strong!
      */
-    toV3: (password: any) => Promise<false | File>;
+    toV3: (password: any) => Promise<File>;
 }
 export { Account, MasterHandle, HDKey };

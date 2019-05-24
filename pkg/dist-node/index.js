@@ -1724,7 +1724,7 @@ class MasterHandle extends HDKey__default {
     function () {
       var _ref12 = _asyncToGenerator(function* (password) {
         if (!password) {
-          return false;
+          throw "A password is required to encrypt the keystore file.";
         }
 
         const wallet = EthWallet.fromPrivateKey(_this.privateKey);

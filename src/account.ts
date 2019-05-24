@@ -407,7 +407,7 @@ class MasterHandle extends HDKey {
    */
   toV3 = async (password) => {
     if(!password) {
-      return false;
+      throw "A password is required to encrypt the keystore file.";
     }
 
     const wallet = EthWallet.fromPrivateKey(this.privateKey);
