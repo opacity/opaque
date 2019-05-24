@@ -119,7 +119,7 @@ export default class Download extends EventEmitter {
                 return true;
             }
             this.isDownloading = true;
-            this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
+            this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size, this.options);
             this.decryptStream = new DecryptStream(this.key);
             this.downloadStream.on("progress", progress => {
                 this.emit("download-progress", {

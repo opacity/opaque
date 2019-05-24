@@ -662,7 +662,7 @@ class Download extends events.EventEmitter {
       }
 
       _this.isDownloading = true;
-      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size);
+      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size, _this.options);
       _this.decryptStream = new DecryptStream(_this.key);
 
       _this.downloadStream.on("progress", progress => {
