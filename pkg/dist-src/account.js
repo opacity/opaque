@@ -173,7 +173,10 @@ class MasterHandle extends HDKey {
         }, 500);
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
-            await setMetadata(this.uploadOpts.endpoint, this.getFolderHDKey(dir), this.getFolderLocation(dir), encryptedMeta);
+            // TODO: verify folder can only be changed by the creating account
+            await setMetadata(this.uploadOpts.endpoint, this, 
+            // this.getFolderHDKey(dir),
+            this.getFolderLocation(dir), encryptedMeta);
         };
         this.getFolderMeta = async (dir) => {
             const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), response = await getMetadata(this.uploadOpts.endpoint, folderKey, location);
