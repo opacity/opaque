@@ -1623,7 +1623,9 @@ class MasterHandle extends HDKey {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
-              response = yield getMetadata(_this.uploadOpts.endpoint, folderKey, location);
+              // TODO: verify folder can only be read by the creating account
+        response = yield getMetadata(_this.uploadOpts.endpoint, _this, // folderKey,
+        location);
 
         try {
           // TODO

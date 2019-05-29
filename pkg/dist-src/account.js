@@ -179,7 +179,11 @@ class MasterHandle extends HDKey {
             this.getFolderLocation(dir), encryptedMeta);
         };
         this.getFolderMeta = async (dir) => {
-            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), response = await getMetadata(this.uploadOpts.endpoint, folderKey, location);
+            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
+            // TODO: verify folder can only be read by the creating account
+            response = await getMetadata(this.uploadOpts.endpoint, this, 
+            // folderKey,
+            location);
             try {
                 // TODO
                 // I have no idea why but the decrypted is correct hex without converting
