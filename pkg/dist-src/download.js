@@ -15,16 +15,11 @@ export default class Download extends EventEmitter {
     constructor(handle, opts = {}) {
         super();
         this.metadata = async () => {
-            try {
-                if (this._metadata) {
-                    return this._metadata;
-                }
-                else {
-                    return await this.downloadMetadata();
-                }
+            if (this._metadata) {
+                return this._metadata;
             }
-            catch (e) {
-                this.propagateError(e);
+            else {
+                return await this.downloadMetadata();
             }
         };
         this.toBuffer = async () => {
@@ -142,8 +137,8 @@ export default class Download extends EventEmitter {
             }
         };
         this.propagateError = (error) => {
-            console.warn(error.msg || error);
-            process.nextTick(() => this.emit("error", error));
+            console.warn("Download error: ", error.message || error);
+            process.nextTick(() => this.emit("error", error.message || error));
         };
         const options = Object.assign({}, DEFAULT_OPTIONS, opts);
         const { hash, key } = keysFromHandle(handle);

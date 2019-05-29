@@ -153,6 +153,7 @@ const TAG_BYTE_LENGTH = 16;
 const TAG_BIT_LENGTH = TAG_BYTE_LENGTH * 8;
 const DEFAULT_BLOCK_SIZE = 64 * 1024;
 const BLOCK_OVERHEAD = TAG_BYTE_LENGTH + IV_BYTE_LENGTH;
+const DEFAULT_PART_SIZE = 128 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD);
 
 const Forge = {
   md: nodeForge.md,
@@ -233,9 +234,10 @@ function getUploadSize(size, params) {
 
 function getEndIndex(uploadSize, params) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const partSize = params.partSize || DEFAULT_PART_SIZE;
   const chunkSize = blockSize + BLOCK_OVERHEAD;
   const chunkCount = Math.ceil(uploadSize / chunkSize);
-  const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+  const chunksPerPart = Math.ceil(partSize / chunkSize);
   const endIndex = Math.ceil(chunkCount / chunksPerPart);
   return endIndex;
 }
@@ -318,7 +320,7 @@ function decryptString(key, byteBuffer, encoding = "utf8") {
   const output = decrypt(key, byteBuffer);
 
   if (output) {
-    return new Buffer(output.toString()).toString(encoding);
+    return Buffer.from(output.toString()).toString(encoding);
   } else {
     throw new Error("unable to decrypt");
   }
@@ -523,14 +525,10 @@ class Download extends events.EventEmitter {
     this.metadata =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      try {
-        if (_this._metadata) {
-          return _this._metadata;
-        } else {
-          return yield _this.downloadMetadata();
-        }
-      } catch (e) {
-        _this.propagateError(e);
+      if (_this._metadata) {
+        return _this._metadata;
+      } else {
+        return yield _this.downloadMetadata();
       }
     });
     this.toBuffer =
@@ -689,8 +687,8 @@ class Download extends events.EventEmitter {
     };
 
     this.propagateError = error => {
-      console.warn(error.msg || error);
-      process.nextTick(() => this.emit("error", error));
+      console.warn("Download error: ", error.message || error);
+      process.nextTick(() => this.emit("error", error.message || error));
     };
 
     const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
@@ -834,7 +832,7 @@ function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBody") {
 
     if (extraPayload) {
       Object.keys(extraPayload).forEach(key => {
-        const pl = extraPayload[key];
+        const pl = Buffer.from(extraPayload[key]);
         data.append(key, pl, {
           filename: key,
           contentType: "application/octet-stream",
@@ -863,7 +861,7 @@ function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBody") {
 const DEFAULT_OPTIONS$6 = Object.freeze({
   maxParallelUploads: 3,
   maxRetries: 0,
-  partSize: 256,
+  partSize: DEFAULT_PART_SIZE,
   objectMode: false
 });
 class UploadStream extends readableStream.Writable {
@@ -1090,7 +1088,7 @@ class Upload extends events.EventEmitter {
         metadata: encryptedMeta
       }, _this.account);
       const url = _this.options.endpoint + "/api/v1/init-upload";
-      const headers = data.getHeaders || {};
+      const headers = data.getHeaders ? data.getHeaders() : {};
       const req = Axios.post(url, data, {
         headers
       });
@@ -1145,7 +1143,7 @@ class Upload extends events.EventEmitter {
           key = _generateFileKeys.key;
 
     const data = getFileData(file, handle);
-    const size = getUploadSize(file.size, options.params);
+    const size = getUploadSize(data.size, options.params);
     this.account = account;
     this.options = options;
     this.data = data;

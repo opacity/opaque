@@ -8,7 +8,6 @@ import {
   getEndIndex,
   FileData
 } from "./core/helpers";
-// import { UPLOAD_EVENTS as EVENTS } from "./core/constants";
 import FormDataNode from "form-data";
 import EncryptStream from "./streams/encryptStream";
 import UploadStream from "./streams/uploadStream";
@@ -52,7 +51,7 @@ export default class Upload extends EventEmitter {
 
     const { handle, hash, key } = generateFileKeys();
     const data = getFileData(file, handle);
-    const size = getUploadSize(file.size, options.params);
+    const size = getUploadSize(data.size, options.params);
 
     this.account = account;
     this.options = options;
@@ -89,7 +88,7 @@ export default class Upload extends EventEmitter {
     }, this.account);
 
     const url = this.options.endpoint + "/api/v1/init-upload";
-    const headers = (data as FormDataNode).getHeaders || {}
+    const headers = (data as FormDataNode).getHeaders ? (data as FormDataNode).getHeaders() : {};
     const req = Axios.post(url, data, { headers });
     const res = await req;
 

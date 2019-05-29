@@ -1,8 +1,8 @@
 {
   "name": "opaque",
   "description": "Javascript client for opacity.io file storage.",
-  "version": "",
-  "license": "MIT",
+  "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE.md",
   "files": [
     "dist-*/",
     "bin/"

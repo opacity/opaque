@@ -63,7 +63,7 @@ export function decryptBytes(key, bytes) {
 export function decryptString(key, byteBuffer, encoding = "utf8") {
     const output = decrypt(key, byteBuffer);
     if (output) {
-        return new Buffer(output.toString()).toString(encoding);
+        return Buffer.from(output.toString()).toString(encoding);
     }
     else {
         throw new Error("unable to decrypt");
