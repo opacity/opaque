@@ -311,9 +311,11 @@ class MasterHandle extends HDKey {
       metaString = JSON.stringify(folderMeta),
       encryptedMeta = encryptString(key, metaString, "utf8").toHex()
 
+    // TODO: verify folder can only be changed by the creating account
     await setMetadata(
       this.uploadOpts.endpoint,
-      this.getFolderHDKey(dir),
+      this,
+      // this.getFolderHDKey(dir),
       this.getFolderLocation(dir),
       encryptedMeta
     );
@@ -324,7 +326,13 @@ class MasterHandle extends HDKey {
       folderKey = this.getFolderHDKey(dir),
       location = this.getFolderLocation(dir),
       key = hash(folderKey.privateKey.toString("hex")),
-      response = await getMetadata(this.uploadOpts.endpoint, folderKey, location)
+      // TODO: verify folder can only be read by the creating account
+      response = await getMetadata(
+        this.uploadOpts.endpoint,
+        this,
+        // folderKey,
+        location
+      )
 
     try {
       // TODO
