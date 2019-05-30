@@ -1604,9 +1604,11 @@ class MasterHandle extends HDKey {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta),
-              encryptedMeta = encryptString(key, metaString, "utf8").toHex();
+              encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO: verify folder can only be changed by the creating account
 
-        yield setMetadata(_this.uploadOpts.endpoint, _this.getFolderHDKey(dir), _this.getFolderLocation(dir), encryptedMeta);
+
+        yield setMetadata(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
+        _this.getFolderLocation(dir), encryptedMeta);
       });
 
       return function (_x10, _x11) {
@@ -1621,7 +1623,9 @@ class MasterHandle extends HDKey {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
-              response = yield getMetadata(_this.uploadOpts.endpoint, folderKey, location);
+              // TODO: verify folder can only be read by the creating account
+        response = yield getMetadata(_this.uploadOpts.endpoint, _this, // folderKey,
+        location);
 
         try {
           // TODO
