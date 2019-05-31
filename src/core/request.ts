@@ -69,4 +69,4 @@ export function getPayloadFD(rawPayload: { [key: string]: any }, extraPayload, h
 
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
-export { getMetadata, setMetadata } from "./requests/metadata";
+export { getMetadata, setMetadata, createMetadata, deleteMetadata } from "./requests/metadata";

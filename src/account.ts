@@ -20,7 +20,7 @@ import {
   FileEntryMeta,
   FileVersion,
 } from "./core/account/metadata";
-import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
+import { getMetadata, setMetadata, createMetadata, deleteMetadata, checkPaymentStatus, createAccount } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
 import { deleteFile } from "./core/requests/deleteFile";
@@ -304,6 +304,26 @@ class MasterHandle extends HDKey {
     finished.forEach(resolve => { resolve() })
   }, 500)
 
+  createFolderMeta = async (dir: string) => {
+    // TODO: verify folder can only be changed by the creating account
+    await createMetadata(
+      this.uploadOpts.endpoint,
+      this,
+      // this.getFolderHDKey(dir),
+      this.getFolderLocation(dir)
+    );
+  }
+
+  deleteFolderMeta = async (dir: string) => {
+    // TODO: verify folder can only be changed by the creating account
+    await deleteMetadata(
+      this.uploadOpts.endpoint,
+      this,
+      // this.getFolderHDKey(dir),
+      this.getFolderLocation(dir)
+    );
+  }
+
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {
     const
       folderKey = this.getFolderHDKey(dir),
@@ -386,22 +406,22 @@ class MasterHandle extends HDKey {
       resolve({
         data: createAccountResponse.data,
         waitForPayment: () => new Promise(resolve => {
-          const interval = setInterval(async () => {
-            // don't perform run if it takes more than 5 seconds for response
-            const time = Date.now()
-            if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
-              clearInterval(interval)
-
+          const checkPayment = async () => {
+            if (await this.isPaid()) {
               try {
                 await this.getFolderMeta("/")
               } catch (err) {
                 console.warn(err)
-                this.setFolderMeta("/", new FolderMeta())
+                await this.createFolderMeta("/")
+                await this.setFolderMeta("/", new FolderMeta())
               }
 
               resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
+            } else {
+              setTimeout(checkPayment, 10 * 1000)
             }
-          }, 10 * 1000)
+          }
+          setTimeout(checkPayment, 10 * 1000)
         })
       })
     })
