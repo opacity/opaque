@@ -7,8 +7,9 @@ import mime from "mime/lite";
 import { FileMeta, FileMetaOptions } from "./metadata"
 import {
   FILENAME_MAX_LENGTH,
+  BLOCK_OVERHEAD,
   DEFAULT_BLOCK_SIZE,
-  BLOCK_OVERHEAD
+  DEFAULT_PART_SIZE
 } from "./constants";
 import { Buffer } from "safe-buffer";
 
@@ -112,9 +113,10 @@ export function getUploadSize(size: number, params: FileMetaOptions) {
 // get
 export function getEndIndex(uploadSize, params) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const partSize = params.partSize || DEFAULT_PART_SIZE;
   const chunkSize = blockSize + BLOCK_OVERHEAD;
   const chunkCount = Math.ceil(uploadSize / chunkSize);
-  const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+  const chunksPerPart = Math.ceil(partSize / chunkSize);
   const endIndex = Math.ceil(chunkCount / chunksPerPart);
 
   return endIndex;

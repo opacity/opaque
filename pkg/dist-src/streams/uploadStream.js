@@ -2,12 +2,13 @@ import Axios from "axios";
 import { Writable } from "readable-stream";
 import { getPayload, getPayloadFD } from "../core/request";
 import { getEndIndex } from "../core/helpers";
+import { DEFAULT_PART_SIZE } from "../core/constants";
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 const PART_MIME = "application/octet-stream";
 const DEFAULT_OPTIONS = Object.freeze({
     maxParallelUploads: 3,
     maxRetries: 0,
-    partSize: 256,
+    partSize: DEFAULT_PART_SIZE,
     objectMode: false
 });
 export default class UploadStream extends Writable {
