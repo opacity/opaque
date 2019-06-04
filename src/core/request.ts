@@ -39,7 +39,7 @@ export function getPayloadFD(rawPayload: { [key: string]: any }, extraPayload, h
 
     if(extraPayload) {
       Object.keys(extraPayload).forEach(key => {
-        const pl = extraPayload[key]
+        const pl = Buffer.from(extraPayload[key]);
 
         data.append(key, pl, {
           filename: key,

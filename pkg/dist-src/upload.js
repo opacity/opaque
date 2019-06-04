@@ -36,7 +36,7 @@ export default class Upload extends EventEmitter {
                 metadata: encryptedMeta
             }, this.account);
             const url = this.options.endpoint + "/api/v1/init-upload";
-            const headers = data.getHeaders || {};
+            const headers = data.getHeaders ? data.getHeaders() : {};
             const req = Axios.post(url, data, { headers });
             const res = await req;
             this.emit("metadata", meta);
@@ -75,7 +75,7 @@ export default class Upload extends EventEmitter {
         options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
         const { handle, hash, key } = generateFileKeys();
         const data = getFileData(file, handle);
-        const size = getUploadSize(file.size, options.params);
+        const size = getUploadSize(data.size, options.params);
         this.account = account;
         this.options = options;
         this.data = data;

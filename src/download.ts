@@ -63,14 +63,10 @@ export default class Download extends EventEmitter {
   }
 
   metadata = async () => {
-    try {
-      if(this._metadata) {
-        return this._metadata;
-      } else {
-        return await this.downloadMetadata();
-      }
-    } catch(e) {
-      this.propagateError(e);
+    if(this._metadata) {
+      return this._metadata;
+    } else {
+      return await this.downloadMetadata();
     }
   }
 
@@ -210,7 +206,7 @@ export default class Download extends EventEmitter {
   }
 
   propagateError = (error) => {
-    console.warn(error.msg || error);
-    process.nextTick(() => this.emit("error", error));
+    console.warn("Download error: ", error.message || error);
+    process.nextTick(() => this.emit("error", error.message || error));
   }
 }

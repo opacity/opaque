@@ -93,6 +93,7 @@ declare class MasterHandle extends HDKey {
     private _updateMetaFromQueue;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
+    getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     register: () => Promise<{}>;
 }

@@ -362,6 +362,10 @@ class MasterHandle extends HDKey {
     }
   }
 
+  getAccountInfo = async () => (
+    (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data.account
+  )
+
   isPaid = async () => {
     try {
       const accountInfoResponse = await checkPaymentStatus(this.uploadOpts.endpoint, this)

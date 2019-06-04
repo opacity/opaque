@@ -203,6 +203,7 @@ class MasterHandle extends HDKey {
                 throw new Error("error decrypting meta");
             }
         };
+        this.getAccountInfo = async () => ((await checkPaymentStatus(this.uploadOpts.endpoint, this)).data.account);
         this.isPaid = async () => {
             try {
                 const accountInfoResponse = await checkPaymentStatus(this.uploadOpts.endpoint, this);
