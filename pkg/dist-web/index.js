@@ -1649,6 +1649,11 @@ class MasterHandle extends HDKey {
       };
     }();
 
+    this.getAccountInfo =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data.account;
+    });
     this.isPaid =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -1743,9 +1748,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref16 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref16$prefix = _ref16.prefix,
-      prefix = _ref16$prefix === void 0 ? false : _ref16$prefix;
+  let _ref17 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref17$prefix = _ref17.prefix,
+      prefix = _ref17$prefix === void 0 ? false : _ref17$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");

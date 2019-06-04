@@ -1646,6 +1646,11 @@ class MasterHandle extends HDKey__default {
       };
     }();
 
+    this.getAccountInfo =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data.account;
+    });
     this.isPaid =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
