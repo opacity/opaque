@@ -1409,7 +1409,6 @@ class MasterHandle extends HDKey__default {
       });
       upload.on("error", err => {
         ee.emit("error", err);
-        throw err;
       });
       upload.on("finish",
       /*#__PURE__*/
