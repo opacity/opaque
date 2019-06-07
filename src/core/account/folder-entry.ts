@@ -50,7 +50,6 @@ class MinifiedFolderEntryMeta extends Array {
 	 */
 	1: string
 
-
 	constructor ([
 		name,
 		location

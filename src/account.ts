@@ -17,8 +17,10 @@ import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
 import {
   FolderMeta,
+  MinifiedFolderMeta,
   FileEntryMeta,
   FileVersion,
+  FolderEntryMeta
 } from "./core/account/metadata";
 import { getMetadata, setMetadata, createMetadata, deleteMetadata, checkPaymentStatus, createAccount } from "./core/request";
 
@@ -270,9 +272,7 @@ class MasterHandle extends HDKey {
             : ({} as FileEntryMeta)
         ),
         version = new FileVersion({
-          size: file.size,
-          handle: finishedUpload.handle,
-          modified: file.lastModified,
+          handle: finishedUpload.handle
         }),
         meta = new FileEntryMeta({
           name: file.name,
@@ -305,13 +305,64 @@ class MasterHandle extends HDKey {
   }, 500)
 
   createFolderMeta = async (dir: string) => {
-    // TODO: verify folder can only be changed by the creating account
-    await createMetadata(
-      this.uploadOpts.endpoint,
-      this,
-      // this.getFolderHDKey(dir),
-      this.getFolderLocation(dir)
-    );
+    dir = dir.replace(/\/+/g, "/")
+
+    try {
+      // TODO: verify folder can only be changed by the creating account
+      await createMetadata(
+        this.uploadOpts.endpoint,
+        this,
+        // this.getFolderHDKey(dir),
+        this.getFolderLocation(dir)
+      );
+    } catch (err) {
+      console.error(`Can't create folder metadata for folder ${ dir }`)
+      throw err
+    }
+  }
+
+  createFolder = async (dir: string, name: string) => {
+    dir = dir.replace(/\/+/g, "/")
+    const fullDir = (dir + "/" + name).replace(/\/+/g, "/")
+
+    if (name.indexOf("/") > 0 || name.length > 2 ** 8)
+      throw new Error("Invalid folder name")
+
+    const location = this.getFolderLocation(dir)
+
+    let dirMeta = await this.getFolderMeta(dir)
+
+    try {
+      await this.getFolderMeta(fullDir)
+
+      console.warn("Folder already exists")
+
+      dirMeta.folders.push(new FolderEntryMeta({ name, location }))
+
+      await this.setFolderMeta(dir, dirMeta)
+
+      return
+    } catch (err) {
+      console.warn(err)
+    }
+
+    await this.createFolderMeta(fullDir)
+
+    try {
+      await this.setFolderMeta(fullDir, new FolderMeta())
+    } catch (err) {
+      console.error("Failed to set folder meta for dir: " + dir)
+      throw err
+    }
+
+    try {
+      dirMeta.folders.push(new FolderEntryMeta({ name, location }))
+
+      await this.setFolderMeta(dir, dirMeta)
+    } catch (err) {
+      console.error("Failed to set folder meta for dir: " + dir)
+      throw err
+    }
   }
 
   deleteFolderMeta = async (dir: string) => {
@@ -328,8 +379,8 @@ class MasterHandle extends HDKey {
     const
       folderKey = this.getFolderHDKey(dir),
       key = hash(folderKey.privateKey.toString("hex")),
-      metaString = JSON.stringify(folderMeta),
-      encryptedMeta = encryptString(key, metaString, "utf8").toHex()
+      metaString = JSON.stringify(folderMeta.minify()),
+      encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64")
 
     // TODO: verify folder can only be changed by the creating account
     await setMetadata(
@@ -360,18 +411,17 @@ class MasterHandle extends HDKey {
       const metaString = (
         decrypt(
           key,
-          new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))
+          new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "base64"))
         ) as ForgeUtil.ByteBuffer
       ).toString();
 
       try {
         const meta = JSON.parse(metaString)
 
-        return meta
+        return new MinifiedFolderMeta(meta).unminify()
       } catch (err) {
         console.error(err)
-
-        console.log(metaString)
+        console.warn(metaString)
 
         throw new Error("metadata corrupted")
       }
