@@ -1,4 +1,4 @@
-import { FileVersion } from "./file-version"
+import { FileVersion, MinifiedFileVersion, MinifiedFileVersionProps } from "./file-version"
 
 /**
  * a metadata class to describe a file as it relates to the UI
@@ -7,53 +7,85 @@ class FileEntryMeta {
 	type = "file"
 	/** the name of the file as shown in the UI */
 	name: string
-	/** the date in `ms` that this file was initially updated */
+	/** the date in `ms` that this file was initially uploaded */
 	created: number
-	/** if the file should be hidden (this could also be automatically generated within the UI, ie. `.files`) */
-	hidden: boolean
-	/**
-	 * if the file is encrypted
-	 * (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
-	 */
-	locked: boolean
+	/** the date in `ms` that the newest version of this file was uploaded */
+	modified: number
 	/** versions of the uploaded file (the most recent of which should be the current version of the file) */
 	versions: FileVersion[]
-	/** tags assigned to the file for organization/searching */
-	tags: string[]
 
 	/**
 	 * create metadata for a file entry in the UI
 	 *
 	 * @param name - the name of the file as shown in the UI
-	 * @param created - the date in `ms` that this file was initially updated
-	 * @param hidden - if the file should be hidden (this could also be automatically generated within the UI, ie. `.files`)
-	 * @param locked - if the file is encrypted
-	 *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
+	 * @param created - the date in `ms` that this file was initially uploaded
+	 * @param created - the date in `ms` that the newest version of this file was uploaded
 	 * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
-	 * @param tags - tags assigned to the file for organization/searching
 	 */
 	constructor ({
 		name,
 		created = Date.now(),
-		hidden = false,
-		locked = false,
-		versions = [],
-		tags = []
+		modified = Date.now(),
+		versions = []
 	}: {
 		name: string
 		created?: number
-		hidden?: boolean
-		locked?: boolean
+		modified?: number
 		versions?: FileVersion[]
-		tags?: string[]
 	}) {
 		this.name = name
 		this.created = created
-		this.hidden = hidden
-		this.locked = locked
+		this.modified = modified
 		this.versions = versions
-		this.tags = tags
+	}
+
+	minify () {
+		return new MinifiedFileEntryMeta([
+			this.name,
+			this.created,
+			this.modified,
+			this.versions.map(version => version.minify())
+		])
 	}
 }
 
-export { FileEntryMeta }
+type MinifiedFileEntryMetaProps = [
+	string,
+	number,
+	number,
+	MinifiedFileVersion[]
+]
+
+class MinifiedFileEntryMeta extends Array {
+	/** the name of the file as shown in the UI */
+	0: string
+	/** the date in `ms` that this file was initially uploaded */
+	1: number
+	/** the date in `ms` that the newest version of this file was uploaded */
+	2: number
+	/** versions of the uploaded file (the most recent of which should be the current version of the file) */
+	3: MinifiedFileVersion[]
+
+	constructor ([
+		name,
+		created,
+		modified,
+		versions
+	]: MinifiedFileEntryMetaProps) {
+		super(4)
+
+		this[0] = name
+		this[1] = created
+		this[2] = modified
+		this[3] = versions
+	}
+
+	unminify = () => new FileEntryMeta({
+		name: this[0],
+		created: this[1],
+		modified: this[2],
+		versions: this[3].map(version => new MinifiedFileVersion(version as unknown as MinifiedFileVersionProps).unminify())
+	})
+}
+
+export { FileEntryMeta, MinifiedFileEntryMeta, MinifiedFileEntryMetaProps }
