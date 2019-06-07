@@ -10,9 +10,27 @@ class FolderEntryMeta {
      *   it is how the file will be queried for (using the same system as for the account metadata)
      */
     constructor({ name, location }) {
-        this.type = "folder";
         this.name = name;
         this.location = location;
     }
+    minify() {
+        return new MinifiedFolderEntryMeta([
+            this.name,
+            this.location
+        ]);
+    }
 }
-export { FolderEntryMeta };
+class MinifiedFolderEntryMeta extends Array {
+    constructor([name, location]) {
+        super(2);
+        this[0] = name;
+        this[1] = location;
+    }
+    unminify() {
+        return new FolderEntryMeta({
+            name: this[0],
+            location: this[1]
+        });
+    }
+}
+export { FolderEntryMeta, MinifiedFolderEntryMeta };

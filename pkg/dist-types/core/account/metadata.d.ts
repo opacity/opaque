@@ -1,7 +1,7 @@
 import { AccountMeta } from "./account-meta";
 import { AccountPreferences } from "./account-preferences";
-import { FileEntryMeta } from "./file-entry";
-import { FileVersion } from "./file-version";
-import { FolderEntryMeta } from "./folder-entry";
-import { FolderMeta } from "./folder-meta";
-export { AccountMeta, AccountPreferences, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta };
+import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
+import { FileVersion, MinifiedFileVersion } from "./file-version";
+import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
+import { FolderMeta, MinifiedFolderMeta } from "./folder-meta";
+export { AccountMeta, AccountPreferences, FileEntryMeta, MinifiedFileEntryMeta, FileVersion, MinifiedFileVersion, FolderEntryMeta, MinifiedFolderEntryMeta, FolderMeta, MinifiedFolderMeta };

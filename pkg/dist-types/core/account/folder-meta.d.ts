@@ -1,5 +1,5 @@
-import { FileEntryMeta } from "./file-entry";
-import { FolderEntryMeta } from "./folder-entry";
+import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
+import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
 /**
  * a metadata class to describe a folder for the UI
  */
@@ -7,36 +7,43 @@ declare class FolderMeta {
     /** a nickname shown on the folder when accessed without adding to account metadata */
     name: string;
     /** the files included only in the most shallow part of the folder */
-    files: (FileEntryMeta | FolderEntryMeta)[];
+    files: FileEntryMeta[];
+    /** the folders included only in the most shallow part of the folder */
+    folders: FolderEntryMeta[];
     /** when the folder was created (if not created now) in `ms` */
     created: number;
-    /** if the folder should be hidden (this could also be automatically generated within the UI, ie. `.folders`) */
-    hidden: boolean;
-    /**
-     * if the folder's metadata is encrypted
-     * (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
-     */
-    locked: boolean;
-    /** tags assigned to the folder for organization/searching */
-    tags: string[];
+    /** when the folder was changed (if not modified now) in `ms` */
+    modified: number;
     /**
      * create metadata for a folder
      *
      * @param name - a nickname shown on the folder when accessed without adding to account metadata
      * @param files - the files included only in the most shallow part of the folder
      * @param created - when the folder was created (if not created now) in `ms`
-     * @param hidden - if the folder should be hidden (this could also be automatically generated within the UI)
-     * @param locked - if the folder's metadata is encrypted (will require password in the UI)
-     *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
-     * @param tags - tags assigned to the folder for organization/searching
+     * @param created - when the folder was changed (if not modified now) in `ms`
      */
-    constructor({ name, files, created, hidden, locked, tags }?: {
+    constructor({ name, files, folders, created, modified }?: {
         name?: string;
-        files?: (FileEntryMeta | FolderEntryMeta)[];
+        files?: FileEntryMeta[];
+        folders?: FolderEntryMeta[];
         created?: number;
-        hidden?: boolean;
-        locked?: boolean;
-        tags?: string[];
+        modified?: number;
     });
+    minify: () => MinifiedFolderMeta;
 }
-export { FolderMeta };
+declare type MinifiedFolderMetaProps = [string, MinifiedFileEntryMeta[], MinifiedFolderEntryMeta[], number, number];
+declare class MinifiedFolderMeta extends Array {
+    /** a nickname shown on the folder when accessed without adding to account metadata */
+    0: string;
+    /** the files included only in the most shallow part of the folder */
+    1: MinifiedFileEntryMeta[];
+    /** the folders included only in the most shallow part of the folder */
+    2: MinifiedFolderEntryMeta[];
+    /** when the folder was created (if not created now) in `ms` */
+    3: number;
+    /** when the folder was changed (if not modified now) in `ms` */
+    4: number;
+    constructor([name, files, folders, created, modified]: MinifiedFolderMetaProps);
+    unminify(): FolderMeta;
+}
+export { FolderMeta, MinifiedFolderMeta, MinifiedFolderMetaProps };

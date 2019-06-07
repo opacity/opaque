@@ -8,8 +8,8 @@ import { debounce } from "debounce";
 import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
-import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
-import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
+import { FolderMeta, MinifiedFolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
+import { getMetadata, setMetadata, createMetadata, deleteMetadata, checkPaymentStatus, createAccount } from "./core/request";
 import { deleteFile } from "./core/requests/deleteFile";
 /**
  * **_this should never be shared or left in storage_**
@@ -143,9 +143,7 @@ class MasterHandle extends HDKey {
                 const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
                     ? folderMeta.files[oldMetaIndex]
                     : {}), version = new FileVersion({
-                    size: file.size,
-                    handle: finishedUpload.handle,
-                    modified: file.lastModified,
+                    handle: finishedUpload.handle
                 }), meta = new FileEntryMeta({
                     name: file.name,
                     created: oldMeta.created,
@@ -171,8 +169,61 @@ class MasterHandle extends HDKey {
             this.metaQueue[dir].splice(0, copy.length);
             finished.forEach(resolve => { resolve(); });
         }, 500);
+        this.createFolderMeta = async (dir) => {
+            dir = dir.replace(/\/+/g, "/");
+            try {
+                // TODO: verify folder can only be changed by the creating account
+                await createMetadata(this.uploadOpts.endpoint, this, 
+                // this.getFolderHDKey(dir),
+                this.getFolderLocation(dir));
+            }
+            catch (err) {
+                console.error(`Can't create folder metadata for folder ${dir}`);
+                throw err;
+            }
+        };
+        this.createFolder = async (dir, name) => {
+            dir = dir.replace(/\/+/g, "/");
+            const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+            if (name.indexOf("/") > 0 || name.length > 2 ** 8)
+                throw new Error("Invalid folder name");
+            const location = this.getFolderLocation(dir);
+            let dirMeta = await this.getFolderMeta(dir);
+            try {
+                await this.getFolderMeta(fullDir);
+                console.warn("Folder already exists");
+                dirMeta.folders.push(new FolderEntryMeta({ name, location }));
+                await this.setFolderMeta(dir, dirMeta);
+                return;
+            }
+            catch (err) {
+                console.warn(err);
+            }
+            await this.createFolderMeta(fullDir);
+            try {
+                await this.setFolderMeta(fullDir, new FolderMeta());
+            }
+            catch (err) {
+                console.error("Failed to set folder meta for dir: " + dir);
+                throw err;
+            }
+            try {
+                dirMeta.folders.push(new FolderEntryMeta({ name, location }));
+                await this.setFolderMeta(dir, dirMeta);
+            }
+            catch (err) {
+                console.error("Failed to set folder meta for dir: " + dir);
+                throw err;
+            }
+        };
+        this.deleteFolderMeta = async (dir) => {
+            // TODO: verify folder can only be changed by the creating account
+            await deleteMetadata(this.uploadOpts.endpoint, this, 
+            // this.getFolderHDKey(dir),
+            this.getFolderLocation(dir));
+        };
         this.setFolderMeta = async (dir, folderMeta) => {
-            const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
+            const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta.minify()), encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64");
             // TODO: verify folder can only be changed by the creating account
             await setMetadata(this.uploadOpts.endpoint, this, 
             // this.getFolderHDKey(dir),
@@ -187,14 +238,14 @@ class MasterHandle extends HDKey {
             try {
                 // TODO
                 // I have no idea why but the decrypted is correct hex without converting
-                const metaString = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
+                const metaString = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
                 try {
                     const meta = JSON.parse(metaString);
-                    return meta;
+                    return new MinifiedFolderMeta(meta).unminify();
                 }
                 catch (err) {
                     console.error(err);
-                    console.log(metaString);
+                    console.warn(metaString);
                     throw new Error("metadata corrupted");
                 }
             }
@@ -224,21 +275,23 @@ class MasterHandle extends HDKey {
                 resolve({
                     data: createAccountResponse.data,
                     waitForPayment: () => new Promise(resolve => {
-                        const interval = setInterval(async () => {
-                            // don't perform run if it takes more than 5 seconds for response
-                            const time = Date.now();
-                            if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
-                                clearInterval(interval);
+                        const checkPayment = async () => {
+                            if (await this.isPaid()) {
                                 try {
                                     await this.getFolderMeta("/");
                                 }
                                 catch (err) {
                                     console.warn(err);
-                                    this.setFolderMeta("/", new FolderMeta());
+                                    await this.createFolderMeta("/");
+                                    await this.setFolderMeta("/", new FolderMeta());
                                 }
                                 resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
                             }
-                        }, 10 * 1000);
+                            else {
+                                setTimeout(checkPayment, 10 * 1000);
+                            }
+                        };
+                        setTimeout(checkPayment, 10 * 1000);
                     })
                 });
             });

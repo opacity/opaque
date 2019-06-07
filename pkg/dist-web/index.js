@@ -50,6 +50,44 @@ function _asyncToGenerator(fn) {
   };
 }
 
+function _slicedToArray(arr, i) {
+  return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest();
+}
+
+function _arrayWithHoles(arr) {
+  if (Array.isArray(arr)) return arr;
+}
+
+function _iterableToArrayLimit(arr, i) {
+  var _arr = [];
+  var _n = true;
+  var _d = false;
+  var _e = undefined;
+
+  try {
+    for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) {
+      _arr.push(_s.value);
+
+      if (i && _arr.length === i) break;
+    }
+  } catch (err) {
+    _d = true;
+    _e = err;
+  } finally {
+    try {
+      if (!_n && _i["return"] != null) _i["return"]();
+    } finally {
+      if (_d) throw _e;
+    }
+  }
+
+  return _arr;
+}
+
+function _nonIterableRest() {
+  throw new TypeError("Invalid attempt to destructure non-iterable instance");
+}
+
 const DEFAULT_OPTIONS = Object.freeze({
   objectMode: false
 });
@@ -758,7 +796,41 @@ function _createAccount() {
   return _createAccount.apply(this, arguments);
 }
 
-function setMetadata(_x, _x2, _x3, _x4) {
+function createMetadata$1(_x, _x2, _x3) {
+  return _createMetadata.apply(this, arguments);
+}
+
+function _createMetadata() {
+  _createMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/metadata/create", signedPayload);
+  });
+  return _createMetadata.apply(this, arguments);
+}
+
+function deleteMetadata(_x4, _x5, _x6) {
+  return _deleteMetadata.apply(this, arguments);
+} // Metadata as hexstring as of right now
+
+function _deleteMetadata() {
+  _deleteMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = {
+      timestamp,
+      metadataKey
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/metadata/delete", signedPayload);
+  });
+  return _deleteMetadata.apply(this, arguments);
+}
+
+function setMetadata(_x7, _x8, _x9, _x10) {
   return _setMetadata.apply(this, arguments);
 }
 
@@ -776,7 +848,7 @@ function _setMetadata() {
   return _setMetadata.apply(this, arguments);
 }
 
-function getMetadata(_x5, _x6, _x7) {
+function getMetadata(_x11, _x12, _x13) {
   return _getMetadata.apply(this, arguments);
 }
 
@@ -1185,68 +1257,89 @@ class AccountPreferences {
 }
 
 /**
- * a metadata class to describe a file as it relates to the UI
- */
-class FileEntryMeta {
-  /**
-   * create metadata for a file entry in the UI
-   *
-   * @param name - the name of the file as shown in the UI
-   * @param created - the date in `ms` that this file was initially updated
-   * @param hidden - if the file should be hidden (this could also be automatically generated within the UI, ie. `.files`)
-   * @param locked - if the file is encrypted
-   *   (will require password in the UI, may need bytes prefixed to meta to determine whether it was encrypted)
-   * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
-   * @param tags - tags assigned to the file for organization/searching
-   */
-  constructor(_ref) {
-    let name = _ref.name,
-        _ref$created = _ref.created,
-        created = _ref$created === void 0 ? Date.now() : _ref$created,
-        _ref$hidden = _ref.hidden,
-        hidden = _ref$hidden === void 0 ? false : _ref$hidden,
-        _ref$locked = _ref.locked,
-        locked = _ref$locked === void 0 ? false : _ref$locked,
-        _ref$versions = _ref.versions,
-        versions = _ref$versions === void 0 ? [] : _ref$versions,
-        _ref$tags = _ref.tags,
-        tags = _ref$tags === void 0 ? [] : _ref$tags;
-    this.type = "file";
-    this.name = name;
-    this.created = created;
-    this.hidden = hidden;
-    this.locked = locked;
-    this.versions = versions;
-    this.tags = tags;
-  }
-
-}
-
-/**
  * a metadata class to describe a version of a file as it relates to a filesystem
  */
 class FileVersion {
   /**
    * create metadata for a file version
    *
-   * @param size - size in bytes of the file
-   * @param location - // DEPRECATED location on the network of the file
    * @param handle - the file handle
-   * @param hash - a hash of the file
-   *   NOTE: probably `sha1`
-   * @param modified - the date in `ms` that this version of the file was originally changed
    */
   constructor(_ref) {
-    let size = _ref.size,
-        handle = _ref.handle,
-        hash = _ref.hash,
-        _ref$modified = _ref.modified,
-        modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
-    this.size = size; // this.location = location
-
+    let handle = _ref.handle;
     this.handle = handle;
-    this.hash = hash;
+  }
+
+  minify() {
+    return new MinifiedFileVersion(this.handle);
+  }
+
+}
+
+class MinifiedFileVersion extends String {
+  unminify() {
+    return new FileVersion({
+      handle: this.toString()
+    });
+  }
+
+}
+
+/**
+ * a metadata class to describe a file as it relates to the UI
+ */
+
+class FileEntryMeta {
+  /**
+   * create metadata for a file entry in the UI
+   *
+   * @param name - the name of the file as shown in the UI
+   * @param created - the date in `ms` that this file was initially uploaded
+   * @param created - the date in `ms` that the newest version of this file was uploaded
+   * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
+   */
+  constructor(_ref) {
+    let name = _ref.name,
+        _ref$created = _ref.created,
+        created = _ref$created === void 0 ? Date.now() : _ref$created,
+        _ref$modified = _ref.modified,
+        modified = _ref$modified === void 0 ? Date.now() : _ref$modified,
+        _ref$versions = _ref.versions,
+        versions = _ref$versions === void 0 ? [] : _ref$versions;
+    this.type = "file";
+    this.name = name;
+    this.created = created;
     this.modified = modified;
+    this.versions = versions;
+  }
+
+  minify() {
+    return new MinifiedFileEntryMeta([this.name, this.created, this.modified, this.versions.map(version => version.minify())]);
+  }
+
+}
+
+class MinifiedFileEntryMeta extends Array {
+  constructor(_ref2) {
+    let _ref3 = _slicedToArray(_ref2, 4),
+        name = _ref3[0],
+        created = _ref3[1],
+        modified = _ref3[2],
+        versions = _ref3[3];
+
+    super(4);
+
+    this.unminify = () => new FileEntryMeta({
+      name: this[0],
+      created: this[1],
+      modified: this[2],
+      versions: this[3].map(version => new MinifiedFileVersion(version).unminify())
+    });
+
+    this[0] = name;
+    this[1] = created;
+    this[2] = modified;
+    this[3] = versions;
   }
 
 }
@@ -1265,9 +1358,32 @@ class FolderEntryMeta {
   constructor(_ref) {
     let name = _ref.name,
         location = _ref.location;
-    this.type = "folder";
     this.name = name;
     this.location = location;
+  }
+
+  minify() {
+    return new MinifiedFolderEntryMeta([this.name, this.location]);
+  }
+
+}
+
+class MinifiedFolderEntryMeta extends Array {
+  constructor(_ref2) {
+    let _ref3 = _slicedToArray(_ref2, 2),
+        name = _ref3[0],
+        location = _ref3[1];
+
+    super(2);
+    this[0] = name;
+    this[1] = location;
+  }
+
+  unminify() {
+    return new FolderEntryMeta({
+      name: this[0],
+      location: this[1]
+    });
   }
 
 }
@@ -1275,6 +1391,7 @@ class FolderEntryMeta {
 /**
  * a metadata class to describe a folder for the UI
  */
+
 class FolderMeta {
   /**
    * create metadata for a folder
@@ -1282,10 +1399,7 @@ class FolderMeta {
    * @param name - a nickname shown on the folder when accessed without adding to account metadata
    * @param files - the files included only in the most shallow part of the folder
    * @param created - when the folder was created (if not created now) in `ms`
-   * @param hidden - if the folder should be hidden (this could also be automatically generated within the UI)
-   * @param locked - if the folder's metadata is encrypted (will require password in the UI)
-   *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
-   * @param tags - tags assigned to the folder for organization/searching
+   * @param created - when the folder was changed (if not modified now) in `ms`
    */
   constructor() {
     let _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {},
@@ -1293,21 +1407,49 @@ class FolderMeta {
         name = _ref$name === void 0 ? "Folder" : _ref$name,
         _ref$files = _ref.files,
         files = _ref$files === void 0 ? [] : _ref$files,
+        _ref$folders = _ref.folders,
+        folders = _ref$folders === void 0 ? [] : _ref$folders,
         _ref$created = _ref.created,
         created = _ref$created === void 0 ? Date.now() : _ref$created,
-        _ref$hidden = _ref.hidden,
-        hidden = _ref$hidden === void 0 ? false : _ref$hidden,
-        _ref$locked = _ref.locked,
-        locked = _ref$locked === void 0 ? false : _ref$locked,
-        _ref$tags = _ref.tags,
-        tags = _ref$tags === void 0 ? [] : _ref$tags;
+        _ref$modified = _ref.modified,
+        modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
+
+    this.minify = () => new MinifiedFolderMeta([this.name, this.files.map(file => file.minify()), this.folders.map(folder => folder.minify()), this.created, this.modified]);
 
     this.name = name;
     this.files = files;
+    this.folders = folders;
     this.created = created;
-    this.hidden = hidden;
-    this.locked = locked;
-    this.tags = tags;
+    this.modified = modified;
+  }
+
+}
+
+class MinifiedFolderMeta extends Array {
+  constructor(_ref2) {
+    let _ref3 = _slicedToArray(_ref2, 5),
+        name = _ref3[0],
+        files = _ref3[1],
+        folders = _ref3[2],
+        created = _ref3[3],
+        modified = _ref3[4];
+
+    super(5);
+    this[0] = name;
+    this[1] = files;
+    this[2] = folders;
+    this[3] = created;
+    this[4] = modified;
+  }
+
+  unminify() {
+    return new FolderMeta({
+      name: this[0],
+      files: this[1].map(file => new MinifiedFileEntryMeta(file).unminify()),
+      folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder).unminify()),
+      created: this[3],
+      modified: this[4]
+    });
   }
 
 }
@@ -1558,9 +1700,7 @@ class MasterHandle extends HDKey {
           const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
                 oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
                 version = new FileVersion({
-            size: file.size,
-            handle: finishedUpload.handle,
-            modified: file.lastModified
+            handle: finishedUpload.handle
           }),
                 meta = new FileEntryMeta({
             name: file.name,
@@ -1597,29 +1737,115 @@ class MasterHandle extends HDKey {
       };
     }(), 500);
 
+    this.createFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref11 = _asyncToGenerator(function* (dir) {
+        dir = dir.replace(/\/+/g, "/");
+
+        try {
+          // TODO: verify folder can only be changed by the creating account
+          yield createMetadata$1(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
+          _this.getFolderLocation(dir));
+        } catch (err) {
+          console.error("Can't create folder metadata for folder ".concat(dir));
+          throw err;
+        }
+      });
+
+      return function (_x10) {
+        return _ref11.apply(this, arguments);
+      };
+    }();
+
+    this.createFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref12 = _asyncToGenerator(function* (dir, name) {
+        dir = dir.replace(/\/+/g, "/");
+        const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+        if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
+
+        const location = _this.getFolderLocation(dir);
+
+        let dirMeta = yield _this.getFolderMeta(dir);
+
+        try {
+          yield _this.getFolderMeta(fullDir);
+          console.warn("Folder already exists");
+          dirMeta.folders.push(new FolderEntryMeta({
+            name,
+            location
+          }));
+          yield _this.setFolderMeta(dir, dirMeta);
+          return;
+        } catch (err) {
+          console.warn(err);
+        }
+
+        yield _this.createFolderMeta(fullDir);
+
+        try {
+          yield _this.setFolderMeta(fullDir, new FolderMeta());
+        } catch (err) {
+          console.error("Failed to set folder meta for dir: " + dir);
+          throw err;
+        }
+
+        try {
+          dirMeta.folders.push(new FolderEntryMeta({
+            name,
+            location
+          }));
+          yield _this.setFolderMeta(dir, dirMeta);
+        } catch (err) {
+          console.error("Failed to set folder meta for dir: " + dir);
+          throw err;
+        }
+      });
+
+      return function (_x11, _x12) {
+        return _ref12.apply(this, arguments);
+      };
+    }();
+
+    this.deleteFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref13 = _asyncToGenerator(function* (dir) {
+        // TODO: verify folder can only be changed by the creating account
+        yield deleteMetadata(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
+        _this.getFolderLocation(dir));
+      });
+
+      return function (_x13) {
+        return _ref13.apply(this, arguments);
+      };
+    }();
+
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref11 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref14 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
-              metaString = JSON.stringify(folderMeta),
-              encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO: verify folder can only be changed by the creating account
+              metaString = JSON.stringify(folderMeta.minify()),
+              encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
 
 
         yield setMetadata(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
         _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x10, _x11) {
-        return _ref11.apply(this, arguments);
+      return function (_x14, _x15) {
+        return _ref14.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref12 = _asyncToGenerator(function* (dir) {
+      var _ref15 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1630,14 +1856,14 @@ class MasterHandle extends HDKey {
         try {
           // TODO
           // I have no idea why but the decrypted is correct hex without converting
-          const metaString = decrypt(key, new util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
+          const metaString = decrypt(key, new util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
 
           try {
             const meta = JSON.parse(metaString);
-            return meta;
+            return new MinifiedFolderMeta(meta).unminify();
           } catch (err) {
             console.error(err);
-            console.log(metaString);
+            console.warn(metaString);
             throw new Error("metadata corrupted");
           }
         } catch (err) {
@@ -1646,8 +1872,8 @@ class MasterHandle extends HDKey {
         }
       });
 
-      return function (_x12) {
-        return _ref12.apply(this, arguments);
+      return function (_x16) {
+        return _ref15.apply(this, arguments);
       };
     }();
 
@@ -1693,28 +1919,33 @@ class MasterHandle extends HDKey {
         resolve({
           data: createAccountResponse.data,
           waitForPayment: () => new Promise(resolve => {
-            const interval = setInterval(
+            const checkPayment =
             /*#__PURE__*/
-            _asyncToGenerator(function* () {
-              // don't perform run if it takes more than 5 seconds for response
-              const time = Date.now();
+            function () {
+              var _ref18 = _asyncToGenerator(function* () {
+                if (yield _this.isPaid()) {
+                  try {
+                    yield _this.getFolderMeta("/");
+                  } catch (err) {
+                    console.warn(err);
+                    yield _this.createFolderMeta("/");
+                    yield _this.setFolderMeta("/", new FolderMeta());
+                  }
 
-              if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
-                clearInterval(interval);
-
-                try {
-                  yield _this.getFolderMeta("/");
-                } catch (err) {
-                  console.warn(err);
-
-                  _this.setFolderMeta("/", new FolderMeta());
+                  resolve({
+                    data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+                  });
+                } else {
+                  setTimeout(checkPayment, 10 * 1000);
                 }
+              });
 
-                resolve({
-                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-                });
-              }
-            }), 10 * 1000);
+              return function checkPayment() {
+                return _ref18.apply(this, arguments);
+              };
+            }();
+
+            setTimeout(checkPayment, 10 * 1000);
           })
         });
       });
@@ -1745,9 +1976,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref16 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref16$prefix = _ref16.prefix,
-      prefix = _ref16$prefix === void 0 ? false : _ref16$prefix;
+  let _ref19 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref19$prefix = _ref19.prefix,
+      prefix = _ref19$prefix === void 0 ? false : _ref19$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");
@@ -1756,4 +1987,4 @@ MasterHandle.hashToPath = function (h) {
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
-export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };
+export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, setMetadata };

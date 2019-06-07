@@ -10,4 +10,4 @@ export declare function getPayloadFD(rawPayload: {
 }, extraPayload: any, hdNode: HDKey, key?: string): FormDataNode | FormData;
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
-export { getMetadata, setMetadata } from "./requests/metadata";
+export { getMetadata, setMetadata, createMetadata, deleteMetadata } from "./requests/metadata";
