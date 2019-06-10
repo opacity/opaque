@@ -375,6 +375,15 @@ class MasterHandle extends HDKey {
     }
   }
 
+  login = async () => {
+    try {
+      await this.getFolderMeta("/")
+    } catch (err) {
+      console.warn(err)
+      this.setFolderMeta("/", new FolderMeta())
+    }
+  }
+
   register = async () => {
     if (await this.isPaid()) {
       return Promise.resolve({
@@ -395,12 +404,7 @@ class MasterHandle extends HDKey {
             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
               clearInterval(interval)
 
-              try {
-                await this.getFolderMeta("/")
-              } catch (err) {
-                console.warn(err)
-                this.setFolderMeta("/", new FolderMeta())
-              }
+              await this.login()
 
               resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
             }
