@@ -95,6 +95,7 @@ declare class MasterHandle extends HDKey {
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
+    login: () => Promise<void>;
     register: () => Promise<{}>;
 }
 export { Account, MasterHandle, HDKey };

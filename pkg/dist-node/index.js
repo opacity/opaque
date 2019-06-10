@@ -1660,6 +1660,17 @@ class MasterHandle extends HDKey__default {
         return false;
       }
     });
+    this.login =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.getFolderMeta("/");
+      } catch (err) {
+        console.warn(err);
+
+        _this.setFolderMeta("/", new FolderMeta());
+      }
+    });
     this.register =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -1700,15 +1711,7 @@ class MasterHandle extends HDKey__default {
 
               if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
                 clearInterval(interval);
-
-                try {
-                  yield _this.getFolderMeta("/");
-                } catch (err) {
-                  console.warn(err);
-
-                  _this.setFolderMeta("/", new FolderMeta());
-                }
-
+                yield _this.login();
                 resolve({
                   data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
                 });
