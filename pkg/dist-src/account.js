@@ -212,6 +212,15 @@ class MasterHandle extends HDKey {
                 return false;
             }
         };
+        this.login = async () => {
+            try {
+                await this.getFolderMeta("/");
+            }
+            catch (err) {
+                console.warn(err);
+                this.setFolderMeta("/", new FolderMeta());
+            }
+        };
         this.register = async () => {
             if (await this.isPaid()) {
                 return Promise.resolve({
@@ -229,13 +238,7 @@ class MasterHandle extends HDKey {
                             const time = Date.now();
                             if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
                                 clearInterval(interval);
-                                try {
-                                    await this.getFolderMeta("/");
-                                }
-                                catch (err) {
-                                    console.warn(err);
-                                    this.setFolderMeta("/", new FolderMeta());
-                                }
+                                await this.login();
                                 resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
                             }
                         }, 10 * 1000);
