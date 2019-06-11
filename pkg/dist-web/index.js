@@ -1663,6 +1663,17 @@ class MasterHandle extends HDKey {
         return false;
       }
     });
+    this.login =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        yield _this.getFolderMeta("/");
+      } catch (err) {
+        console.warn(err);
+
+        _this.setFolderMeta("/", new FolderMeta());
+      }
+    });
     this.register =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -1703,15 +1714,7 @@ class MasterHandle extends HDKey {
 
               if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
                 clearInterval(interval);
-
-                try {
-                  yield _this.getFolderMeta("/");
-                } catch (err) {
-                  console.warn(err);
-
-                  _this.setFolderMeta("/", new FolderMeta());
-                }
-
+                yield _this.login();
                 resolve({
                   data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
                 });
@@ -1747,9 +1750,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref17 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref17$prefix = _ref17.prefix,
-      prefix = _ref17$prefix === void 0 ? false : _ref17$prefix;
+  let _ref18 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref18$prefix = _ref18.prefix,
+      prefix = _ref18$prefix === void 0 ? false : _ref18$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");
