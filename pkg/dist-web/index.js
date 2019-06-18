@@ -723,6 +723,17 @@ class EncryptStream extends Transform {
 
 }
 
+function getPlans(_x) {
+  return _getPlans.apply(this, arguments);
+}
+
+function _getPlans() {
+  _getPlans = _asyncToGenerator(function* (endpoint) {
+    return Axios.get(endpoint + "/plans");
+  });
+  return _getPlans.apply(this, arguments);
+}
+
 function checkPaymentStatus(_x, _x2) {
   return _checkPaymentStatus.apply(this, arguments);
 }
@@ -744,11 +755,13 @@ function createAccount(_x, _x2, _x3) {
 
 function _createAccount() {
   _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    let duration = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 12;
+    let limit = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 128;
     const payload = {
       metadataKey: metadataKey,
-      durationInMonths: 12,
+      durationInMonths: duration,
       // TODO: I'm not sure why this is like this, but it doesn't match what was planned
-      storageLimit: 128
+      storageLimit: limit
     };
     const signedPayload = getPayload(payload, hdNode);
     return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
@@ -1674,56 +1687,74 @@ class MasterHandle extends HDKey {
         _this.setFolderMeta("/", new FolderMeta());
       }
     });
-    this.register =
+    this.getPlans =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      if (yield _this.isPaid()) {
-        return Promise.resolve({
-          data: {
-            invoice: {
-              cost: 0,
-              ethAddress: "0x0"
-            }
-          },
-          waitForPayment: function () {
-            var _waitForPayment = _asyncToGenerator(function* () {
-              return {
-                data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-              };
-            });
-
-            function waitForPayment() {
-              return _waitForPayment.apply(this, arguments);
-            }
-
-            return waitForPayment;
-          }()
-        });
+      try {
+        const res = yield getPlans(_this.uploadOpts.endpoint);
+        return res.data.plans;
+      } catch (err) {
+        throw "Could not load plans";
       }
+    });
 
-      const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"));
-      return new Promise(resolve => {
-        resolve({
-          data: createAccountResponse.data,
-          waitForPayment: () => new Promise(resolve => {
-            const interval = setInterval(
-            /*#__PURE__*/
-            _asyncToGenerator(function* () {
-              // don't perform run if it takes more than 5 seconds for response
-              const time = Date.now();
-
-              if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
-                clearInterval(interval);
-                yield _this.login();
-                resolve({
-                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-                });
+    this.register =
+    /*#__PURE__*/
+    function () {
+      var _ref17 = _asyncToGenerator(function* (duration, limit) {
+        if (yield _this.isPaid()) {
+          return Promise.resolve({
+            data: {
+              invoice: {
+                cost: 0,
+                ethAddress: "0x0"
               }
-            }), 10 * 1000);
-          })
+            },
+            waitForPayment: function () {
+              var _waitForPayment = _asyncToGenerator(function* () {
+                return {
+                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+                };
+              });
+
+              function waitForPayment() {
+                return _waitForPayment.apply(this, arguments);
+              }
+
+              return waitForPayment;
+            }()
+          });
+        }
+
+        const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"), duration, limit);
+        return new Promise(resolve => {
+          resolve({
+            data: createAccountResponse.data,
+            waitForPayment: () => new Promise(resolve => {
+              const interval = setInterval(
+              /*#__PURE__*/
+              _asyncToGenerator(function* () {
+                // don't perform run if it takes more than 5 seconds for response
+                const time = Date.now();
+
+                if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
+                  clearInterval(interval);
+                  yield _this.login();
+                  resolve({
+                    data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+                  });
+                }
+              }), 10 * 1000);
+            })
+          });
         });
       });
-    });
+
+      return function (_x13, _x14) {
+        return _ref17.apply(this, arguments);
+      };
+    }();
+
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 
@@ -1750,9 +1781,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref18 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref18$prefix = _ref18.prefix,
-      prefix = _ref18$prefix === void 0 ? false : _ref18$prefix;
+  let _ref19 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref19$prefix = _ref19.prefix,
+      prefix = _ref19$prefix === void 0 ? false : _ref19$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");
@@ -1761,4 +1792,4 @@ MasterHandle.hashToPath = function (h) {
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
-export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, setMetadata };
+export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, Upload, checkPaymentStatus, createAccount, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata };
