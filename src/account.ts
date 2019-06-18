@@ -384,7 +384,7 @@ class MasterHandle extends HDKey {
     }
   }
 
-  register = async () => {
+  register = async (duration?: number, limit?: number) => {
     if (await this.isPaid()) {
       return Promise.resolve({
         data: { invoice: { cost: 0, ethAddress: "0x0" } },
@@ -392,7 +392,7 @@ class MasterHandle extends HDKey {
       })
     }
 
-    const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"))
+    const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"), duration, limit)
 
     return new Promise(resolve => {
       resolve({

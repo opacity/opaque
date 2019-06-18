@@ -221,14 +221,14 @@ class MasterHandle extends HDKey {
                 this.setFolderMeta("/", new FolderMeta());
             }
         };
-        this.register = async () => {
+        this.register = async (duration, limit) => {
             if (await this.isPaid()) {
                 return Promise.resolve({
                     data: { invoice: { cost: 0, ethAddress: "0x0" } },
                     waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
                 });
             }
-            const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"));
+            const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"), duration, limit);
             return new Promise(resolve => {
                 resolve({
                     data: createAccountResponse.data,
