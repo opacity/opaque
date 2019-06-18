@@ -52,6 +52,7 @@ export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBod
         return data;
     }
 }
+export { getPlans } from "./requests/getPlans";
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
 export { getMetadata, setMetadata } from "./requests/metadata";

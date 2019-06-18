@@ -20,7 +20,13 @@ import {
   FileEntryMeta,
   FileVersion,
 } from "./core/account/metadata";
-import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
+import {
+  getMetadata,
+  setMetadata,
+  checkPaymentStatus,
+  createAccount,
+  getPlans
+} from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
 import { deleteFile } from "./core/requests/deleteFile";
@@ -381,6 +387,16 @@ class MasterHandle extends HDKey {
     } catch (err) {
       console.warn(err)
       this.setFolderMeta("/", new FolderMeta())
+    }
+  }
+
+  getPlans = async () => {
+    try {
+      const res = await getPlans(this.uploadOpts.endpoint);
+
+      return res.data.plans;
+    } catch (err) {
+      throw "Could not load plans";
     }
   }
 

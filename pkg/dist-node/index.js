@@ -735,6 +735,17 @@ class EncryptStream extends readableStream.Transform {
 
 }
 
+function getPlans(_x) {
+  return _getPlans.apply(this, arguments);
+}
+
+function _getPlans() {
+  _getPlans = _asyncToGenerator(function* (endpoint) {
+    return Axios.get(endpoint + "/plans");
+  });
+  return _getPlans.apply(this, arguments);
+}
+
 function checkPaymentStatus(_x, _x2) {
   return _checkPaymentStatus.apply(this, arguments);
 }
@@ -1671,11 +1682,21 @@ class MasterHandle extends HDKey__default {
         _this.setFolderMeta("/", new FolderMeta());
       }
     });
+    this.getPlans =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        const res = yield getPlans(_this.uploadOpts.endpoint);
+        return res.data.plans;
+      } catch (err) {
+        throw "Could not load plans";
+      }
+    });
 
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref12 = _asyncToGenerator(function* (duration, limit) {
+      var _ref13 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -1725,7 +1746,7 @@ class MasterHandle extends HDKey__default {
       });
 
       return function (_x13, _x14) {
-        return _ref12.apply(this, arguments);
+        return _ref13.apply(this, arguments);
       };
     }();
 
@@ -1780,4 +1801,5 @@ exports.createAccount = createAccount;
 exports.getMetadata = getMetadata;
 exports.getPayload = getPayload;
 exports.getPayloadFD = getPayloadFD;
+exports.getPlans = getPlans;
 exports.setMetadata = setMetadata;
