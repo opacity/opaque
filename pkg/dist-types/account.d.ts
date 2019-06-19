@@ -96,6 +96,6 @@ declare class MasterHandle extends HDKey {
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
-    register: () => Promise<{}>;
+    register: (duration?: number, limit?: number) => Promise<{}>;
 }
 export { Account, MasterHandle, HDKey };
