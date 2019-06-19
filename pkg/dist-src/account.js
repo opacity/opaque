@@ -9,7 +9,7 @@ import { hash } from "./core/hashing";
 import { decrypt, encryptString } from "./core/encryption";
 import { util as ForgeUtil } from "node-forge";
 import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
-import { getMetadata, setMetadata, checkPaymentStatus, createAccount, getPlans } from "./core/request";
+import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 import { deleteFile } from "./core/requests/deleteFile";
 /**
  * **_this should never be shared or left in storage_**
@@ -219,15 +219,6 @@ class MasterHandle extends HDKey {
             catch (err) {
                 console.warn(err);
                 this.setFolderMeta("/", new FolderMeta());
-            }
-        };
-        this.getPlans = async () => {
-            try {
-                const res = await getPlans(this.uploadOpts.endpoint);
-                return res.data.plans;
-            }
-            catch (err) {
-                throw "Could not load plans";
             }
         };
         this.register = async (duration, limit) => {

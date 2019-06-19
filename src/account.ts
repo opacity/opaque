@@ -390,16 +390,6 @@ class MasterHandle extends HDKey {
     }
   }
 
-  getPlans = async () => {
-    try {
-      const res = await getPlans(this.uploadOpts.endpoint);
-
-      return res.data.plans;
-    } catch (err) {
-      throw "Could not load plans";
-    }
-  }
-
   register = async (duration?: number, limit?: number) => {
     if (await this.isPaid()) {
       return Promise.resolve({
