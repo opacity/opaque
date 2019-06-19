@@ -1687,21 +1687,11 @@ class MasterHandle extends HDKey {
         _this.setFolderMeta("/", new FolderMeta());
       }
     });
-    this.getPlans =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      try {
-        const res = yield getPlans(_this.uploadOpts.endpoint);
-        return res.data.plans;
-      } catch (err) {
-        throw "Could not load plans";
-      }
-    });
 
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref17 = _asyncToGenerator(function* (duration, limit) {
+      var _ref16 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -1751,7 +1741,7 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x13, _x14) {
-        return _ref17.apply(this, arguments);
+        return _ref16.apply(this, arguments);
       };
     }();
 
@@ -1781,9 +1771,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref19 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref19$prefix = _ref19.prefix,
-      prefix = _ref19$prefix === void 0 ? false : _ref19$prefix;
+  let _ref18 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref18$prefix = _ref18.prefix,
+      prefix = _ref18$prefix === void 0 ? false : _ref18$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");

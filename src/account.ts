@@ -24,8 +24,7 @@ import {
   getMetadata,
   setMetadata,
   checkPaymentStatus,
-  createAccount,
-  getPlans
+  createAccount
 } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
@@ -387,16 +386,6 @@ class MasterHandle extends HDKey {
     } catch (err) {
       console.warn(err)
       this.setFolderMeta("/", new FolderMeta())
-    }
-  }
-
-  getPlans = async () => {
-    try {
-      const res = await getPlans(this.uploadOpts.endpoint);
-
-      return res.data.plans;
-    } catch (err) {
-      throw "Could not load plans";
     }
   }
 

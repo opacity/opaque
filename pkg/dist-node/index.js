@@ -1682,21 +1682,11 @@ class MasterHandle extends HDKey__default {
         _this.setFolderMeta("/", new FolderMeta());
       }
     });
-    this.getPlans =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      try {
-        const res = yield getPlans(_this.uploadOpts.endpoint);
-        return res.data.plans;
-      } catch (err) {
-        throw "Could not load plans";
-      }
-    });
 
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref13 = _asyncToGenerator(function* (duration, limit) {
+      var _ref12 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -1746,7 +1736,7 @@ class MasterHandle extends HDKey__default {
       });
 
       return function (_x13, _x14) {
-        return _ref13.apply(this, arguments);
+        return _ref12.apply(this, arguments);
       };
     }();
 
