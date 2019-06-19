@@ -24,8 +24,7 @@ import {
   getMetadata,
   setMetadata,
   checkPaymentStatus,
-  createAccount,
-  getPlans
+  createAccount
 } from "./core/request";
 
 import { RequireOnlyOne } from "./types/require-only-one";
