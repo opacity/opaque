@@ -1,7 +1,7 @@
 {
   "name": "opaque",
   "description": "Javascript client for opacity.io file storage.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "SEE LICENSE IN LICENSE.md",
   "files": [
     "dist-*/",
