@@ -1823,10 +1823,29 @@ class MasterHandle extends HDKey {
       };
     }();
 
+    this.deleteFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref14 = _asyncToGenerator(function* (dir) {
+        const meta = yield _this.getFolderMeta(dir);
+        meta.folders.forEach(folder => {
+          _this.deleteFolder(dir + "/" + folder);
+        });
+        meta.files.forEach(file => {
+          _this.deleteFile(dir, file.name);
+        });
+        deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(dir));
+      });
+
+      return function (_x14) {
+        return _ref14.apply(this, arguments);
+      };
+    }();
+
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref14 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref15 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta.minify()),
@@ -1837,15 +1856,15 @@ class MasterHandle extends HDKey {
         _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x14, _x15) {
-        return _ref14.apply(this, arguments);
+      return function (_x15, _x16) {
+        return _ref15.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref15 = _asyncToGenerator(function* (dir) {
+      var _ref16 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1872,8 +1891,8 @@ class MasterHandle extends HDKey {
         }
       });
 
-      return function (_x16) {
-        return _ref15.apply(this, arguments);
+      return function (_x17) {
+        return _ref16.apply(this, arguments);
       };
     }();
 
@@ -1922,7 +1941,7 @@ class MasterHandle extends HDKey {
             const checkPayment =
             /*#__PURE__*/
             function () {
-              var _ref18 = _asyncToGenerator(function* () {
+              var _ref19 = _asyncToGenerator(function* () {
                 if (yield _this.isPaid()) {
                   try {
                     yield _this.getFolderMeta("/");
@@ -1941,7 +1960,7 @@ class MasterHandle extends HDKey {
               });
 
               return function checkPayment() {
-                return _ref18.apply(this, arguments);
+                return _ref19.apply(this, arguments);
               };
             }();
 
@@ -1976,9 +1995,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref19 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref19$prefix = _ref19.prefix,
-      prefix = _ref19$prefix === void 0 ? false : _ref19$prefix;
+  let _ref20 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref20$prefix = _ref20.prefix,
+      prefix = _ref20$prefix === void 0 ? false : _ref20$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");

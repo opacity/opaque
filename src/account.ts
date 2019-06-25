@@ -375,6 +375,20 @@ class MasterHandle extends HDKey {
     );
   }
 
+  deleteFolder = async (dir: string) => {
+    const meta = await this.getFolderMeta(dir)
+
+    meta.folders.forEach(folder => {
+      this.deleteFolder(dir + "/" + folder)
+    })
+
+    meta.files.forEach(file => {
+      this.deleteFile(dir, file.name)
+    })
+
+    deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(dir))
+  }
+
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {
     const
       folderKey = this.getFolderHDKey(dir),

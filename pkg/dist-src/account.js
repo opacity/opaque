@@ -222,6 +222,16 @@ class MasterHandle extends HDKey {
             // this.getFolderHDKey(dir),
             this.getFolderLocation(dir));
         };
+        this.deleteFolder = async (dir) => {
+            const meta = await this.getFolderMeta(dir);
+            meta.folders.forEach(folder => {
+                this.deleteFolder(dir + "/" + folder);
+            });
+            meta.files.forEach(file => {
+                this.deleteFile(dir, file.name);
+            });
+            deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(dir));
+        };
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta.minify()), encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64");
             // TODO: verify folder can only be changed by the creating account

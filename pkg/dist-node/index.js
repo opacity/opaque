@@ -1768,10 +1768,29 @@ class MasterHandle extends HDKey__default {
       };
     }();
 
+    this.deleteFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref10 = _asyncToGenerator(function* (dir) {
+        const meta = yield _this.getFolderMeta(dir);
+        meta.folders.forEach(folder => {
+          _this.deleteFolder(dir + "/" + folder);
+        });
+        meta.files.forEach(file => {
+          _this.deleteFile(dir, file.name);
+        });
+        deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(dir));
+      });
+
+      return function (_x14) {
+        return _ref10.apply(this, arguments);
+      };
+    }();
+
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref10 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref11 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta.minify()),
@@ -1782,15 +1801,15 @@ class MasterHandle extends HDKey__default {
         _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x14, _x15) {
-        return _ref10.apply(this, arguments);
+      return function (_x15, _x16) {
+        return _ref11.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref11 = _asyncToGenerator(function* (dir) {
+      var _ref12 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1817,8 +1836,8 @@ class MasterHandle extends HDKey__default {
         }
       });
 
-      return function (_x16) {
-        return _ref11.apply(this, arguments);
+      return function (_x17) {
+        return _ref12.apply(this, arguments);
       };
     }();
 
@@ -1867,7 +1886,7 @@ class MasterHandle extends HDKey__default {
             const checkPayment =
             /*#__PURE__*/
             function () {
-              var _ref14 = _asyncToGenerator(function* () {
+              var _ref15 = _asyncToGenerator(function* () {
                 if (yield _this.isPaid()) {
                   try {
                     yield _this.getFolderMeta("/");
@@ -1886,7 +1905,7 @@ class MasterHandle extends HDKey__default {
               });
 
               return function checkPayment() {
-                return _ref14.apply(this, arguments);
+                return _ref15.apply(this, arguments);
               };
             }();
 

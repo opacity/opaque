@@ -94,6 +94,7 @@ declare class MasterHandle extends HDKey {
     createFolderMeta: (dir: string) => Promise<void>;
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
+    deleteFolder: (dir: string) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     isPaid: () => Promise<boolean>;
