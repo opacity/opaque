@@ -39,7 +39,7 @@ export function getPayloadFD(rawPayload: { [key: string]: any }, extraPayload, h
 
     if(extraPayload) {
       Object.keys(extraPayload).forEach(key => {
-        const pl = extraPayload[key]
+        const pl = Buffer.from(extraPayload[key]);
 
         data.append(key, pl, {
           filename: key,
@@ -67,6 +67,7 @@ export function getPayloadFD(rawPayload: { [key: string]: any }, extraPayload, h
   }
 }
 
+export { getPlans } from "./requests/getPlans";
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
 export { getMetadata, setMetadata, createMetadata, deleteMetadata } from "./requests/metadata";

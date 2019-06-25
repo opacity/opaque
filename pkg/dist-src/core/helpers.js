@@ -3,7 +3,7 @@ import isBuffer from "is-buffer";
 import FileSourceStream from "../streams/fileSourceStream";
 import BufferSourceStream from "../streams/bufferSourceStream";
 import mime from "mime/lite";
-import { FILENAME_MAX_LENGTH, DEFAULT_BLOCK_SIZE, BLOCK_OVERHEAD } from "./constants";
+import { FILENAME_MAX_LENGTH, BLOCK_OVERHEAD, DEFAULT_BLOCK_SIZE, DEFAULT_PART_SIZE } from "./constants";
 const Forge = { md: ForgeMd, random: ForgeRandom, util: ForgeUtil };
 const ByteBuffer = Forge.util.ByteBuffer;
 // Generate new handle, datamap entry hash and encryption key
@@ -85,9 +85,10 @@ export function getUploadSize(size, params) {
 // get
 export function getEndIndex(uploadSize, params) {
     const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+    const partSize = params.partSize || DEFAULT_PART_SIZE;
     const chunkSize = blockSize + BLOCK_OVERHEAD;
     const chunkCount = Math.ceil(uploadSize / chunkSize);
-    const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+    const chunksPerPart = Math.ceil(partSize / chunkSize);
     const endIndex = Math.ceil(chunkCount / chunksPerPart);
     return endIndex;
 }

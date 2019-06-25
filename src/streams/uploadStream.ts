@@ -3,13 +3,14 @@ import FormDataNode from "form-data";
 import { Writable } from "readable-stream";
 import { getPayload, getPayloadFD } from "../core/request";
 import { getEndIndex } from "../core/helpers";
+import { DEFAULT_PART_SIZE } from "../core/constants";
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 const PART_MIME = "application/octet-stream";
 const DEFAULT_OPTIONS = Object.freeze({
   maxParallelUploads: 3,
   maxRetries: 0,
-  partSize: 256, // 5 << 20, // 5 MiB data chunks
+  partSize: DEFAULT_PART_SIZE,
   objectMode: false
 });
 
@@ -73,7 +74,7 @@ export default class UploadStream extends Writable {
       this._addPart();
       this._attemptUpload();
     } else if (this.ongoingUploads === 0) {
-      callback();
+      this._finishUpload();
     }
   }
 

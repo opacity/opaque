@@ -186,6 +186,7 @@ const TAG_BYTE_LENGTH = 16;
 const TAG_BIT_LENGTH = TAG_BYTE_LENGTH * 8;
 const DEFAULT_BLOCK_SIZE = 64 * 1024;
 const BLOCK_OVERHEAD = TAG_BYTE_LENGTH + IV_BYTE_LENGTH;
+const DEFAULT_PART_SIZE = 128 * (DEFAULT_BLOCK_SIZE + BLOCK_OVERHEAD);
 
 const Forge = {
   md: md,
@@ -268,9 +269,10 @@ function getUploadSize(size, params) {
 
 function getEndIndex(uploadSize, params) {
   const blockSize = params.blockSize || DEFAULT_BLOCK_SIZE;
+  const partSize = params.partSize || DEFAULT_PART_SIZE;
   const chunkSize = blockSize + BLOCK_OVERHEAD;
   const chunkCount = Math.ceil(uploadSize / chunkSize);
-  const chunksPerPart = Math.ceil(params.partSize / chunkSize);
+  const chunksPerPart = Math.ceil(partSize / chunkSize);
   const endIndex = Math.ceil(chunkCount / chunksPerPart);
   return endIndex;
 }
@@ -355,7 +357,7 @@ function decryptString(key, byteBuffer) {
   const output = decrypt(key, byteBuffer);
 
   if (output) {
-    return new Buffer(output.toString()).toString(encoding);
+    return Buffer.from(output.toString()).toString(encoding);
   } else {
     throw new Error("unable to decrypt");
   }
@@ -562,14 +564,10 @@ class Download extends EventEmitter {
     this.metadata =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      try {
-        if (_this._metadata) {
-          return _this._metadata;
-        } else {
-          return yield _this.downloadMetadata();
-        }
-      } catch (e) {
-        _this.propagateError(e);
+      if (_this._metadata) {
+        return _this._metadata;
+      } else {
+        return yield _this.downloadMetadata();
       }
     });
     this.toBuffer =
@@ -688,7 +686,7 @@ class Download extends EventEmitter {
       }
 
       _this.isDownloading = true;
-      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size);
+      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size, _this.options);
       _this.decryptStream = new DecryptStream(_this.key);
 
       _this.downloadStream.on("progress", progress => {
@@ -715,8 +713,8 @@ class Download extends EventEmitter {
     };
 
     this.propagateError = error => {
-      console.warn(error.msg || error);
-      process.nextTick(() => this.emit("error", error));
+      console.warn("Download error: ", error.message || error);
+      process.nextTick(() => this.emit("error", error.message || error));
     };
 
     const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
@@ -763,6 +761,17 @@ class EncryptStream extends Transform {
 
 }
 
+function getPlans(_x) {
+  return _getPlans.apply(this, arguments);
+}
+
+function _getPlans() {
+  _getPlans = _asyncToGenerator(function* (endpoint) {
+    return Axios.get(endpoint + "/plans");
+  });
+  return _getPlans.apply(this, arguments);
+}
+
 function checkPaymentStatus(_x, _x2) {
   return _checkPaymentStatus.apply(this, arguments);
 }
@@ -784,11 +793,13 @@ function createAccount(_x, _x2, _x3) {
 
 function _createAccount() {
   _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
+    let duration = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 12;
+    let limit = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 128;
     const payload = {
       metadataKey: metadataKey,
-      durationInMonths: 12,
+      durationInMonths: duration,
       // TODO: I'm not sure why this is like this, but it doesn't match what was planned
-      storageLimit: 128
+      storageLimit: limit
     };
     const signedPayload = getPayload(payload, hdNode);
     return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
@@ -896,7 +907,7 @@ function getPayloadFD(rawPayload, extraPayload, hdNode) {
 
     if (extraPayload) {
       Object.keys(extraPayload).forEach(key => {
-        const pl = extraPayload[key];
+        const pl = Buffer.from(extraPayload[key]);
         data.append(key, pl, {
           filename: key,
           contentType: "application/octet-stream",
@@ -925,7 +936,7 @@ function getPayloadFD(rawPayload, extraPayload, hdNode) {
 const DEFAULT_OPTIONS$6 = Object.freeze({
   maxParallelUploads: 3,
   maxRetries: 0,
-  partSize: 256,
+  partSize: DEFAULT_PART_SIZE,
   objectMode: false
 });
 class UploadStream extends Writable {
@@ -971,7 +982,7 @@ class UploadStream extends Writable {
 
       this._attemptUpload();
     } else if (this.ongoingUploads === 0) {
-      callback();
+      this._finishUpload();
     }
   } // Flatten inputs into a single ArrayBuffer for sending
 
@@ -1153,7 +1164,7 @@ class Upload extends EventEmitter {
         metadata: encryptedMeta
       }, _this.account);
       const url = _this.options.endpoint + "/api/v1/init-upload";
-      const headers = data.getHeaders || {};
+      const headers = data.getHeaders ? data.getHeaders() : {};
       const req = Axios.post(url, data, {
         headers
       });
@@ -1208,7 +1219,7 @@ class Upload extends EventEmitter {
           key = _generateFileKeys.key;
 
     const data = getFileData(file, handle);
-    const size = getUploadSize(file.size, options.params);
+    const size = getUploadSize(data.size, options.params);
     this.account = account;
     this.options = options;
     this.data = data;
@@ -1558,7 +1569,6 @@ class MasterHandle extends HDKey {
       });
       upload.on("error", err => {
         ee.emit("error", err);
-        throw err;
       });
       upload.on("finish",
       /*#__PURE__*/
@@ -1896,6 +1906,11 @@ class MasterHandle extends HDKey {
       };
     }();
 
+    this.getAccountInfo =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data.account;
+    });
     this.isPaid =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -1906,69 +1921,75 @@ class MasterHandle extends HDKey {
         return false;
       }
     });
-    this.register =
+    this.login =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
-      if (yield _this.isPaid()) {
-        return Promise.resolve({
-          data: {
-            invoice: {
-              cost: 0,
-              ethAddress: "0x0"
-            }
-          },
-          waitForPayment: function () {
-            var _waitForPayment = _asyncToGenerator(function* () {
-              return {
-                data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-              };
-            });
+      try {
+        yield _this.getFolderMeta("/");
+      } catch (err) {
+        console.warn(err);
 
-            function waitForPayment() {
-              return _waitForPayment.apply(this, arguments);
-            }
-
-            return waitForPayment;
-          }()
-        });
+        _this.setFolderMeta("/", new FolderMeta());
       }
+    });
 
-      const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"));
-      return new Promise(resolve => {
-        resolve({
-          data: createAccountResponse.data,
-          waitForPayment: () => new Promise(resolve => {
-            const checkPayment =
-            /*#__PURE__*/
-            function () {
-              var _ref19 = _asyncToGenerator(function* () {
-                if (yield _this.isPaid()) {
-                  try {
-                    yield _this.getFolderMeta("/");
-                  } catch (err) {
-                    console.warn(err);
-                    yield _this.createFolderMeta("/");
-                    yield _this.setFolderMeta("/", new FolderMeta());
-                  }
+    this.register =
+    /*#__PURE__*/
+    function () {
+      var _ref20 = _asyncToGenerator(function* (duration, limit) {
+        if (yield _this.isPaid()) {
+          return Promise.resolve({
+            data: {
+              invoice: {
+                cost: 0,
+                ethAddress: "0x0"
+              }
+            },
+            waitForPayment: function () {
+              var _waitForPayment = _asyncToGenerator(function* () {
+                return {
+                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
+                };
+              });
 
+              function waitForPayment() {
+                return _waitForPayment.apply(this, arguments);
+              }
+
+              return waitForPayment;
+            }()
+          });
+        }
+
+        const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"), duration, limit);
+        return new Promise(resolve => {
+          resolve({
+            data: createAccountResponse.data,
+            waitForPayment: () => new Promise(resolve => {
+              const interval = setInterval(
+              /*#__PURE__*/
+              _asyncToGenerator(function* () {
+                // don't perform run if it takes more than 5 seconds for response
+                const time = Date.now();
+
+                if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
+                  clearInterval(interval);
+                  yield _this.login();
                   resolve({
                     data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
                   });
-                } else {
-                  setTimeout(checkPayment, 10 * 1000);
                 }
-              });
-
-              return function checkPayment() {
-                return _ref19.apply(this, arguments);
-              };
-            }();
-
-            setTimeout(checkPayment, 10 * 1000);
-          })
+              }), 10 * 1000);
+            })
+          });
         });
       });
-    });
+
+      return function (_x18, _x19) {
+        return _ref20.apply(this, arguments);
+      };
+    }();
+
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 
@@ -1995,9 +2016,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref20 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref20$prefix = _ref20.prefix,
-      prefix = _ref20$prefix === void 0 ? false : _ref20$prefix;
+  let _ref22 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref22$prefix = _ref22.prefix,
+      prefix = _ref22$prefix === void 0 ? false : _ref22$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");
@@ -2006,4 +2027,4 @@ MasterHandle.hashToPath = function (h) {
   return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
 };
 
-export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, setMetadata };
+export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata };

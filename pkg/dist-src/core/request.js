@@ -29,7 +29,7 @@ export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBod
         // data.append("hash", hash);
         if (extraPayload) {
             Object.keys(extraPayload).forEach(key => {
-                const pl = extraPayload[key];
+                const pl = Buffer.from(extraPayload[key]);
                 data.append(key, pl, {
                     filename: key,
                     contentType: "application/octet-stream",
@@ -52,6 +52,7 @@ export function getPayloadFD(rawPayload, extraPayload, hdNode, key = "requestBod
         return data;
     }
 }
+export { getPlans } from "./requests/getPlans";
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
 export { getMetadata, setMetadata, createMetadata, deleteMetadata } from "./requests/metadata";

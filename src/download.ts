@@ -63,14 +63,10 @@ export default class Download extends EventEmitter {
   }
 
   metadata = async () => {
-    try {
-      if(this._metadata) {
-        return this._metadata;
-      } else {
-        return await this.downloadMetadata();
-      }
-    } catch(e) {
-      this.propagateError(e);
+    if(this._metadata) {
+      return this._metadata;
+    } else {
+      return await this.downloadMetadata();
     }
   }
 
@@ -183,7 +179,7 @@ export default class Download extends EventEmitter {
     }
 
     this.isDownloading = true;
-    this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size);
+    this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size, this.options);
     this.decryptStream = new DecryptStream(this.key);
 
     this.downloadStream.on("progress", progress => {
@@ -210,7 +206,7 @@ export default class Download extends EventEmitter {
   }
 
   propagateError = (error) => {
-    console.warn(error.msg || error);
-    process.nextTick(() => this.emit("error", error));
+    console.warn("Download error: ", error.message || error);
+    process.nextTick(() => this.emit("error", error.message || error));
   }
 }
