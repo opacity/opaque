@@ -381,18 +381,50 @@ class MasterHandle extends HDKey {
     );
   }
 
-  deleteFolder = async (dir: string) => {
-    const meta = await this.getFolderMeta(dir)
+  deleteFolder = async (dir: string, name: string) => {
+    dir = dir.replace(/\/+/g, "/")
+    const fullDir = (dir + "/" + name).replace(/\/+/g, "/")
 
-    meta.folders.forEach(folder => {
-      this.deleteFolder(dir + "/" + folder)
-    })
+    if (name.indexOf("/") > 0 || name.length > 2 ** 8)
+      throw new Error("Invalid folder name")
 
-    meta.files.forEach(file => {
-      this.deleteFile(dir, file.name)
-    })
+    const meta = await this.getFolderMeta(fullDir)
 
-    deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(dir))
+    try {
+      meta.folders.forEach(folder => {
+        this.deleteFolder(fullDir, folder.name)
+      })
+    } catch (err) {
+      console.error("Failed to delete sub folders")
+      console.error(err)
+    }
+
+    try {
+      meta.files.forEach(file => {
+        this.deleteFile(fullDir, file.name)
+      })
+    } catch (err) {
+      console.error("Failed to delete file")
+      console.error(err)
+    }
+
+    try {
+      deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(fullDir))
+    } catch (err) {
+      console.error("Failed to delete meta entry")
+      console.error(err)
+    }
+
+    try {
+      const parentMeta = await this.getFolderMeta(dir)
+
+      parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1)
+
+      await this.setFolderMeta(dir, parentMeta)
+    } catch (err) {
+      console.error("Failed to update parent meta")
+      console.error(err)
+    }
   }
 
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) => {

@@ -1836,18 +1836,48 @@ class MasterHandle extends HDKey {
     this.deleteFolder =
     /*#__PURE__*/
     function () {
-      var _ref14 = _asyncToGenerator(function* (dir) {
-        const meta = yield _this.getFolderMeta(dir);
-        meta.folders.forEach(folder => {
-          _this.deleteFolder(dir + "/" + folder);
-        });
-        meta.files.forEach(file => {
-          _this.deleteFile(dir, file.name);
-        });
-        deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(dir));
+      var _ref14 = _asyncToGenerator(function* (dir, name) {
+        dir = dir.replace(/\/+/g, "/");
+        const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+        if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
+        const meta = yield _this.getFolderMeta(fullDir);
+
+        try {
+          meta.folders.forEach(folder => {
+            _this.deleteFolder(fullDir, folder.name);
+          });
+        } catch (err) {
+          console.error("Failed to delete sub folders");
+          console.error(err);
+        }
+
+        try {
+          meta.files.forEach(file => {
+            _this.deleteFile(fullDir, file.name);
+          });
+        } catch (err) {
+          console.error("Failed to delete file");
+          console.error(err);
+        }
+
+        try {
+          deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(fullDir));
+        } catch (err) {
+          console.error("Failed to delete meta entry");
+          console.error(err);
+        }
+
+        try {
+          const parentMeta = yield _this.getFolderMeta(dir);
+          parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1);
+          yield _this.setFolderMeta(dir, parentMeta);
+        } catch (err) {
+          console.error("Failed to update parent meta");
+          console.error(err);
+        }
       });
 
-      return function (_x14) {
+      return function (_x14, _x15) {
         return _ref14.apply(this, arguments);
       };
     }();
@@ -1866,7 +1896,7 @@ class MasterHandle extends HDKey {
         _this.getFolderLocation(dir), encryptedMeta);
       });
 
-      return function (_x15, _x16) {
+      return function (_x16, _x17) {
         return _ref15.apply(this, arguments);
       };
     }();
@@ -1901,7 +1931,7 @@ class MasterHandle extends HDKey {
         }
       });
 
-      return function (_x17) {
+      return function (_x18) {
         return _ref16.apply(this, arguments);
       };
     }();
@@ -1985,7 +2015,7 @@ class MasterHandle extends HDKey {
         });
       });
 
-      return function (_x18, _x19) {
+      return function (_x19, _x20) {
         return _ref20.apply(this, arguments);
       };
     }();

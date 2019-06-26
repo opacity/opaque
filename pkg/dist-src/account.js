@@ -221,15 +221,46 @@ class MasterHandle extends HDKey {
             // this.getFolderHDKey(dir),
             this.getFolderLocation(dir));
         };
-        this.deleteFolder = async (dir) => {
-            const meta = await this.getFolderMeta(dir);
-            meta.folders.forEach(folder => {
-                this.deleteFolder(dir + "/" + folder);
-            });
-            meta.files.forEach(file => {
-                this.deleteFile(dir, file.name);
-            });
-            deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(dir));
+        this.deleteFolder = async (dir, name) => {
+            dir = dir.replace(/\/+/g, "/");
+            const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+            if (name.indexOf("/") > 0 || name.length > 2 ** 8)
+                throw new Error("Invalid folder name");
+            const meta = await this.getFolderMeta(fullDir);
+            try {
+                meta.folders.forEach(folder => {
+                    this.deleteFolder(fullDir, folder.name);
+                });
+            }
+            catch (err) {
+                console.error("Failed to delete sub folders");
+                console.error(err);
+            }
+            try {
+                meta.files.forEach(file => {
+                    this.deleteFile(fullDir, file.name);
+                });
+            }
+            catch (err) {
+                console.error("Failed to delete file");
+                console.error(err);
+            }
+            try {
+                deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(fullDir));
+            }
+            catch (err) {
+                console.error("Failed to delete meta entry");
+                console.error(err);
+            }
+            try {
+                const parentMeta = await this.getFolderMeta(dir);
+                parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1);
+                await this.setFolderMeta(dir, parentMeta);
+            }
+            catch (err) {
+                console.error("Failed to update parent meta");
+                console.error(err);
+            }
         };
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta.minify()), encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64");
