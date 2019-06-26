@@ -1784,30 +1784,75 @@ class MasterHandle extends HDKey__default {
         const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
         if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
         const meta = yield _this.getFolderMeta(fullDir);
+        yield Promise.all([
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          try {
+            var _iteratorNormalCompletion = true;
+            var _didIteratorError = false;
+            var _iteratorError = undefined;
+
+            try {
+              for (var _iterator = meta.folders[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                let folder = _step.value;
+                yield _this.deleteFolder(fullDir, folder.name);
+              }
+            } catch (err) {
+              _didIteratorError = true;
+              _iteratorError = err;
+            } finally {
+              try {
+                if (!_iteratorNormalCompletion && _iterator.return != null) {
+                  _iterator.return();
+                }
+              } finally {
+                if (_didIteratorError) {
+                  throw _iteratorError;
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to delete sub folders");
+            throw err;
+          }
+        }),
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          try {
+            var _iteratorNormalCompletion2 = true;
+            var _didIteratorError2 = false;
+            var _iteratorError2 = undefined;
+
+            try {
+              for (var _iterator2 = meta.files[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+                let file = _step2.value;
+                yield _this.deleteFolder(fullDir, file.name);
+              }
+            } catch (err) {
+              _didIteratorError2 = true;
+              _iteratorError2 = err;
+            } finally {
+              try {
+                if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+                  _iterator2.return();
+                }
+              } finally {
+                if (_didIteratorError2) {
+                  throw _iteratorError2;
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Failed to delete file");
+            throw err;
+          }
+        })]);
 
         try {
-          meta.folders.forEach(folder => {
-            _this.deleteFolder(fullDir, folder.name);
-          });
-        } catch (err) {
-          console.error("Failed to delete sub folders");
-          console.error(err);
-        }
-
-        try {
-          meta.files.forEach(file => {
-            _this.deleteFile(fullDir, file.name);
-          });
-        } catch (err) {
-          console.error("Failed to delete file");
-          console.error(err);
-        }
-
-        try {
-          deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(fullDir));
+          yield _this.deleteFolderMeta(fullDir);
         } catch (err) {
           console.error("Failed to delete meta entry");
-          console.error(err);
+          throw err;
         }
 
         try {
@@ -1828,7 +1873,7 @@ class MasterHandle extends HDKey__default {
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref11 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref13 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta.minify()),
@@ -1840,14 +1885,14 @@ class MasterHandle extends HDKey__default {
       });
 
       return function (_x16, _x17) {
-        return _ref11.apply(this, arguments);
+        return _ref13.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref12 = _asyncToGenerator(function* (dir) {
+      var _ref14 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1875,7 +1920,7 @@ class MasterHandle extends HDKey__default {
       });
 
       return function (_x18) {
-        return _ref12.apply(this, arguments);
+        return _ref14.apply(this, arguments);
       };
     }();
 
@@ -1909,7 +1954,7 @@ class MasterHandle extends HDKey__default {
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref16 = _asyncToGenerator(function* (duration, limit) {
+      var _ref18 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -1959,7 +2004,7 @@ class MasterHandle extends HDKey__default {
       });
 
       return function (_x19, _x20) {
-        return _ref16.apply(this, arguments);
+        return _ref18.apply(this, arguments);
       };
     }();
 

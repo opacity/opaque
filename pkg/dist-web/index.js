@@ -1841,30 +1841,35 @@ class MasterHandle extends HDKey {
         const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
         if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
         const meta = yield _this.getFolderMeta(fullDir);
+        yield Promise.all([
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          try {
+            for (let folder of meta.folders) {
+              yield _this.deleteFolder(fullDir, folder.name);
+            }
+          } catch (err) {
+            console.error("Failed to delete sub folders");
+            throw err;
+          }
+        }),
+        /*#__PURE__*/
+        _asyncToGenerator(function* () {
+          try {
+            for (let file of meta.files) {
+              yield _this.deleteFolder(fullDir, file.name);
+            }
+          } catch (err) {
+            console.error("Failed to delete file");
+            throw err;
+          }
+        })]);
 
         try {
-          meta.folders.forEach(folder => {
-            _this.deleteFolder(fullDir, folder.name);
-          });
-        } catch (err) {
-          console.error("Failed to delete sub folders");
-          console.error(err);
-        }
-
-        try {
-          meta.files.forEach(file => {
-            _this.deleteFile(fullDir, file.name);
-          });
-        } catch (err) {
-          console.error("Failed to delete file");
-          console.error(err);
-        }
-
-        try {
-          deleteMetadata(_this.uploadOpts.endpoint, _this, _this.getFolderLocation(fullDir));
+          yield _this.deleteFolderMeta(fullDir);
         } catch (err) {
           console.error("Failed to delete meta entry");
-          console.error(err);
+          throw err;
         }
 
         try {
@@ -1885,7 +1890,7 @@ class MasterHandle extends HDKey {
     this.setFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref15 = _asyncToGenerator(function* (dir, folderMeta) {
+      var _ref17 = _asyncToGenerator(function* (dir, folderMeta) {
         const folderKey = _this.getFolderHDKey(dir),
               key = hash(folderKey.privateKey.toString("hex")),
               metaString = JSON.stringify(folderMeta.minify()),
@@ -1897,14 +1902,14 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x16, _x17) {
-        return _ref15.apply(this, arguments);
+        return _ref17.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref16 = _asyncToGenerator(function* (dir) {
+      var _ref18 = _asyncToGenerator(function* (dir) {
         const folderKey = _this.getFolderHDKey(dir),
               location = _this.getFolderLocation(dir),
               key = hash(folderKey.privateKey.toString("hex")),
@@ -1932,7 +1937,7 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x18) {
-        return _ref16.apply(this, arguments);
+        return _ref18.apply(this, arguments);
       };
     }();
 
@@ -1966,7 +1971,7 @@ class MasterHandle extends HDKey {
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref20 = _asyncToGenerator(function* (duration, limit) {
+      var _ref22 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -2016,7 +2021,7 @@ class MasterHandle extends HDKey {
       });
 
       return function (_x19, _x20) {
-        return _ref20.apply(this, arguments);
+        return _ref22.apply(this, arguments);
       };
     }();
 
@@ -2046,9 +2051,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref22 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref22$prefix = _ref22.prefix,
-      prefix = _ref22$prefix === void 0 ? false : _ref22$prefix;
+  let _ref24 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref24$prefix = _ref24.prefix,
+      prefix = _ref24$prefix === void 0 ? false : _ref24$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");

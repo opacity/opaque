@@ -227,30 +227,36 @@ class MasterHandle extends HDKey {
             if (name.indexOf("/") > 0 || name.length > 2 ** 8)
                 throw new Error("Invalid folder name");
             const meta = await this.getFolderMeta(fullDir);
+            await Promise.all([
+                async () => {
+                    try {
+                        for (let folder of meta.folders) {
+                            await this.deleteFolder(fullDir, folder.name);
+                        }
+                    }
+                    catch (err) {
+                        console.error("Failed to delete sub folders");
+                        throw err;
+                    }
+                },
+                async () => {
+                    try {
+                        for (let file of meta.files) {
+                            await this.deleteFolder(fullDir, file.name);
+                        }
+                    }
+                    catch (err) {
+                        console.error("Failed to delete file");
+                        throw err;
+                    }
+                }
+            ]);
             try {
-                meta.folders.forEach(folder => {
-                    this.deleteFolder(fullDir, folder.name);
-                });
-            }
-            catch (err) {
-                console.error("Failed to delete sub folders");
-                console.error(err);
-            }
-            try {
-                meta.files.forEach(file => {
-                    this.deleteFile(fullDir, file.name);
-                });
-            }
-            catch (err) {
-                console.error("Failed to delete file");
-                console.error(err);
-            }
-            try {
-                deleteMetadata(this.uploadOpts.endpoint, this, this.getFolderLocation(fullDir));
+                await this.deleteFolderMeta(fullDir);
             }
             catch (err) {
                 console.error("Failed to delete meta entry");
-                console.error(err);
+                throw err;
             }
             try {
                 const parentMeta = await this.getFolderMeta(dir);
