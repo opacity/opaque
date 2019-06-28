@@ -6,6 +6,10 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "module": "esnext",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "baseUrl": "src",
+    "paths": {
+      "~/*": ["*"]
+    }
   }
 }

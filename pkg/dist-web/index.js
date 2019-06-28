@@ -10,9 +10,12 @@ import { keccak256 } from 'ethereumjs-util';
 import { generateMnemonic, validateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
 export { default as HDKey } from 'hdkey';
-import { hash as hash$1 } from 'eth-ens-namehash';
+import { hash } from 'eth-ens-namehash';
 import { debounce } from 'debounce';
-import { soliditySha3 } from 'web3-utils';
+import { hashToPath } from '~/utils/hashToPath';
+import { hash as hash$1 } from '~/core/hashing';
+import { FileVersion as FileVersion$1, FileEntryMeta as FileEntryMeta$1 } from '~/core/account/metadata';
+import { generateSubHDKey, uploadFile, downloadFile, deleteFile, deleteVersion, getFolderHDKey, getFolderLocation, getAccountInfo, isPaid, login, getHandle, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, register } from '~/core/account/api/v1';
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
   try {
@@ -1239,9 +1242,309 @@ class Upload extends EventEmitter {
 
 }
 
-const hash = function hash() {
-  return soliditySha3(...arguments).replace(/^0x/, "");
-};
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for representing the account mnemonic
+ */
+
+class Account {
+  get mnemonic() {
+    return this._mnemonic.trim().split(/\s+/g);
+  }
+  /**
+   * creates an account from a mnemonic if provided, otherwise from entropy
+   *
+   * @param mnemonic - the mnemonic to use for the account
+   */
+
+
+  constructor() {
+    let mnemonic = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : generateMnemonic();
+
+    if (!validateMnemonic(mnemonic)) {
+      throw new Error("mnemonic provided was not valid");
+    }
+
+    this._mnemonic = mnemonic;
+  }
+
+  get seed() {
+    return mnemonicToSeedSync(this._mnemonic);
+  }
+
+}
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for creating a master handle from an account mnemonic
+ *
+ * a master handle is responsible for:
+ *  - logging in to an account
+ *  - signing changes for the account
+ *  - deterministic entropy for generating features of an account (such as file keys)
+ */
+
+
+class MasterHandle extends HDKey {
+  /**
+   * creates a master handle from an account
+   *
+   * @param account - the account to generate the handle from
+   */
+  constructor(_ref) {
+    var _this;
+
+    let account = _ref.account,
+        handle = _ref.handle;
+
+    let _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+        _ref2$uploadOpts = _ref2.uploadOpts,
+        uploadOpts = _ref2$uploadOpts === void 0 ? {} : _ref2$uploadOpts,
+        _ref2$downloadOpts = _ref2.downloadOpts,
+        downloadOpts = _ref2$downloadOpts === void 0 ? {} : _ref2$downloadOpts;
+
+    super();
+    _this = this;
+    this.metaQueue = {};
+    /**
+     * creates a sub key seed for validating
+     *
+     * @param path - the string to use as a sub path
+     */
+
+    this.generateSubHDKey = pathString => generateSubHDKey(this, pathString);
+
+    this.uploadFile = (dir, file) => uploadFile(this, dir, file);
+
+    this.downloadFile = handle => downloadFile(this, handle);
+
+    this.deleteFile = (dir, name) => deleteFile(this, dir, name);
+
+    this.deleteVersion = (dir, handle) => deleteVersion(this, dir, handle);
+    /**
+     * creates a file key seed for validating
+     *
+     * @param file - the location of the file on the network
+     */
+
+
+    this.getFileHDKey = file => {
+      return this.generateSubHDKey("file: " + file);
+    };
+    /**
+     * creates a dir key seed for validating and folder navigation
+     *
+     * @param dir - the folder path in the UI
+     */
+
+
+    this.getFolderHDKey = dir => getFolderHDKey(this, dir);
+
+    this.getFolderLocation = dir => getFolderLocation(this, dir);
+
+    this.createFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref3 = _asyncToGenerator(function* (dir) {
+        return createFolderMeta(_this, dir);
+      });
+
+      return function (_x) {
+        return _ref3.apply(this, arguments);
+      };
+    }();
+
+    this.createFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref4 = _asyncToGenerator(function* (dir, name) {
+        return createFolder(_this, dir, name);
+      });
+
+      return function (_x2, _x3) {
+        return _ref4.apply(this, arguments);
+      };
+    }();
+
+    this.deleteFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir) {
+        return deleteFolderMeta(_this, dir);
+      });
+
+      return function (_x4) {
+        return _ref5.apply(this, arguments);
+      };
+    }();
+
+    this.deleteFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref6 = _asyncToGenerator(function* (dir, name) {
+        return deleteFolder(_this, dir, name);
+      });
+
+      return function (_x5, _x6) {
+        return _ref6.apply(this, arguments);
+      };
+    }();
+
+    this.setFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref7 = _asyncToGenerator(function* (dir, folderMeta) {
+        return setFolderMeta(_this, dir, folderMeta);
+      });
+
+      return function (_x7, _x8) {
+        return _ref7.apply(this, arguments);
+      };
+    }();
+
+    this.getFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref8 = _asyncToGenerator(function* (dir) {
+        return getFolderMeta(_this, dir);
+      });
+
+      return function (_x9) {
+        return _ref8.apply(this, arguments);
+      };
+    }();
+
+    this.getAccountInfo =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return getAccountInfo(_this);
+    });
+    this.isPaid =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return isPaid(_this);
+    });
+    this.login =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return login(_this);
+    });
+
+    this.register =
+    /*#__PURE__*/
+    function () {
+      var _ref12 = _asyncToGenerator(function* (duration, limit) {
+        return register(_this, duration, limit);
+      });
+
+      return function (_x10, _x11) {
+        return _ref12.apply(this, arguments);
+      };
+    }();
+
+    this.queueMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref14 = _asyncToGenerator(function* (dir, _ref13) {
+        let file = _ref13.file,
+            finishedUpload = _ref13.finishedUpload;
+        let resolve,
+            promise = new Promise(resolvePromise => {
+          resolve = resolvePromise;
+        });
+        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
+
+        _this.metaQueue[dir].push({
+          file,
+          finishedUpload,
+          resolve
+        });
+
+        _this._updateMetaFromQueue(dir);
+
+        yield promise;
+      });
+
+      return function (_x12, _x13) {
+        return _ref14.apply(this, arguments);
+      };
+    }();
+
+    this._updateMetaFromQueue = debounce(
+    /*#__PURE__*/
+    function () {
+      var _ref15 = _asyncToGenerator(function* (dir) {
+        const folderMeta = yield _this.getFolderMeta(dir),
+              copy = Object.assign([], _this.metaQueue[dir]),
+              finished = [];
+        copy.forEach((_ref16) => {
+          let file = _ref16.file,
+              finishedUpload = _ref16.finishedUpload,
+              resolve = _ref16.resolve;
+          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
+                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+                version = new FileVersion$1({
+            handle: finishedUpload.handle
+          }),
+                meta = new FileEntryMeta$1({
+            name: file.name,
+            created: oldMeta.created,
+            versions: [version, ...(oldMeta.versions || [])]
+          }); // metadata existed previously
+
+          if (oldMetaIndex !== -1) {
+            folderMeta.files[oldMetaIndex] = meta;
+          } else {
+            folderMeta.files.unshift(meta);
+          }
+
+          finished.push(resolve);
+        });
+
+        try {
+          yield _this.setFolderMeta(dir, folderMeta);
+        } catch (err) {
+          console.error("could not finish setting meta");
+          throw err;
+        } // clean queue
+
+
+        _this.metaQueue[dir].splice(0, copy.length);
+
+        finished.forEach(resolve => {
+          resolve();
+        });
+      });
+
+      return function (_x14) {
+        return _ref15.apply(this, arguments);
+      };
+    }(), 500);
+    this.uploadOpts = uploadOpts;
+    this.downloadOpts = downloadOpts;
+
+    if (account && account.constructor == Account) {
+      const path = "m/43'/60'/1775'/0'/" + hashToPath(hash("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
+
+      Object.assign(this, fromMasterSeed(account.seed).derive(path));
+    } else if (handle && handle.constructor == String) {
+      this.privateKey = Buffer.from(handle.slice(0, 64), "hex");
+      this.chainCode = Buffer.from(handle.slice(64), "hex");
+    } else {
+      throw new Error("master handle was not of expected type");
+    }
+  }
+
+  get handle() {
+    return getHandle(this);
+  }
+
+  static getKey(from, str) {
+    return hash$1(from.privateKey.toString("hex"), str);
+  }
+
+}
 
 class AccountMeta {
   constructor(_ref) {
@@ -1464,602 +1767,5 @@ class MinifiedFolderMeta extends Array {
   }
 
 }
-
-function deleteFile(_x, _x2, _x3) {
-  return _deleteFile.apply(this, arguments);
-}
-
-function _deleteFile() {
-  _deleteFile = _asyncToGenerator(function* (endpoint, hdNode, fileID) {
-    const payload = {
-      fileID
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/delete", signedPayload);
-  });
-  return _deleteFile.apply(this, arguments);
-}
-
-/**
- * **_this should never be shared or left in storage_**
- *
- * a class for representing the account mnemonic
- */
-
-class Account {
-  get mnemonic() {
-    return this._mnemonic.trim().split(/\s+/g);
-  }
-  /**
-   * creates an account from a mnemonic if provided, otherwise from entropy
-   *
-   * @param mnemonic - the mnemonic to use for the account
-   */
-
-
-  constructor() {
-    let mnemonic = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : generateMnemonic();
-
-    if (!validateMnemonic(mnemonic)) {
-      throw new Error("mnemonic provided was not valid");
-    }
-
-    this._mnemonic = mnemonic;
-  }
-
-  get seed() {
-    return mnemonicToSeedSync(this._mnemonic);
-  }
-
-}
-/**
- * **_this should never be shared or left in storage_**
- *
- * a class for creating a master handle from an account mnemonic
- *
- * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
- */
-
-
-class MasterHandle extends HDKey {
-  /**
-   * creates a master handle from an account
-   *
-   * @param account - the account to generate the handle from
-   */
-  constructor(_ref) {
-    var _this;
-
-    let account = _ref.account,
-        handle = _ref.handle;
-
-    let _ref2 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-        _ref2$uploadOpts = _ref2.uploadOpts,
-        uploadOpts = _ref2$uploadOpts === void 0 ? {} : _ref2$uploadOpts,
-        _ref2$downloadOpts = _ref2.downloadOpts,
-        downloadOpts = _ref2$downloadOpts === void 0 ? {} : _ref2$downloadOpts;
-
-    super();
-    _this = this;
-    this.metaQueue = {};
-    /**
-     * creates a sub key seed for validating
-     *
-     * @param path - the string to use as a sub path
-     */
-
-    this.generateSubHDKey = pathString => {
-      const path = MasterHandle.hashToPath(hash(pathString), {
-        prefix: true
-      });
-      return this.derive(path);
-    };
-
-    this.uploadFile = (dir, file) => {
-      const upload = new Upload(file, this, this.uploadOpts),
-            ee = new EventEmitter();
-      Object.assign(ee, {
-        handle: upload.handle
-      });
-      upload.on("upload-progress", progress => {
-        ee.emit("upload-progress", progress);
-      });
-      upload.on("error", err => {
-        ee.emit("error", err);
-      });
-      upload.on("finish",
-      /*#__PURE__*/
-      function () {
-        var _ref3 = _asyncToGenerator(function* (finishedUpload) {
-          yield _this.queueMeta(dir, {
-            file,
-            finishedUpload
-          });
-          ee.emit("finish", finishedUpload);
-        });
-
-        return function (_x) {
-          return _ref3.apply(this, arguments);
-        };
-      }());
-      return ee;
-    };
-
-    this.downloadFile = handle => {
-      return new Download(handle, this.downloadOpts);
-    };
-
-    this.deleteFile =
-    /*#__PURE__*/
-    function () {
-      var _ref4 = _asyncToGenerator(function* (dir, name) {
-        const meta = yield _this.getFolderMeta(dir);
-        const file = meta.files.filter(file => file.type == "file").find(file => file.name == name);
-        const versions = Object.assign([], file.versions);
-
-        try {
-          yield Promise.all(versions.map(
-          /*#__PURE__*/
-          function () {
-            var _ref5 = _asyncToGenerator(function* (version) {
-              const deleted = yield deleteFile(_this.uploadOpts.endpoint, _this, version.handle.slice(0, 64));
-              file.versions = file.versions.filter(v => v != version);
-              return deleted;
-            });
-
-            return function (_x4) {
-              return _ref5.apply(this, arguments);
-            };
-          }()));
-          meta.files = meta.files.filter(f => f != file);
-        } catch (err) {
-          console.error(err);
-          throw err;
-        }
-
-        return yield _this.setFolderMeta(dir, meta);
-      });
-
-      return function (_x2, _x3) {
-        return _ref4.apply(this, arguments);
-      };
-    }();
-
-    this.deleteVersion =
-    /*#__PURE__*/
-    function () {
-      var _ref6 = _asyncToGenerator(function* (dir, handle) {
-        const meta = yield _this.getFolderMeta(dir);
-        const file = meta.files.filter(file => file.type == "file").find(file => !!file.versions.find(version => version.handle == handle));
-        yield deleteFile(_this.uploadOpts.endpoint, _this, handle.slice(0, 64));
-        file.versions = file.versions.filter(version => version.handle != handle);
-        return yield _this.setFolderMeta(dir, meta);
-      });
-
-      return function (_x5, _x6) {
-        return _ref6.apply(this, arguments);
-      };
-    }();
-    /**
-     * creates a file key seed for validating
-     *
-     * @param file - the location of the file on the network
-     */
-
-
-    this.getFileHDKey = file => {
-      return this.generateSubHDKey("file: " + file);
-    };
-    /**
-     * creates a dir key seed for validating and folder navigation
-     *
-     * @param dir - the folder path in the UI
-     */
-
-
-    this.getFolderHDKey = dir => {
-      return this.generateSubHDKey("folder: " + dir);
-    };
-
-    this.getFolderLocation = dir => {
-      return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
-    };
-
-    this.queueMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref8 = _asyncToGenerator(function* (dir, _ref7) {
-        let file = _ref7.file,
-            finishedUpload = _ref7.finishedUpload;
-        let resolve,
-            promise = new Promise(resolvePromise => {
-          resolve = resolvePromise;
-        });
-        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
-
-        _this.metaQueue[dir].push({
-          file,
-          finishedUpload,
-          resolve
-        });
-
-        _this._updateMetaFromQueue(dir);
-
-        yield promise;
-      });
-
-      return function (_x7, _x8) {
-        return _ref8.apply(this, arguments);
-      };
-    }();
-
-    this._updateMetaFromQueue = debounce(
-    /*#__PURE__*/
-    function () {
-      var _ref9 = _asyncToGenerator(function* (dir) {
-        const folderMeta = yield _this.getFolderMeta(dir),
-              copy = Object.assign([], _this.metaQueue[dir]),
-              finished = [];
-        copy.forEach((_ref10) => {
-          let file = _ref10.file,
-              finishedUpload = _ref10.finishedUpload,
-              resolve = _ref10.resolve;
-          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
-                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
-                version = new FileVersion({
-            handle: finishedUpload.handle
-          }),
-                meta = new FileEntryMeta({
-            name: file.name,
-            created: oldMeta.created,
-            versions: [version, ...(oldMeta.versions || [])]
-          }); // metadata existed previously
-
-          if (oldMetaIndex !== -1) {
-            folderMeta.files[oldMetaIndex] = meta;
-          } else {
-            folderMeta.files.unshift(meta);
-          }
-
-          finished.push(resolve);
-        });
-
-        try {
-          yield _this.setFolderMeta(dir, folderMeta);
-        } catch (err) {
-          console.error("could not finish setting meta");
-          throw err;
-        } // clean queue
-
-
-        _this.metaQueue[dir].splice(0, copy.length);
-
-        finished.forEach(resolve => {
-          resolve();
-        });
-      });
-
-      return function (_x9) {
-        return _ref9.apply(this, arguments);
-      };
-    }(), 500);
-
-    this.createFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref11 = _asyncToGenerator(function* (dir) {
-        dir = dir.replace(/\/+/g, "/");
-
-        try {
-          // TODO: verify folder can only be changed by the creating account
-          yield createMetadata$1(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
-          _this.getFolderLocation(dir));
-        } catch (err) {
-          console.error("Can't create folder metadata for folder ".concat(dir));
-          throw err;
-        }
-      });
-
-      return function (_x10) {
-        return _ref11.apply(this, arguments);
-      };
-    }();
-
-    this.createFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref12 = _asyncToGenerator(function* (dir, name) {
-        dir = dir.replace(/\/+/g, "/");
-        const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-        if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
-
-        const location = _this.getFolderLocation(dir);
-
-        let dirMeta = yield _this.getFolderMeta(dir);
-
-        try {
-          yield _this.getFolderMeta(fullDir);
-          console.warn("Folder already exists");
-          dirMeta.folders.push(new FolderEntryMeta({
-            name,
-            location
-          }));
-          yield _this.setFolderMeta(dir, dirMeta);
-          return;
-        } catch (err) {
-          console.warn(err);
-        }
-
-        yield _this.createFolderMeta(fullDir);
-
-        try {
-          yield _this.setFolderMeta(fullDir, new FolderMeta());
-        } catch (err) {
-          console.error("Failed to set folder meta for dir: " + dir);
-          throw err;
-        }
-
-        try {
-          dirMeta.folders.push(new FolderEntryMeta({
-            name,
-            location
-          }));
-          yield _this.setFolderMeta(dir, dirMeta);
-        } catch (err) {
-          console.error("Failed to set folder meta for dir: " + dir);
-          throw err;
-        }
-      });
-
-      return function (_x11, _x12) {
-        return _ref12.apply(this, arguments);
-      };
-    }();
-
-    this.deleteFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref13 = _asyncToGenerator(function* (dir) {
-        // TODO: verify folder can only be changed by the creating account
-        yield deleteMetadata(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
-        _this.getFolderLocation(dir));
-      });
-
-      return function (_x13) {
-        return _ref13.apply(this, arguments);
-      };
-    }();
-
-    this.deleteFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref14 = _asyncToGenerator(function* (dir, name) {
-        dir = dir.replace(/\/+/g, "/");
-        const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-        if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
-        const meta = yield _this.getFolderMeta(fullDir);
-        yield Promise.all([
-        /*#__PURE__*/
-        _asyncToGenerator(function* () {
-          try {
-            for (let folder of meta.folders) {
-              yield _this.deleteFolder(fullDir, folder.name);
-            }
-          } catch (err) {
-            console.error("Failed to delete sub folders");
-            throw err;
-          }
-        }),
-        /*#__PURE__*/
-        _asyncToGenerator(function* () {
-          try {
-            for (let file of meta.files) {
-              yield _this.deleteFolder(fullDir, file.name);
-            }
-          } catch (err) {
-            console.error("Failed to delete file");
-            throw err;
-          }
-        })]);
-
-        try {
-          yield _this.deleteFolderMeta(fullDir);
-        } catch (err) {
-          console.error("Failed to delete meta entry");
-          throw err;
-        }
-
-        try {
-          const parentMeta = yield _this.getFolderMeta(dir);
-          parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1);
-          yield _this.setFolderMeta(dir, parentMeta);
-        } catch (err) {
-          console.error("Failed to update parent meta");
-          console.error(err);
-        }
-      });
-
-      return function (_x14, _x15) {
-        return _ref14.apply(this, arguments);
-      };
-    }();
-
-    this.setFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref17 = _asyncToGenerator(function* (dir, folderMeta) {
-        const folderKey = _this.getFolderHDKey(dir),
-              key = hash(folderKey.privateKey.toString("hex")),
-              metaString = JSON.stringify(folderMeta.minify()),
-              encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
-
-
-        yield setMetadata(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
-        _this.getFolderLocation(dir), encryptedMeta);
-      });
-
-      return function (_x16, _x17) {
-        return _ref17.apply(this, arguments);
-      };
-    }();
-
-    this.getFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref18 = _asyncToGenerator(function* (dir) {
-        const folderKey = _this.getFolderHDKey(dir),
-              location = _this.getFolderLocation(dir),
-              key = hash(folderKey.privateKey.toString("hex")),
-              // TODO: verify folder can only be read by the creating account
-        response = yield getMetadata(_this.uploadOpts.endpoint, _this, // folderKey,
-        location);
-
-        try {
-          // TODO
-          // I have no idea why but the decrypted is correct hex without converting
-          const metaString = decrypt(key, new util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
-
-          try {
-            const meta = JSON.parse(metaString);
-            return new MinifiedFolderMeta(meta).unminify();
-          } catch (err) {
-            console.error(err);
-            console.warn(metaString);
-            throw new Error("metadata corrupted");
-          }
-        } catch (err) {
-          console.error(err);
-          throw new Error("error decrypting meta");
-        }
-      });
-
-      return function (_x18) {
-        return _ref18.apply(this, arguments);
-      };
-    }();
-
-    this.getAccountInfo =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data.account;
-    });
-    this.isPaid =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      try {
-        const accountInfoResponse = yield checkPaymentStatus(_this.uploadOpts.endpoint, _this);
-        return accountInfoResponse.data.paymentStatus == "paid";
-      } catch (_a) {
-        return false;
-      }
-    });
-    this.login =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      try {
-        yield _this.getFolderMeta("/");
-      } catch (err) {
-        console.warn(err);
-
-        _this.setFolderMeta("/", new FolderMeta());
-      }
-    });
-
-    this.register =
-    /*#__PURE__*/
-    function () {
-      var _ref22 = _asyncToGenerator(function* (duration, limit) {
-        if (yield _this.isPaid()) {
-          return Promise.resolve({
-            data: {
-              invoice: {
-                cost: 0,
-                ethAddress: "0x0"
-              }
-            },
-            waitForPayment: function () {
-              var _waitForPayment = _asyncToGenerator(function* () {
-                return {
-                  data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-                };
-              });
-
-              function waitForPayment() {
-                return _waitForPayment.apply(this, arguments);
-              }
-
-              return waitForPayment;
-            }()
-          });
-        }
-
-        const createAccountResponse = yield createAccount(_this.uploadOpts.endpoint, _this, _this.getFolderLocation("/"), duration, limit);
-        return new Promise(resolve => {
-          resolve({
-            data: createAccountResponse.data,
-            waitForPayment: () => new Promise(resolve => {
-              const interval = setInterval(
-              /*#__PURE__*/
-              _asyncToGenerator(function* () {
-                // don't perform run if it takes more than 5 seconds for response
-                const time = Date.now();
-
-                if ((yield _this.isPaid()) && time + 5 * 1000 > Date.now()) {
-                  clearInterval(interval);
-                  yield _this.login();
-                  resolve({
-                    data: (yield checkPaymentStatus(_this.uploadOpts.endpoint, _this)).data
-                  });
-                }
-              }), 10 * 1000);
-            })
-          });
-        });
-      });
-
-      return function (_x19, _x20) {
-        return _ref22.apply(this, arguments);
-      };
-    }();
-
-    this.uploadOpts = uploadOpts;
-    this.downloadOpts = downloadOpts;
-
-    if (account && account.constructor == Account) {
-      const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(hash$1("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
-
-      Object.assign(this, fromMasterSeed(account.seed).derive(path));
-    } else if (handle && handle.constructor == String) {
-      this.privateKey = Buffer.from(handle.slice(0, 64), "hex");
-      this.chainCode = Buffer.from(handle.slice(64), "hex");
-    } else {
-      throw new Error("master handle was not of expected type");
-    }
-  }
-
-  get handle() {
-    return this.privateKey.toString("hex") + this.chainCode.toString("hex");
-  }
-
-  static getKey(from, str) {
-    return hash(from.privateKey.toString("hex"), str);
-  }
-
-}
-
-MasterHandle.hashToPath = function (h) {
-  let _ref24 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref24$prefix = _ref24.prefix,
-      prefix = _ref24$prefix === void 0 ? false : _ref24$prefix;
-
-  if (h.length % 4) {
-    throw new Error("hash length must be multiple of two bytes");
-  }
-
-  return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
-};
 
 export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata };

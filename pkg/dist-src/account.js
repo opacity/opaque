@@ -1,16 +1,11 @@
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
-import Upload from "./upload";
-import Download from "./download";
-import { EventEmitter } from "events";
 import { debounce } from "debounce";
-import { hash } from "./core/hashing";
-import { decrypt, encryptString } from "./core/encryption";
-import { util as ForgeUtil } from "node-forge";
-import { FolderMeta, MinifiedFolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
-import { getMetadata, setMetadata, createMetadata, deleteMetadata, checkPaymentStatus, createAccount } from "./core/request";
-import { deleteFile } from "./core/requests/deleteFile";
+import { hashToPath } from "~/utils/hashToPath";
+import { hash } from "~/core/hashing";
+import { FileEntryMeta, FileVersion } from "~/core/account/metadata";
+import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle } from "~/core/account/api/v1";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -59,55 +54,11 @@ class MasterHandle extends HDKey {
          *
          * @param path - the string to use as a sub path
          */
-        this.generateSubHDKey = (pathString) => {
-            const path = MasterHandle.hashToPath(hash(pathString), { prefix: true });
-            return this.derive(path);
-        };
-        this.uploadFile = (dir, file) => {
-            const upload = new Upload(file, this, this.uploadOpts), ee = new EventEmitter();
-            Object.assign(ee, { handle: upload.handle });
-            upload.on("upload-progress", progress => {
-                ee.emit("upload-progress", progress);
-            });
-            upload.on("error", err => {
-                ee.emit("error", err);
-            });
-            upload.on("finish", async (finishedUpload) => {
-                await this.queueMeta(dir, { file, finishedUpload });
-                ee.emit("finish", finishedUpload);
-            });
-            return ee;
-        };
-        this.downloadFile = (handle) => {
-            return new Download(handle, this.downloadOpts);
-        };
-        this.deleteFile = async (dir, name) => {
-            const meta = await this.getFolderMeta(dir);
-            const file = meta.files.filter(file => file.type == "file")
-                .find((file) => file.name == name);
-            const versions = Object.assign([], file.versions);
-            try {
-                await Promise.all(versions.map(async (version) => {
-                    const deleted = await deleteFile(this.uploadOpts.endpoint, this, version.handle.slice(0, 64));
-                    file.versions = file.versions.filter(v => v != version);
-                    return deleted;
-                }));
-                meta.files = meta.files.filter(f => f != file);
-            }
-            catch (err) {
-                console.error(err);
-                throw err;
-            }
-            return await this.setFolderMeta(dir, meta);
-        };
-        this.deleteVersion = async (dir, handle) => {
-            const meta = await this.getFolderMeta(dir);
-            const file = meta.files.filter(file => file.type == "file")
-                .find((file) => !!file.versions.find(version => version.handle == handle));
-            await deleteFile(this.uploadOpts.endpoint, this, handle.slice(0, 64));
-            file.versions = file.versions.filter(version => version.handle != handle);
-            return await this.setFolderMeta(dir, meta);
-        };
+        this.generateSubHDKey = (pathString) => generateSubHDKey(this, pathString);
+        this.uploadFile = (dir, file) => uploadFile(this, dir, file);
+        this.downloadFile = (handle) => downloadFile(this, handle);
+        this.deleteFile = (dir, name) => deleteFile(this, dir, name);
+        this.deleteVersion = (dir, handle) => deleteVersion(this, dir, handle);
         /**
          * creates a file key seed for validating
          *
@@ -121,12 +72,18 @@ class MasterHandle extends HDKey {
          *
          * @param dir - the folder path in the UI
          */
-        this.getFolderHDKey = (dir) => {
-            return this.generateSubHDKey("folder: " + dir);
-        };
-        this.getFolderLocation = (dir) => {
-            return hash(this.getFolderHDKey(dir).publicKey.toString("hex"));
-        };
+        this.getFolderHDKey = (dir) => getFolderHDKey(this, dir);
+        this.getFolderLocation = (dir) => getFolderLocation(this, dir);
+        this.createFolderMeta = async (dir) => createFolderMeta(this, dir);
+        this.createFolder = async (dir, name) => createFolder(this, dir, name);
+        this.deleteFolderMeta = async (dir) => deleteFolderMeta(this, dir);
+        this.deleteFolder = async (dir, name) => deleteFolder(this, dir, name);
+        this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
+        this.getFolderMeta = async (dir) => getFolderMeta(this, dir);
+        this.getAccountInfo = async () => getAccountInfo(this);
+        this.isPaid = async () => isPaid(this);
+        this.login = async () => login(this);
+        this.register = async (duration, limit) => register(this, duration, limit);
         this.queueMeta = async (dir, { file, finishedUpload }) => {
             let resolve, promise = new Promise(resolvePromise => {
                 resolve = resolvePromise;
@@ -168,186 +125,10 @@ class MasterHandle extends HDKey {
             this.metaQueue[dir].splice(0, copy.length);
             finished.forEach(resolve => { resolve(); });
         }, 500);
-        this.createFolderMeta = async (dir) => {
-            dir = dir.replace(/\/+/g, "/");
-            try {
-                // TODO: verify folder can only be changed by the creating account
-                await createMetadata(this.uploadOpts.endpoint, this, 
-                // this.getFolderHDKey(dir),
-                this.getFolderLocation(dir));
-            }
-            catch (err) {
-                console.error(`Can't create folder metadata for folder ${dir}`);
-                throw err;
-            }
-        };
-        this.createFolder = async (dir, name) => {
-            dir = dir.replace(/\/+/g, "/");
-            const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-            if (name.indexOf("/") > 0 || name.length > 2 ** 8)
-                throw new Error("Invalid folder name");
-            const location = this.getFolderLocation(dir);
-            let dirMeta = await this.getFolderMeta(dir);
-            try {
-                await this.getFolderMeta(fullDir);
-                console.warn("Folder already exists");
-                dirMeta.folders.push(new FolderEntryMeta({ name, location }));
-                await this.setFolderMeta(dir, dirMeta);
-                return;
-            }
-            catch (err) {
-                console.warn(err);
-            }
-            await this.createFolderMeta(fullDir);
-            try {
-                await this.setFolderMeta(fullDir, new FolderMeta());
-            }
-            catch (err) {
-                console.error("Failed to set folder meta for dir: " + dir);
-                throw err;
-            }
-            try {
-                dirMeta.folders.push(new FolderEntryMeta({ name, location }));
-                await this.setFolderMeta(dir, dirMeta);
-            }
-            catch (err) {
-                console.error("Failed to set folder meta for dir: " + dir);
-                throw err;
-            }
-        };
-        this.deleteFolderMeta = async (dir) => {
-            // TODO: verify folder can only be changed by the creating account
-            await deleteMetadata(this.uploadOpts.endpoint, this, 
-            // this.getFolderHDKey(dir),
-            this.getFolderLocation(dir));
-        };
-        this.deleteFolder = async (dir, name) => {
-            dir = dir.replace(/\/+/g, "/");
-            const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-            if (name.indexOf("/") > 0 || name.length > 2 ** 8)
-                throw new Error("Invalid folder name");
-            const meta = await this.getFolderMeta(fullDir);
-            await Promise.all([
-                async () => {
-                    try {
-                        for (let folder of meta.folders) {
-                            await this.deleteFolder(fullDir, folder.name);
-                        }
-                    }
-                    catch (err) {
-                        console.error("Failed to delete sub folders");
-                        throw err;
-                    }
-                },
-                async () => {
-                    try {
-                        for (let file of meta.files) {
-                            await this.deleteFolder(fullDir, file.name);
-                        }
-                    }
-                    catch (err) {
-                        console.error("Failed to delete file");
-                        throw err;
-                    }
-                }
-            ]);
-            try {
-                await this.deleteFolderMeta(fullDir);
-            }
-            catch (err) {
-                console.error("Failed to delete meta entry");
-                throw err;
-            }
-            try {
-                const parentMeta = await this.getFolderMeta(dir);
-                parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1);
-                await this.setFolderMeta(dir, parentMeta);
-            }
-            catch (err) {
-                console.error("Failed to update parent meta");
-                console.error(err);
-            }
-        };
-        this.setFolderMeta = async (dir, folderMeta) => {
-            const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta.minify()), encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64");
-            // TODO: verify folder can only be changed by the creating account
-            await setMetadata(this.uploadOpts.endpoint, this, 
-            // this.getFolderHDKey(dir),
-            this.getFolderLocation(dir), encryptedMeta);
-        };
-        this.getFolderMeta = async (dir) => {
-            const folderKey = this.getFolderHDKey(dir), location = this.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
-            // TODO: verify folder can only be read by the creating account
-            response = await getMetadata(this.uploadOpts.endpoint, this, 
-            // folderKey,
-            location);
-            try {
-                // TODO
-                // I have no idea why but the decrypted is correct hex without converting
-                const metaString = decrypt(key, new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
-                try {
-                    const meta = JSON.parse(metaString);
-                    return new MinifiedFolderMeta(meta).unminify();
-                }
-                catch (err) {
-                    console.error(err);
-                    console.warn(metaString);
-                    throw new Error("metadata corrupted");
-                }
-            }
-            catch (err) {
-                console.error(err);
-                throw new Error("error decrypting meta");
-            }
-        };
-        this.getAccountInfo = async () => ((await checkPaymentStatus(this.uploadOpts.endpoint, this)).data.account);
-        this.isPaid = async () => {
-            try {
-                const accountInfoResponse = await checkPaymentStatus(this.uploadOpts.endpoint, this);
-                return accountInfoResponse.data.paymentStatus == "paid";
-            }
-            catch (_a) {
-                return false;
-            }
-        };
-        this.login = async () => {
-            try {
-                await this.getFolderMeta("/");
-            }
-            catch (err) {
-                console.warn(err);
-                this.setFolderMeta("/", new FolderMeta());
-            }
-        };
-        this.register = async (duration, limit) => {
-            if (await this.isPaid()) {
-                return Promise.resolve({
-                    data: { invoice: { cost: 0, ethAddress: "0x0" } },
-                    waitForPayment: async () => ({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data })
-                });
-            }
-            const createAccountResponse = await createAccount(this.uploadOpts.endpoint, this, this.getFolderLocation("/"), duration, limit);
-            return new Promise(resolve => {
-                resolve({
-                    data: createAccountResponse.data,
-                    waitForPayment: () => new Promise(resolve => {
-                        const interval = setInterval(async () => {
-                            // don't perform run if it takes more than 5 seconds for response
-                            const time = Date.now();
-                            if (await this.isPaid() && time + 5 * 1000 > Date.now()) {
-                                clearInterval(interval);
-                                await this.login();
-                                resolve({ data: (await checkPaymentStatus(this.uploadOpts.endpoint, this)).data });
-                            }
-                        }, 10 * 1000);
-                    })
-                });
-            });
-        };
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
-            const path = "m/43'/60'/1775'/0'/" + MasterHandle.hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""));
+            const path = "m/43'/60'/1775'/0'/" + hashToPath(namehash.hash("opacity.io").replace(/^0x/, ""));
             // ethereum/EIPs#1775
             Object.assign(this, fromMasterSeed(account.seed).derive(path));
         }
@@ -360,16 +141,10 @@ class MasterHandle extends HDKey {
         }
     }
     get handle() {
-        return this.privateKey.toString("hex") + this.chainCode.toString("hex");
+        return getHandle(this);
     }
     static getKey(from, str) {
         return hash(from.privateKey.toString("hex"), str);
     }
 }
-MasterHandle.hashToPath = (h, { prefix = false } = {}) => {
-    if (h.length % 4) {
-        throw new Error("hash length must be multiple of two bytes");
-    }
-    return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
-};
 export { Account, MasterHandle, HDKey };

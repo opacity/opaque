@@ -1,9 +1,7 @@
 /// <reference types="node" />
 import HDKey from "hdkey";
-import Download from "./download";
-import { EventEmitter } from "events";
-import { FolderMeta } from "./core/account/metadata";
-import { RequireOnlyOne } from "./types/require-only-one";
+import { FolderMeta } from "~/core/account/metadata";
+import { RequireOnlyOne } from "~/types/require-only-one";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -61,15 +59,14 @@ declare class MasterHandle extends HDKey {
         downloadOpts?: {};
     });
     readonly handle: string;
-    private static hashToPath;
     /**
      * creates a sub key seed for validating
      *
      * @param path - the string to use as a sub path
      */
     private generateSubHDKey;
-    uploadFile: (dir: string, file: File) => EventEmitter;
-    downloadFile: (handle: string) => Download;
+    uploadFile: (dir: string, file: File) => import("events").EventEmitter;
+    downloadFile: (handle: string) => import("./download").default;
     deleteFile: (dir: string, name: string) => Promise<void>;
     deleteVersion: (dir: string, handle: string) => Promise<void>;
     static getKey(from: HDKey, str: string): string;
@@ -86,11 +83,6 @@ declare class MasterHandle extends HDKey {
      */
     getFolderHDKey: (dir: string) => HDKey;
     getFolderLocation: (dir: string) => string;
-    queueMeta: (dir: string, { file, finishedUpload }: {
-        file: any;
-        finishedUpload: any;
-    }) => Promise<void>;
-    private _updateMetaFromQueue;
     createFolderMeta: (dir: string) => Promise<void>;
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
@@ -101,5 +93,10 @@ declare class MasterHandle extends HDKey {
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{}>;
+    queueMeta: (dir: string, { file, finishedUpload }: {
+        file: any;
+        finishedUpload: any;
+    }) => Promise<void>;
+    private _updateMetaFromQueue;
 }
 export { Account, MasterHandle, HDKey };
