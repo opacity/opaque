@@ -1,3 +1,5 @@
+export { getHandle } from "../v0/getHandle";
+export { generateSubHDKey } from "../v0/generateSubHDKey";
 export { deleteFile } from "../v0/deleteFile";
 export { deleteVersion } from "../v0/deleteVersion";
 export { downloadFile } from "../v0/downloadFile";
