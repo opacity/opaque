@@ -1,8 +1,8 @@
 import { util as ForgeUtil } from "node-forge";
-import { hash } from "~/core/hashing";
-import { getMetadata } from "~/core/requests/metadata";
-import { decrypt } from "~/core/encryption";
-import { MinifiedFolderMeta } from "~/core/account/folder-meta";
+import { hash } from "../../../../core/hashing";
+import { getMetadata } from "../../../../core/requests/metadata";
+import { decrypt } from "../../../../core/encryption";
+import { MinifiedFolderMeta } from "../../../../core/account/folder-meta";
 const getFolderMeta = async (masterHandle, dir) => {
     const folderKey = masterHandle.getFolderHDKey(dir), location = masterHandle.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
     // TODO: verify folder can only be read by the creating account

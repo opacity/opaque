@@ -1,6 +1,6 @@
-import { createMetadata } from "~/core/requests/metadata"
+import { createMetadata } from "../../../../core/requests/metadata"
 
-import { MasterHandle } from "~/account"
+import { MasterHandle } from "../../../../account"
 
 const createFolderMeta = async (masterHandle: MasterHandle, dir: string) => {
 	dir = dir.replace(/\/+/g, "/")

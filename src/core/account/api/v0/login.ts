@@ -1,5 +1,5 @@
-import { FolderMeta } from "~/core/account/folder-meta";
-import { MasterHandle } from "~/account";
+import { FolderMeta } from "../../../../core/account/folder-meta";
+import { MasterHandle } from "../../../../account";
 
 const login = async (masterHandle: MasterHandle) => {
 	try {

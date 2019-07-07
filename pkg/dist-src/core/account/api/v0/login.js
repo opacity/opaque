@@ -1,4 +1,4 @@
-import { FolderMeta } from "~/core/account/folder-meta";
+import { FolderMeta } from "../../../../core/account/folder-meta";
 const login = async (masterHandle) => {
     try {
         await masterHandle.getFolderMeta("/");

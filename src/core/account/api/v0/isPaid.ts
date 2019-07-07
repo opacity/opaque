@@ -1,5 +1,5 @@
-import { checkPaymentStatus } from "~/core/requests/checkPaymentStatus";
-import { MasterHandle } from "~/account";
+import { checkPaymentStatus } from "../../../../core/requests/checkPaymentStatus";
+import { MasterHandle } from "../../../../account";
 
 const isPaid = async (masterHandle: MasterHandle) => {
 	try {

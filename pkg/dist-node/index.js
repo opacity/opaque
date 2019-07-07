@@ -17,10 +17,7 @@ var HDKey = require('hdkey');
 var HDKey__default = _interopDefault(HDKey);
 var namehash = require('eth-ens-namehash');
 var debounce = require('debounce');
-var hashToPath = require('~/utils/hashToPath');
-var hashing = require('~/core/hashing');
-var metadata = require('~/core/account/metadata');
-var v1 = require('~/core/account/api/v1');
+var web3Utils = require('web3-utils');
 
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
   try {
@@ -1211,306 +1208,19 @@ class Upload extends events.EventEmitter {
 
 }
 
-/**
- * **_this should never be shared or left in storage_**
- *
- * a class for representing the account mnemonic
- */
-
-class Account {
-  get mnemonic() {
-    return this._mnemonic.trim().split(/\s+/g);
-  }
-  /**
-   * creates an account from a mnemonic if provided, otherwise from entropy
-   *
-   * @param mnemonic - the mnemonic to use for the account
-   */
-
-
-  constructor(mnemonic = bip39.generateMnemonic()) {
-    if (!bip39.validateMnemonic(mnemonic)) {
-      throw new Error("mnemonic provided was not valid");
-    }
-
-    this._mnemonic = mnemonic;
+const hashToPath = (h, {
+  prefix = false
+} = {}) => {
+  if (h.length % 4) {
+    throw new Error("hash length must be multiple of two bytes");
   }
 
-  get seed() {
-    return bip39.mnemonicToSeedSync(this._mnemonic);
-  }
+  return (prefix ? "m/" : "") + h.match(/.{1,4}/g).map(p => parseInt(p, 16)).join("'/") + "'";
+};
 
-}
-/**
- * **_this should never be shared or left in storage_**
- *
- * a class for creating a master handle from an account mnemonic
- *
- * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
- */
-
-
-class MasterHandle extends HDKey__default {
-  /**
-   * creates a master handle from an account
-   *
-   * @param account - the account to generate the handle from
-   */
-  constructor({
-    account,
-    handle
-  }, {
-    uploadOpts = {},
-    downloadOpts = {}
-  } = {}) {
-    var _this;
-
-    super();
-    _this = this;
-    this.metaQueue = {};
-    /**
-     * creates a sub key seed for validating
-     *
-     * @param path - the string to use as a sub path
-     */
-
-    this.generateSubHDKey = pathString => v1.generateSubHDKey(this, pathString);
-
-    this.uploadFile = (dir, file) => v1.uploadFile(this, dir, file);
-
-    this.downloadFile = handle => v1.downloadFile(this, handle);
-
-    this.deleteFile = (dir, name) => v1.deleteFile(this, dir, name);
-
-    this.deleteVersion = (dir, handle) => v1.deleteVersion(this, dir, handle);
-    /**
-     * creates a file key seed for validating
-     *
-     * @param file - the location of the file on the network
-     */
-
-
-    this.getFileHDKey = file => {
-      return this.generateSubHDKey("file: " + file);
-    };
-    /**
-     * creates a dir key seed for validating and folder navigation
-     *
-     * @param dir - the folder path in the UI
-     */
-
-
-    this.getFolderHDKey = dir => v1.getFolderHDKey(this, dir);
-
-    this.getFolderLocation = dir => v1.getFolderLocation(this, dir);
-
-    this.createFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref = _asyncToGenerator(function* (dir) {
-        return v1.createFolderMeta(_this, dir);
-      });
-
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }();
-
-    this.createFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref2 = _asyncToGenerator(function* (dir, name) {
-        return v1.createFolder(_this, dir, name);
-      });
-
-      return function (_x2, _x3) {
-        return _ref2.apply(this, arguments);
-      };
-    }();
-
-    this.deleteFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref3 = _asyncToGenerator(function* (dir) {
-        return v1.deleteFolderMeta(_this, dir);
-      });
-
-      return function (_x4) {
-        return _ref3.apply(this, arguments);
-      };
-    }();
-
-    this.deleteFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref4 = _asyncToGenerator(function* (dir, name) {
-        return v1.deleteFolder(_this, dir, name);
-      });
-
-      return function (_x5, _x6) {
-        return _ref4.apply(this, arguments);
-      };
-    }();
-
-    this.setFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref5 = _asyncToGenerator(function* (dir, folderMeta) {
-        return v1.setFolderMeta(_this, dir, folderMeta);
-      });
-
-      return function (_x7, _x8) {
-        return _ref5.apply(this, arguments);
-      };
-    }();
-
-    this.getFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref6 = _asyncToGenerator(function* (dir) {
-        return v1.getFolderMeta(_this, dir);
-      });
-
-      return function (_x9) {
-        return _ref6.apply(this, arguments);
-      };
-    }();
-
-    this.getAccountInfo =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return v1.getAccountInfo(_this);
-    });
-    this.isPaid =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return v1.isPaid(_this);
-    });
-    this.login =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return v1.login(_this);
-    });
-
-    this.register =
-    /*#__PURE__*/
-    function () {
-      var _ref10 = _asyncToGenerator(function* (duration, limit) {
-        return v1.register(_this, duration, limit);
-      });
-
-      return function (_x10, _x11) {
-        return _ref10.apply(this, arguments);
-      };
-    }();
-
-    this.queueMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref11 = _asyncToGenerator(function* (dir, {
-        file,
-        finishedUpload
-      }) {
-        let resolve,
-            promise = new Promise(resolvePromise => {
-          resolve = resolvePromise;
-        });
-        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
-
-        _this.metaQueue[dir].push({
-          file,
-          finishedUpload,
-          resolve
-        });
-
-        _this._updateMetaFromQueue(dir);
-
-        yield promise;
-      });
-
-      return function (_x12, _x13) {
-        return _ref11.apply(this, arguments);
-      };
-    }();
-
-    this._updateMetaFromQueue = debounce.debounce(
-    /*#__PURE__*/
-    function () {
-      var _ref12 = _asyncToGenerator(function* (dir) {
-        const folderMeta = yield _this.getFolderMeta(dir),
-              copy = Object.assign([], _this.metaQueue[dir]),
-              finished = [];
-        copy.forEach(({
-          file,
-          finishedUpload,
-          resolve
-        }) => {
-          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
-                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
-                version = new metadata.FileVersion({
-            handle: finishedUpload.handle
-          }),
-                meta = new metadata.FileEntryMeta({
-            name: file.name,
-            created: oldMeta.created,
-            versions: [version, ...(oldMeta.versions || [])]
-          }); // metadata existed previously
-
-          if (oldMetaIndex !== -1) {
-            folderMeta.files[oldMetaIndex] = meta;
-          } else {
-            folderMeta.files.unshift(meta);
-          }
-
-          finished.push(resolve);
-        });
-
-        try {
-          yield _this.setFolderMeta(dir, folderMeta);
-        } catch (err) {
-          console.error("could not finish setting meta");
-          throw err;
-        } // clean queue
-
-
-        _this.metaQueue[dir].splice(0, copy.length);
-
-        finished.forEach(resolve => {
-          resolve();
-        });
-      });
-
-      return function (_x14) {
-        return _ref12.apply(this, arguments);
-      };
-    }(), 500);
-    this.uploadOpts = uploadOpts;
-    this.downloadOpts = downloadOpts;
-
-    if (account && account.constructor == Account) {
-      const path = "m/43'/60'/1775'/0'/" + hashToPath.hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
-
-      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive(path));
-    } else if (handle && handle.constructor == String) {
-      this.privateKey = Buffer.from(handle.slice(0, 64), "hex");
-      this.chainCode = Buffer.from(handle.slice(64), "hex");
-    } else {
-      throw new Error("master handle was not of expected type");
-    }
-  }
-
-  get handle() {
-    return v1.getHandle(this);
-  }
-
-  static getKey(from, str) {
-    return hashing.hash(from.privateKey.toString("hex"), str);
-  }
-
-}
+const hash = (...val) => {
+  return web3Utils.soliditySha3(...val).replace(/^0x/, "");
+};
 
 class AccountMeta {
   constructor({
@@ -1707,6 +1417,771 @@ class MinifiedFolderMeta extends Array {
       created: this[3],
       modified: this[4]
     });
+  }
+
+}
+
+const getHandle = masterHandle => {
+  return masterHandle.privateKey.toString("hex") + masterHandle.chainCode.toString("hex");
+};
+
+const generateSubHDKey = (masterHandle, pathString) => {
+  const path = hashToPath(hash(pathString), {
+    prefix: true
+  });
+  return masterHandle.derive(path);
+};
+
+function deleteFile(_x, _x2, _x3) {
+  return _deleteFile.apply(this, arguments);
+}
+
+function _deleteFile() {
+  _deleteFile = _asyncToGenerator(function* (endpoint, hdNode, fileID) {
+    const payload = {
+      fileID
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/delete", signedPayload);
+  });
+  return _deleteFile.apply(this, arguments);
+}
+
+const deleteFile$1 =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir, name) {
+    const meta = yield masterHandle.getFolderMeta(dir);
+    const file = meta.files.filter(file => file.type == "file").find(file => file.name == name);
+    const versions = Object.assign([], file.versions);
+
+    try {
+      yield Promise.all(versions.map(
+      /*#__PURE__*/
+      function () {
+        var _ref2 = _asyncToGenerator(function* (version) {
+          const deleted = yield deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, version.handle.slice(0, 64));
+          file.versions = file.versions.filter(v => v != version);
+          return deleted;
+        });
+
+        return function (_x4) {
+          return _ref2.apply(this, arguments);
+        };
+      }()));
+      meta.files = meta.files.filter(f => f != file);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+
+    return yield masterHandle.setFolderMeta(dir, meta);
+  });
+
+  return function deleteFile(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const deleteVersion =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir, handle) {
+    const meta = yield masterHandle.getFolderMeta(dir);
+    const file = meta.files.filter(file => file.type == "file").find(file => !!file.versions.find(version => version.handle == handle));
+    yield deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, handle.slice(0, 64));
+    file.versions = file.versions.filter(version => version.handle != handle);
+    return yield masterHandle.setFolderMeta(dir, meta);
+  });
+
+  return function deleteVersion(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const downloadFile = (masterHandle, handle) => {
+  return new Download(handle, undefined.downloadOpts);
+};
+
+const getFolderHDKey = (masterHandle, dir) => {
+  return generateSubHDKey(masterHandle, "folder: " + dir);
+};
+
+const uploadFile = (masterHandle, dir, file) => {
+  const upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
+        ee = new events.EventEmitter();
+  Object.assign(ee, {
+    handle: upload.handle
+  });
+  upload.on("upload-progress", progress => {
+    ee.emit("upload-progress", progress);
+  });
+  upload.on("error", err => {
+    ee.emit("error", err);
+  });
+  upload.on("finish",
+  /*#__PURE__*/
+  function () {
+    var _ref = _asyncToGenerator(function* (finishedUpload) {
+      yield masterHandle.queueMeta(dir, {
+        file,
+        finishedUpload
+      });
+      ee.emit("finish", finishedUpload);
+    });
+
+    return function (_x) {
+      return _ref.apply(this, arguments);
+    };
+  }());
+  return ee;
+};
+
+const getFolderLocation = (masterHandle, dir) => {
+  return hash(masterHandle.getFolderHDKey(dir).publicKey.toString("hex"));
+};
+
+const setFolderMeta =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir, folderMeta) {
+    const folderKey = masterHandle.getFolderHDKey(dir),
+          key = hash(folderKey.privateKey.toString("hex")),
+          metaString = JSON.stringify(folderMeta.minify()),
+          encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
+
+    yield setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+    masterHandle.getFolderLocation(dir), encryptedMeta);
+  });
+
+  return function setFolderMeta(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const getFolderMeta =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
+    const folderKey = masterHandle.getFolderHDKey(dir),
+          location = masterHandle.getFolderLocation(dir),
+          key = hash(folderKey.privateKey.toString("hex")),
+          // TODO: verify folder can only be read by the creating account
+    response = yield getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
+    location);
+
+    try {
+      // TODO
+      // I have no idea why but the decrypted is correct hex without converting
+      const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
+
+      try {
+        const meta = JSON.parse(metaString);
+        return new MinifiedFolderMeta(meta).unminify();
+      } catch (err) {
+        console.error(err);
+        console.warn(metaString);
+        throw new Error("metadata corrupted");
+      }
+    } catch (err) {
+      console.error(err);
+      throw new Error("error decrypting meta");
+    }
+  });
+
+  return function getFolderMeta(_x, _x2) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+var _this = undefined;
+
+const getAccountInfo =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle) {
+    return (yield checkPaymentStatus(_this.uploadOpts.endpoint, masterHandle)).data.account;
+  });
+
+  return function getAccountInfo(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const isPaid =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle) {
+    try {
+      const accountInfoResponse = yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle);
+      return accountInfoResponse.data.paymentStatus == "paid";
+    } catch (_a) {
+      return false;
+    }
+  });
+
+  return function isPaid(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const register =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, duration, limit) {
+    if (yield masterHandle.isPaid()) {
+      return Promise.resolve({
+        data: {
+          invoice: {
+            cost: 0,
+            ethAddress: "0x0"
+          }
+        },
+        waitForPayment: function () {
+          var _waitForPayment = _asyncToGenerator(function* () {
+            return {
+              data: (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
+            };
+          });
+
+          function waitForPayment() {
+            return _waitForPayment.apply(this, arguments);
+          }
+
+          return waitForPayment;
+        }()
+      });
+    }
+
+    const createAccountResponse = yield createAccount(masterHandle.uploadOpts.endpoint, masterHandle, masterHandle.getFolderLocation("/"), duration, limit);
+    return new Promise(resolve => {
+      resolve({
+        data: createAccountResponse.data,
+        waitForPayment: () => new Promise(resolve => {
+          const interval = setInterval(
+          /*#__PURE__*/
+          _asyncToGenerator(function* () {
+            // don't perform run if it takes more than 5 seconds for response
+            const time = Date.now();
+
+            if ((yield masterHandle.isPaid()) && time + 5 * 1000 > Date.now()) {
+              clearInterval(interval);
+              yield masterHandle.login();
+              resolve({
+                data: (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
+              });
+            }
+          }), 10 * 1000);
+        })
+      });
+    });
+  });
+
+  return function register(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const createFolderMeta =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
+    dir = dir.replace(/\/+/g, "/");
+
+    try {
+      // TODO: verify folder can only be changed by the creating account
+      yield createMetadata$1(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+      masterHandle.getFolderLocation(dir));
+    } catch (err) {
+      console.error(`Can't create folder metadata for folder ${dir}`);
+      throw err;
+    }
+  });
+
+  return function createFolderMeta(_x, _x2) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const createFolder =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir, name) {
+    dir = dir.replace(/\/+/g, "/");
+    const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+    if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
+    const location = masterHandle.getFolderLocation(dir);
+    let dirMeta = yield masterHandle.getFolderMeta(dir);
+
+    try {
+      yield masterHandle.getFolderMeta(fullDir);
+      console.warn("Folder already exists");
+      dirMeta.folders.push(new FolderEntryMeta({
+        name,
+        location
+      }));
+      yield masterHandle.setFolderMeta(dir, dirMeta);
+      return;
+    } catch (err) {
+      console.warn(err);
+    }
+
+    yield masterHandle.createFolderMeta(fullDir);
+
+    try {
+      yield masterHandle.setFolderMeta(fullDir, new FolderMeta());
+    } catch (err) {
+      console.error("Failed to set folder meta for dir: " + dir);
+      throw err;
+    }
+
+    try {
+      dirMeta.folders.push(new FolderEntryMeta({
+        name,
+        location
+      }));
+      yield masterHandle.setFolderMeta(dir, dirMeta);
+    } catch (err) {
+      console.error("Failed to set folder meta for dir: " + dir);
+      throw err;
+    }
+  });
+
+  return function createFolder(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const deleteFolderMeta =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
+    // TODO: verify folder can only be changed by the creating account
+    yield deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+    masterHandle.getFolderLocation(dir));
+  });
+
+  return function deleteFolderMeta(_x, _x2) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const deleteFolder =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle, dir, name) {
+    dir = dir.replace(/\/+/g, "/");
+    const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+    if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
+    const meta = yield masterHandle.getFolderMeta(fullDir);
+    yield Promise.all([
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        var _iteratorNormalCompletion = true;
+        var _didIteratorError = false;
+        var _iteratorError = undefined;
+
+        try {
+          for (var _iterator = meta.folders[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+            let folder = _step.value;
+            yield masterHandle.deleteFolder(fullDir, folder.name);
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion && _iterator.return != null) {
+              _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to delete sub folders");
+        throw err;
+      }
+    }),
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      try {
+        var _iteratorNormalCompletion2 = true;
+        var _didIteratorError2 = false;
+        var _iteratorError2 = undefined;
+
+        try {
+          for (var _iterator2 = meta.files[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+            let file = _step2.value;
+            yield masterHandle.deleteFolder(fullDir, file.name);
+          }
+        } catch (err) {
+          _didIteratorError2 = true;
+          _iteratorError2 = err;
+        } finally {
+          try {
+            if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
+              _iterator2.return();
+            }
+          } finally {
+            if (_didIteratorError2) {
+              throw _iteratorError2;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to delete file");
+        throw err;
+      }
+    })]);
+
+    try {
+      yield masterHandle.deleteFolderMeta(fullDir);
+    } catch (err) {
+      console.error("Failed to delete meta entry");
+      throw err;
+    }
+
+    try {
+      const parentMeta = yield masterHandle.getFolderMeta(dir);
+      parentMeta.folders.splice(parentMeta.folders.findIndex(folder => folder.name == name), 1);
+      yield masterHandle.setFolderMeta(dir, parentMeta);
+    } catch (err) {
+      console.error("Failed to update parent meta");
+      console.error(err);
+    }
+  });
+
+  return function deleteFolder(_x, _x2, _x3) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+const login =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle) {
+    // try older meta first
+    try {
+      const meta = yield getFolderMeta(masterHandle, "/");
+      masterHandle.createFolderMeta("/");
+      masterHandle.setFolderMeta("/", meta);
+    } catch (err) {
+      try {
+        yield masterHandle.getFolderMeta("/");
+      } catch (err) {
+        console.warn(err);
+        masterHandle.createFolderMeta("/");
+        masterHandle.setFolderMeta("/", new FolderMeta());
+      }
+    }
+  });
+
+  return function login(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
+
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for representing the account mnemonic
+ */
+
+class Account {
+  get mnemonic() {
+    return this._mnemonic.trim().split(/\s+/g);
+  }
+  /**
+   * creates an account from a mnemonic if provided, otherwise from entropy
+   *
+   * @param mnemonic - the mnemonic to use for the account
+   */
+
+
+  constructor(mnemonic = bip39.generateMnemonic()) {
+    if (!bip39.validateMnemonic(mnemonic)) {
+      throw new Error("mnemonic provided was not valid");
+    }
+
+    this._mnemonic = mnemonic;
+  }
+
+  get seed() {
+    return bip39.mnemonicToSeedSync(this._mnemonic);
+  }
+
+}
+/**
+ * **_this should never be shared or left in storage_**
+ *
+ * a class for creating a master handle from an account mnemonic
+ *
+ * a master handle is responsible for:
+ *  - logging in to an account
+ *  - signing changes for the account
+ *  - deterministic entropy for generating features of an account (such as file keys)
+ */
+
+
+class MasterHandle extends HDKey__default {
+  /**
+   * creates a master handle from an account
+   *
+   * @param account - the account to generate the handle from
+   */
+  constructor({
+    account,
+    handle
+  }, {
+    uploadOpts = {},
+    downloadOpts = {}
+  } = {}) {
+    var _this;
+
+    super();
+    _this = this;
+    this.metaQueue = {};
+    /**
+     * creates a sub key seed for validating
+     *
+     * @param path - the string to use as a sub path
+     */
+
+    this.generateSubHDKey = pathString => generateSubHDKey(this, pathString);
+
+    this.uploadFile = (dir, file) => uploadFile(this, dir, file);
+
+    this.downloadFile = handle => downloadFile(this, handle);
+
+    this.deleteFile = (dir, name) => deleteFile$1(this, dir, name);
+
+    this.deleteVersion = (dir, handle) => deleteVersion(this, dir, handle);
+    /**
+     * creates a file key seed for validating
+     *
+     * @param file - the location of the file on the network
+     */
+
+
+    this.getFileHDKey = file => {
+      return this.generateSubHDKey("file: " + file);
+    };
+    /**
+     * creates a dir key seed for validating and folder navigation
+     *
+     * @param dir - the folder path in the UI
+     */
+
+
+    this.getFolderHDKey = dir => getFolderHDKey(this, dir);
+
+    this.getFolderLocation = dir => getFolderLocation(this, dir);
+
+    this.createFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref = _asyncToGenerator(function* (dir) {
+        return createFolderMeta(_this, dir);
+      });
+
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }();
+
+    this.createFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref2 = _asyncToGenerator(function* (dir, name) {
+        return createFolder(_this, dir, name);
+      });
+
+      return function (_x2, _x3) {
+        return _ref2.apply(this, arguments);
+      };
+    }();
+
+    this.deleteFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref3 = _asyncToGenerator(function* (dir) {
+        return deleteFolderMeta(_this, dir);
+      });
+
+      return function (_x4) {
+        return _ref3.apply(this, arguments);
+      };
+    }();
+
+    this.deleteFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref4 = _asyncToGenerator(function* (dir, name) {
+        return deleteFolder(_this, dir, name);
+      });
+
+      return function (_x5, _x6) {
+        return _ref4.apply(this, arguments);
+      };
+    }();
+
+    this.setFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref5 = _asyncToGenerator(function* (dir, folderMeta) {
+        return setFolderMeta(_this, dir, folderMeta);
+      });
+
+      return function (_x7, _x8) {
+        return _ref5.apply(this, arguments);
+      };
+    }();
+
+    this.getFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref6 = _asyncToGenerator(function* (dir) {
+        return getFolderMeta(_this, dir);
+      });
+
+      return function (_x9) {
+        return _ref6.apply(this, arguments);
+      };
+    }();
+
+    this.getAccountInfo =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return getAccountInfo(_this);
+    });
+    this.isPaid =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return isPaid(_this);
+    });
+    this.login =
+    /*#__PURE__*/
+    _asyncToGenerator(function* () {
+      return login(_this);
+    });
+
+    this.register =
+    /*#__PURE__*/
+    function () {
+      var _ref10 = _asyncToGenerator(function* (duration, limit) {
+        return register(_this, duration, limit);
+      });
+
+      return function (_x10, _x11) {
+        return _ref10.apply(this, arguments);
+      };
+    }();
+
+    this.queueMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref11 = _asyncToGenerator(function* (dir, {
+        file,
+        finishedUpload
+      }) {
+        let resolve,
+            promise = new Promise(resolvePromise => {
+          resolve = resolvePromise;
+        });
+        _this.metaQueue[dir] = _this.metaQueue[dir] || [];
+
+        _this.metaQueue[dir].push({
+          file,
+          finishedUpload,
+          resolve
+        });
+
+        _this._updateMetaFromQueue(dir);
+
+        yield promise;
+      });
+
+      return function (_x12, _x13) {
+        return _ref11.apply(this, arguments);
+      };
+    }();
+
+    this._updateMetaFromQueue = debounce.debounce(
+    /*#__PURE__*/
+    function () {
+      var _ref12 = _asyncToGenerator(function* (dir) {
+        const folderMeta = yield _this.getFolderMeta(dir),
+              copy = Object.assign([], _this.metaQueue[dir]),
+              finished = [];
+        copy.forEach(({
+          file,
+          finishedUpload,
+          resolve
+        }) => {
+          const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name),
+                oldMeta = oldMetaIndex !== -1 ? folderMeta.files[oldMetaIndex] : {},
+                version = new FileVersion({
+            handle: finishedUpload.handle
+          }),
+                meta = new FileEntryMeta({
+            name: file.name,
+            created: oldMeta.created,
+            versions: [version, ...(oldMeta.versions || [])]
+          }); // metadata existed previously
+
+          if (oldMetaIndex !== -1) {
+            folderMeta.files[oldMetaIndex] = meta;
+          } else {
+            folderMeta.files.unshift(meta);
+          }
+
+          finished.push(resolve);
+        });
+
+        try {
+          yield _this.setFolderMeta(dir, folderMeta);
+        } catch (err) {
+          console.error("could not finish setting meta");
+          throw err;
+        } // clean queue
+
+
+        _this.metaQueue[dir].splice(0, copy.length);
+
+        finished.forEach(resolve => {
+          resolve();
+        });
+      });
+
+      return function (_x14) {
+        return _ref12.apply(this, arguments);
+      };
+    }(), 500);
+    this.uploadOpts = uploadOpts;
+    this.downloadOpts = downloadOpts;
+
+    if (account && account.constructor == Account) {
+      const path = "m/43'/60'/1775'/0'/" + hashToPath(namehash.hash("opacity.io").replace(/^0x/, "")); // ethereum/EIPs#1775
+
+      Object.assign(this, HDKey.fromMasterSeed(account.seed).derive(path));
+    } else if (handle && handle.constructor == String) {
+      this.privateKey = Buffer.from(handle.slice(0, 64), "hex");
+      this.chainCode = Buffer.from(handle.slice(64), "hex");
+    } else {
+      throw new Error("master handle was not of expected type");
+    }
+  }
+
+  get handle() {
+    return getHandle(this);
+  }
+
+  static getKey(from, str) {
+    return hash(from.privateKey.toString("hex"), str);
   }
 
 }

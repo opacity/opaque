@@ -1,5 +1,5 @@
-import Upload from "~/upload";
 import { EventEmitter } from "events";
+import Upload from "../../../../upload";
 const uploadFile = (masterHandle, dir, file) => {
     const upload = new Upload(file, masterHandle, masterHandle.uploadOpts), ee = new EventEmitter();
     Object.assign(ee, { handle: upload.handle });

@@ -1,4 +1,4 @@
-import { MasterHandle } from "~/account";
+import { MasterHandle } from "../../../../account";
 
 const getHandle = (masterHandle: MasterHandle) => {
 	return masterHandle.privateKey.toString("hex") + masterHandle.chainCode.toString("hex")

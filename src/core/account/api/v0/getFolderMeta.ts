@@ -1,14 +1,14 @@
 import { util as ForgeUtil } from "node-forge";
 
-import { hash } from "~/core/hashing";
-import { getMetadata } from "~/core/requests/metadata";
-import { decrypt } from "~/core/encryption";
+import { hash } from "../../../../core/hashing";
+import { getMetadata } from "../../../../core/requests/metadata";
+import { decrypt } from "../../../../core/encryption";
 
-import { MasterHandle } from "~/account";
+import { MasterHandle } from "../../../../account";
 import {
 	FolderMeta,
 	MinifiedFolderMeta
-} from "~/core/account/folder-meta";
+} from "../../../../core/account/folder-meta";
 
 const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<FolderMeta> => {
 	const

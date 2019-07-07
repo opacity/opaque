@@ -1,4 +1,4 @@
-import { deleteMetadata } from "~/core/requests/metadata";
+import { deleteMetadata } from "../../../../core/requests/metadata";
 const deleteFolderMeta = async (masterHandle, dir) => {
     // TODO: verify folder can only be changed by the creating account
     await deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, 

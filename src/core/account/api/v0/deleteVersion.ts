@@ -1,7 +1,7 @@
-import { deleteFile as requestDeleteFile } from "~/core/requests/deleteFile"
+import { deleteFile as requestDeleteFile } from "../../../../core/requests/deleteFile"
 
-import { MasterHandle } from "~/account"
-import { FileEntryMeta } from "~/core/account/file-entry"
+import { MasterHandle } from "../../../../account"
+import { FileEntryMeta } from "../../../../core/account/file-entry"
 
 const deleteVersion = async (masterHandle: MasterHandle, dir: string, handle: string) => {
 	const meta = await masterHandle.getFolderMeta(dir)

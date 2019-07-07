@@ -1,5 +1,5 @@
-import { FolderEntryMeta } from "~/core/account/folder-entry";
-import { FolderMeta } from "~/core/account/folder-meta";
+import { FolderEntryMeta } from "../../../../core/account/folder-entry";
+import { FolderMeta } from "../../../../core/account/folder-meta";
 const createFolder = async (masterHandle, dir, name) => {
     dir = dir.replace(/\/+/g, "/");
     const fullDir = (dir + "/" + name).replace(/\/+/g, "/");

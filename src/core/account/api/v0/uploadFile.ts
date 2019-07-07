@@ -1,6 +1,6 @@
-import Upload from "~/upload";
 import { EventEmitter } from "events";
-import { MasterHandle } from "~/account";
+import Upload from "../../../../upload";
+import { MasterHandle } from "../../../../account";
 
 const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 	const

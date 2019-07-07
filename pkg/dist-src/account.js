@@ -2,10 +2,10 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { debounce } from "debounce";
-import { hashToPath } from "~/utils/hashToPath";
-import { hash } from "~/core/hashing";
-import { FileEntryMeta, FileVersion } from "~/core/account/metadata";
-import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle } from "~/core/account/api/v1";
+import { hashToPath } from "./utils/hashToPath";
+import { hash } from "./core/hashing";
+import { FileEntryMeta, FileVersion } from "./core/account/metadata";
+import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle } from "./core/account/api/v1/index";
 /**
  * **_this should never be shared or left in storage_**
  *

@@ -1,4 +1,4 @@
-import { deleteFile as requestDeleteFile } from "~/core/requests/deleteFile";
+import { deleteFile as requestDeleteFile } from "../../../../core/requests/deleteFile";
 const deleteVersion = async (masterHandle, dir, handle) => {
     const meta = await masterHandle.getFolderMeta(dir);
     const file = meta.files.filter(file => file.type == "file")

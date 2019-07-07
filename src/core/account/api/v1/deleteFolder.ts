@@ -1,4 +1,4 @@
-import { MasterHandle } from "~/account"
+import { MasterHandle } from "../../../../account"
 
 const deleteFolder = async (masterHandle: MasterHandle, dir: string, name: string) => {
 	dir = dir.replace(/\/+/g, "/")

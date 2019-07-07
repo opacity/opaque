@@ -1,7 +1,7 @@
-import { checkPaymentStatus } from "~/core/requests/checkPaymentStatus";
-import { createAccount } from "~/core/requests/createAccount";
+import { checkPaymentStatus } from "../../../../core/requests/checkPaymentStatus";
+import { createAccount } from "../../../../core/requests/createAccount";
 
-import { MasterHandle } from "~/account";
+import { MasterHandle } from "../../../../account";
 
 const register = async (masterHandle: MasterHandle, duration?: number, limit?: number) => {
 	if (await masterHandle.isPaid()) {

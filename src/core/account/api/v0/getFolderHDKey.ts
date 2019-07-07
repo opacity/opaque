@@ -1,4 +1,4 @@
-import { MasterHandle } from "~/account";
+import { MasterHandle } from "../../../../account";
 import { generateSubHDKey } from "./generateSubHDKey";
 
 

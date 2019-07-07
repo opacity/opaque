@@ -7,14 +7,14 @@ import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash"
 import { debounce } from "debounce"
 
-import { hashToPath } from "~/utils/hashToPath";
-import { hash } from "~/core/hashing";
+import { hashToPath } from "./utils/hashToPath";
+import { hash } from "./core/hashing";
 
 import {
   FolderMeta,
   FileEntryMeta,
   FileVersion
-} from "~/core/account/metadata";
+} from "./core/account/metadata";
 
 import {
   getFolderHDKey,
@@ -35,9 +35,9 @@ import {
   register,
   generateSubHDKey,
   getHandle
-} from "~/core/account/api/v1";
+} from "./core/account/api/v1/index";
 
-import { RequireOnlyOne } from "~/types/require-only-one";
+import { RequireOnlyOne } from "./types/require-only-one";
 
 /**
  * **_this should never be shared or left in storage_**

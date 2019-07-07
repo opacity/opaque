@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import HDKey from "hdkey";
-import { FolderMeta } from "~/core/account/metadata";
-import { RequireOnlyOne } from "~/types/require-only-one";
+import { FolderMeta } from "./core/account/metadata";
+import { RequireOnlyOne } from "./types/require-only-one";
 /**
  * **_this should never be shared or left in storage_**
  *

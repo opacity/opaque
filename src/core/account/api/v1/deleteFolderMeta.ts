@@ -1,6 +1,6 @@
-import { deleteMetadata } from "~/core/requests/metadata"
+import { deleteMetadata } from "../../../../core/requests/metadata"
 
-import { MasterHandle } from "~/account"
+import { MasterHandle } from "../../../../account"
 
 const deleteFolderMeta = async (masterHandle: MasterHandle, dir: string) => {
 	// TODO: verify folder can only be changed by the creating account
