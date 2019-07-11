@@ -29,18 +29,17 @@ const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<F
 		const metaString = (
 			decrypt(
 				key,
-				new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "hex"))
+				new ForgeUtil.ByteBuffer(Buffer.from(response.data.metadata, "base64"))
 			) as ForgeUtil.ByteBuffer
 		).toString();
 
 		try {
 			const meta = JSON.parse(metaString)
 
-			return meta
+			return new MinifiedFolderMeta(meta).unminify()
 		} catch (err) {
 			console.error(err)
-
-			console.log(metaString)
+			console.warn(metaString)
 
 			throw new Error("metadata corrupted")
 		}
