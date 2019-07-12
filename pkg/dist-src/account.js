@@ -11,6 +11,7 @@ import { util as ForgeUtil } from "node-forge";
 import { FolderMeta, FileEntryMeta, FileVersion, } from "./core/account/metadata";
 import { getMetadata, setMetadata, checkPaymentStatus, createAccount } from "./core/request";
 import { deleteFile } from "./core/requests/deleteFile";
+import { createMetadata } from "./core/requests/metadata";
 /**
  * **_this should never be shared or left in storage_**
  *
@@ -170,6 +171,19 @@ class MasterHandle extends HDKey {
             this.metaQueue[dir].splice(0, copy.length);
             finished.forEach(resolve => { resolve(); });
         }, 500);
+        this.createFolderMeta = async (dir) => {
+            dir = dir.replace(/\/+/g, "/");
+            try {
+                // TODO: verify folder can only be changed by the creating account
+                await createMetadata(this.uploadOpts.endpoint, this, 
+                // this.getFolderHDKey(dir),
+                this.getFolderLocation(dir));
+            }
+            catch (err) {
+                console.error(`Can't create folder metadata for folder ${dir}`);
+                throw err;
+            }
+        };
         this.setFolderMeta = async (dir, folderMeta) => {
             const folderKey = this.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta), encryptedMeta = encryptString(key, metaString, "utf8").toHex();
             // TODO: verify folder can only be changed by the creating account
@@ -218,7 +232,8 @@ class MasterHandle extends HDKey {
             }
             catch (err) {
                 console.warn(err);
-                this.setFolderMeta("/", new FolderMeta());
+                await this.createFolderMeta("/").catch(console.warn);
+                await this.setFolderMeta("/", new FolderMeta());
             }
         };
         this.register = async (duration, limit) => {
