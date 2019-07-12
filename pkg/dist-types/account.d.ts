@@ -91,6 +91,7 @@ declare class MasterHandle extends HDKey {
         finishedUpload: any;
     }) => Promise<void>;
     private _updateMetaFromQueue;
+    createFolderMeta: (dir: string) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;
