@@ -1381,8 +1381,8 @@ function () {
   var _ref = _asyncToGenerator(function* (masterHandle, dir, folderMeta) {
     const folderKey = masterHandle.getFolderHDKey(dir),
           key = hash(folderKey.privateKey.toString("hex")),
-          metaString = JSON.stringify(folderMeta.minify()),
-          encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
+          metaString = JSON.stringify(folderMeta),
+          encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO: verify folder can only be changed by the creating account
 
     yield setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
     masterHandle.getFolderLocation(dir), encryptedMeta);
@@ -1893,15 +1893,18 @@ function () {
     // try older meta first
     try {
       const meta = yield getFolderMeta(masterHandle, "/");
-      masterHandle.createFolderMeta("/");
-      masterHandle.setFolderMeta("/", meta);
+      yield masterHandle.createFolderMeta("/").catch(console.warn);
+      console.info("--- META ---", meta);
+      yield masterHandle.setFolderMeta("/", meta);
     } catch (err) {
+      // try newer meta
       try {
         yield masterHandle.getFolderMeta("/");
       } catch (err) {
+        // set meta to an empty meta
         console.warn(err);
-        masterHandle.createFolderMeta("/");
-        masterHandle.setFolderMeta("/", new FolderMeta());
+        yield masterHandle.createFolderMeta("/").catch(console.warn);
+        yield masterHandle.setFolderMeta("/", new FolderMeta());
       }
     }
   });
@@ -1917,8 +1920,8 @@ function () {
   var _ref = _asyncToGenerator(function* (masterHandle, dir, folderMeta) {
     const folderKey = masterHandle.getFolderHDKey(dir),
           key = hash(folderKey.privateKey.toString("hex")),
-          metaString = JSON.stringify(folderMeta),
-          encryptedMeta = encryptString(key, metaString, "utf8").toHex(); // TODO: verify folder can only be changed by the creating account
+          metaString = JSON.stringify(folderMeta.minify()),
+          encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
 
     yield setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
     masterHandle.getFolderLocation(dir), encryptedMeta);

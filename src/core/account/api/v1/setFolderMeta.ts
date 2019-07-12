@@ -9,8 +9,8 @@ const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta
 	const
 		folderKey = masterHandle.getFolderHDKey(dir),
 		key = hash(folderKey.privateKey.toString("hex")),
-		metaString = JSON.stringify(folderMeta),
-		encryptedMeta = encryptString(key, metaString, "utf8").toHex()
+		metaString = JSON.stringify(folderMeta.minify()),
+		encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64")
 
 	// TODO: verify folder can only be changed by the creating account
 	await setMetadata(
@@ -23,3 +23,4 @@ const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta
 }
 
 export { setFolderMeta }
+
