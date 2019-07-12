@@ -29,7 +29,6 @@ import {
 
 import { RequireOnlyOne } from "./types/require-only-one";
 import { deleteFile } from "./core/requests/deleteFile";
-import { createMetadata } from "./core/requests/metadata";
 
 /**
  * **_this should never be shared or left in storage_**
@@ -381,29 +380,11 @@ class MasterHandle extends HDKey {
     }
   }
 
-  createFolderMeta = async (dir: string) => {
-    dir = dir.replace(/\/+/g, "/")
-
-    try {
-      // TODO: verify folder can only be changed by the creating account
-      await createMetadata(
-        this.uploadOpts.endpoint,
-        this,
-        // this.getFolderHDKey(dir),
-        this.getFolderLocation(dir)
-      );
-    } catch (err) {
-      console.error(`Can't create folder metadata for folder ${ dir }`)
-      throw err
-    }
-  }
-
   login = async () => {
     try {
       await this.getFolderMeta("/")
     } catch (err) {
       console.warn(err)
-      this.createFolderMeta("/")
       this.setFolderMeta("/", new FolderMeta())
     }
   }

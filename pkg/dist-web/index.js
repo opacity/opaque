@@ -769,24 +769,7 @@ function _createAccount() {
   return _createAccount.apply(this, arguments);
 }
 
-function createMetadata$1(_x, _x2, _x3) {
-  return _createMetadata.apply(this, arguments);
-}
-
-function _createMetadata() {
-  _createMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/metadata/create", signedPayload);
-  });
-  return _createMetadata.apply(this, arguments);
-}
-
-function setMetadata(_x7, _x8, _x9, _x10) {
+function setMetadata(_x, _x2, _x3, _x4) {
   return _setMetadata.apply(this, arguments);
 }
 
@@ -804,7 +787,7 @@ function _setMetadata() {
   return _setMetadata.apply(this, arguments);
 }
 
-function getMetadata(_x11, _x12, _x13) {
+function getMetadata(_x5, _x6, _x7) {
   return _getMetadata.apply(this, arguments);
 }
 
@@ -1693,28 +1676,6 @@ class MasterHandle extends HDKey {
         return false;
       }
     });
-
-    this.createFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref15 = _asyncToGenerator(function* (dir) {
-        dir = dir.replace(/\/+/g, "/");
-
-        try {
-          // TODO: verify folder can only be changed by the creating account
-          yield createMetadata$1(_this.uploadOpts.endpoint, _this, // this.getFolderHDKey(dir),
-          _this.getFolderLocation(dir));
-        } catch (err) {
-          console.error("Can't create folder metadata for folder ".concat(dir));
-          throw err;
-        }
-      });
-
-      return function (_x13) {
-        return _ref15.apply(this, arguments);
-      };
-    }();
-
     this.login =
     /*#__PURE__*/
     _asyncToGenerator(function* () {
@@ -1723,8 +1684,6 @@ class MasterHandle extends HDKey {
       } catch (err) {
         console.warn(err);
 
-        _this.createFolderMeta("/");
-
         _this.setFolderMeta("/", new FolderMeta());
       }
     });
@@ -1732,7 +1691,7 @@ class MasterHandle extends HDKey {
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref17 = _asyncToGenerator(function* (duration, limit) {
+      var _ref16 = _asyncToGenerator(function* (duration, limit) {
         if (yield _this.isPaid()) {
           return Promise.resolve({
             data: {
@@ -1781,8 +1740,8 @@ class MasterHandle extends HDKey {
         });
       });
 
-      return function (_x14, _x15) {
-        return _ref17.apply(this, arguments);
+      return function (_x13, _x14) {
+        return _ref16.apply(this, arguments);
       };
     }();
 
@@ -1812,9 +1771,9 @@ class MasterHandle extends HDKey {
 }
 
 MasterHandle.hashToPath = function (h) {
-  let _ref19 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
-      _ref19$prefix = _ref19.prefix,
-      prefix = _ref19$prefix === void 0 ? false : _ref19$prefix;
+  let _ref18 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {},
+      _ref18$prefix = _ref18.prefix,
+      prefix = _ref18$prefix === void 0 ? false : _ref18$prefix;
 
   if (h.length % 4) {
     throw new Error("hash length must be multiple of two bytes");
