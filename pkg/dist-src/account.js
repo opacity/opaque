@@ -99,7 +99,9 @@ class MasterHandle extends HDKey {
                 const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
                     ? folderMeta.files[oldMetaIndex]
                     : {}), version = new FileVersion({
-                    handle: finishedUpload.handle
+                    handle: finishedUpload.handle,
+                    size: file.size,
+                    modified: file.lastModified
                 }), meta = new FileEntryMeta({
                     name: file.name,
                     created: oldMeta.created,
