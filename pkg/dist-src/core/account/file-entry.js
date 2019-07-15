@@ -1,4 +1,4 @@
-import { MinifiedFileVersion } from "./file-version";
+import { FileVersion, MinifiedFileVersion } from "./file-version";
 /**
  * a metadata class to describe a file as it relates to the UI
  */
@@ -13,18 +13,16 @@ class FileEntryMeta {
      */
     constructor({ name, created = Date.now(), modified = Date.now(), versions = [] }) {
         this.type = "file";
+        this.minify = () => new MinifiedFileEntryMeta([
+            this.name,
+            this.created,
+            this.modified,
+            this.versions.map(version => new FileVersion(version).minify())
+        ]);
         this.name = name;
         this.created = created;
         this.modified = modified;
         this.versions = versions;
-    }
-    minify() {
-        return new MinifiedFileEntryMeta([
-            this.name,
-            this.created,
-            this.modified,
-            this.versions.map(version => version.minify())
-        ]);
     }
 }
 class MinifiedFileEntryMeta extends Array {

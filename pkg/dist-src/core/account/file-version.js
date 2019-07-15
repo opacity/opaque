@@ -11,35 +11,31 @@ class FileVersion {
      * @param modified - the date the filesystem marked as last modified
      */
     constructor({ handle, size, created = Date.now(), modified = Date.now() }) {
-        this.handle = handle;
-        this.size = size;
-        this.created = created;
-        this.modified = modified;
-    }
-    minify() {
-        return new MinifiedFileVersion([
+        this.minify = () => new MinifiedFileVersion([
             this.handle,
             this.size,
             this.created,
             this.modified
         ]);
+        this.handle = handle;
+        this.size = size;
+        this.created = created;
+        this.modified = modified;
     }
 }
 class MinifiedFileVersion extends Array {
     constructor([handle, size, created, modified]) {
         super(4);
-        this[0] = handle;
-        this[1] = size;
-        this[2] = created;
-        this[3] = modified;
-    }
-    unminify() {
-        return new FileVersion({
+        this.unminify = () => new FileVersion({
             handle: this[0],
             size: this[1],
             created: this[2],
             modified: this[3]
         });
+        this[0] = handle;
+        this[1] = size;
+        this[2] = created;
+        this[3] = modified;
     }
 }
 export { FileVersion, MinifiedFileVersion };

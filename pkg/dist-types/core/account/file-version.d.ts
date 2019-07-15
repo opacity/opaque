@@ -24,7 +24,7 @@ declare class FileVersion {
         created?: number;
         modified?: number;
     });
-    minify(): MinifiedFileVersion;
+    minify: () => MinifiedFileVersion;
 }
 declare type MinifiedFileVersionProps = [
 /** the shareable handle of the file */
@@ -37,6 +37,6 @@ number,
 number];
 declare class MinifiedFileVersion extends Array {
     constructor([handle, size, created, modified]: MinifiedFileVersionProps);
-    unminify(): FileVersion;
+    unminify: () => FileVersion;
 }
 export { FileVersion, MinifiedFileVersion, MinifiedFileVersionProps };

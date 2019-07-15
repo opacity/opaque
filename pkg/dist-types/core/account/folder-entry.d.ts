@@ -20,7 +20,7 @@ declare class FolderEntryMeta {
         name: string;
         location: string;
     });
-    minify(): MinifiedFolderEntryMeta;
+    minify: () => MinifiedFolderEntryMeta;
 }
 declare type MinifiedFolderEntryMetaProps = [string, string];
 declare class MinifiedFolderEntryMeta extends Array {
@@ -32,6 +32,6 @@ declare class MinifiedFolderEntryMeta extends Array {
      */
     1: string;
     constructor([name, location]: MinifiedFolderEntryMetaProps);
-    unminify(): FolderEntryMeta;
+    unminify: () => FolderEntryMeta;
 }
 export { FolderEntryMeta, MinifiedFolderEntryMeta, MinifiedFolderEntryMetaProps };

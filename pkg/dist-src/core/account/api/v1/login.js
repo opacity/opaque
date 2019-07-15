@@ -6,7 +6,7 @@ const login = async (masterHandle) => {
         const meta = await getFolderMeta(masterHandle, "/");
         await masterHandle.createFolderMeta("/").catch(console.warn);
         console.info("--- META ---", meta);
-        await masterHandle.setFolderMeta("/", meta);
+        await masterHandle.setFolderMeta("/", new FolderMeta(meta));
     }
     catch (err) {
         // try newer meta

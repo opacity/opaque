@@ -1,5 +1,5 @@
-import { MinifiedFileEntryMeta } from "./file-entry";
-import { MinifiedFolderEntryMeta } from "./folder-entry";
+import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
+import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
 /**
  * a metadata class to describe a folder for the UI
  */
@@ -15,8 +15,8 @@ class FolderMeta {
     constructor({ name = "Folder", files = [], folders = [], created = Date.now(), modified = Date.now() } = {}) {
         this.minify = () => new MinifiedFolderMeta([
             this.name,
-            this.files.map(file => file.minify()),
-            this.folders.map(folder => folder.minify()),
+            this.files.map(file => new FileEntryMeta(file).minify()),
+            this.folders.map(folder => new FolderEntryMeta(folder).minify()),
             this.created,
             this.modified
         ]);
@@ -30,20 +30,18 @@ class FolderMeta {
 class MinifiedFolderMeta extends Array {
     constructor([name, files, folders, created, modified]) {
         super(5);
-        this[0] = name;
-        this[1] = files;
-        this[2] = folders;
-        this[3] = created;
-        this[4] = modified;
-    }
-    unminify() {
-        return new FolderMeta({
+        this.unminify = () => new FolderMeta({
             name: this[0],
             files: this[1].map(file => new MinifiedFileEntryMeta(file).unminify()),
             folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder).unminify()),
             created: this[3],
             modified: this[4]
         });
+        this[0] = name;
+        this[1] = files;
+        this[2] = folders;
+        this[3] = created;
+        this[4] = modified;
     }
 }
 export { FolderMeta, MinifiedFolderMeta };
