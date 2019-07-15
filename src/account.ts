@@ -246,7 +246,9 @@ class MasterHandle extends HDKey {
             : ({} as FileEntryMeta)
         ),
         version = new FileVersion({
-          handle: finishedUpload.handle
+          handle: finishedUpload.handle,
+          size: file.size,
+          modified: file.lastModified
         }),
         meta = new FileEntryMeta({
           name: file.name,
