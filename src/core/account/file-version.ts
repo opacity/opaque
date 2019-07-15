@@ -36,14 +36,12 @@ class FileVersion {
 		this.modified = modified
 	}
 
-	minify () {
-		return new MinifiedFileVersion([
-			this.handle,
-			this.size,
-			this.created,
-			this.modified
-		])
-	}
+	minify = () => new MinifiedFileVersion([
+		this.handle,
+		this.size,
+		this.created,
+		this.modified
+	])
 }
 
 type MinifiedFileVersionProps = [
@@ -72,14 +70,12 @@ class MinifiedFileVersion extends Array {
 		this[3] = modified
 	}
 
-	unminify () {
-		return new FileVersion({
-			handle: this[0],
-			size: this[1],
-			created: this[2],
-			modified: this[3]
-		})
-	}
+	unminify = () => new FileVersion({
+		handle: this[0],
+		size: this[1],
+		created: this[2],
+		modified: this[3]
+	})
 }
 
 export { FileVersion, MinifiedFileVersion, MinifiedFileVersionProps }

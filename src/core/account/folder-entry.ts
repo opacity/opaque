@@ -28,12 +28,10 @@ class FolderEntryMeta {
 		this.location = location
 	}
 
-	minify () {
-		return new MinifiedFolderEntryMeta([
-			this.name,
-			this.location
-		])
-	}
+	minify = () => new MinifiedFolderEntryMeta([
+		this.name,
+		this.location
+	])
 }
 
 type MinifiedFolderEntryMetaProps = [
@@ -60,12 +58,10 @@ class MinifiedFolderEntryMeta extends Array {
 		this[1] = location
 	}
 
-	unminify () {
-		return new FolderEntryMeta({
-			name: this[0],
-			location: this[1]
-		})
-	}
+	unminify = () => new FolderEntryMeta({
+		name: this[0],
+		location: this[1]
+	})
 }
 
 export { FolderEntryMeta, MinifiedFolderEntryMeta, MinifiedFolderEntryMetaProps }

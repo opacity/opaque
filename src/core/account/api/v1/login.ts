@@ -10,7 +10,7 @@ const login = async (masterHandle: MasterHandle) => {
 
 		await masterHandle.createFolderMeta("/").catch(console.warn)
 		console.info("--- META ---", meta)
-		await masterHandle.setFolderMeta("/", meta)
+		await masterHandle.setFolderMeta("/", new FolderMeta(meta))
 	} catch (err) {
 		// try newer meta
 		try {

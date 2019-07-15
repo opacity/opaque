@@ -46,8 +46,8 @@ class FolderMeta {
 
 	minify = () => new MinifiedFolderMeta([
 		this.name,
-		this.files.map(file => file.minify()),
-		this.folders.map(folder => folder.minify()),
+		this.files.map(file => new FileEntryMeta(file).minify()),
+		this.folders.map(folder => new FolderEntryMeta(folder).minify()),
 		this.created,
 		this.modified
 	])
@@ -89,15 +89,13 @@ class MinifiedFolderMeta extends Array {
 		this[4] = modified
 	}
 
-	unminify () {
-		return new FolderMeta({
-			name: this[0],
-			files: this[1].map(file => new MinifiedFileEntryMeta(file as MinifiedFileEntryMetaProps).unminify()),
-			folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder as MinifiedFolderEntryMetaProps).unminify()),
-			created: this[3],
-			modified: this[4]
-		})
-	}
+	unminify = () => new FolderMeta({
+		name: this[0],
+		files: this[1].map(file => new MinifiedFileEntryMeta(file as MinifiedFileEntryMetaProps).unminify()),
+		folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder as MinifiedFolderEntryMetaProps).unminify()),
+		created: this[3],
+		modified: this[4]
+	})
 }
 
 export { FolderMeta, MinifiedFolderMeta, MinifiedFolderMetaProps }

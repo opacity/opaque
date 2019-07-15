@@ -39,14 +39,12 @@ class FileEntryMeta {
 		this.versions = versions
 	}
 
-	minify () {
-		return new MinifiedFileEntryMeta([
-			this.name,
-			this.created,
-			this.modified,
-			this.versions.map(version => version.minify())
-		])
-	}
+	minify = () => new MinifiedFileEntryMeta([
+		this.name,
+		this.created,
+		this.modified,
+		this.versions.map(version => new FileVersion(version).minify())
+	])
 }
 
 type MinifiedFileEntryMetaProps = [
