@@ -1915,6 +1915,7 @@ function () {
     // try older meta first
     try {
       const meta = yield getFolderMeta(masterHandle, "/");
+      yield masterHandle.deleteFolderMeta("/").catch(console.warn);
       yield masterHandle.createFolderMeta("/").catch(console.warn);
       console.info("--- META ---", meta);
       yield masterHandle.setFolderMeta("/", new FolderMeta(meta));

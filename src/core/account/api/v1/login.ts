@@ -8,7 +8,9 @@ const login = async (masterHandle: MasterHandle) => {
 	try {
 		const meta = await getFolderMeta(masterHandle, "/")
 
+		await masterHandle.deleteFolderMeta("/").catch(console.warn)
 		await masterHandle.createFolderMeta("/").catch(console.warn)
+
 		console.info("--- META ---", meta)
 		await masterHandle.setFolderMeta("/", new FolderMeta(meta))
 	} catch (err) {
