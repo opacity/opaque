@@ -5,6 +5,8 @@ const createFolder = async (masterHandle, dir, name) => {
     const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
     if (name.indexOf("/") > 0 || name.length > 2 ** 8)
         throw new Error("Invalid folder name");
+    if (await masterHandle.getFolderMeta(fullDir).catch(console.warn))
+        throw new Error("Folder already exists");
     const location = masterHandle.getFolderLocation(dir);
     let dirMeta = await masterHandle.getFolderMeta(dir);
     try {

@@ -1732,6 +1732,7 @@ function () {
     dir = dir.replace(/\/+/g, "/");
     const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
     if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
+    if (yield masterHandle.getFolderMeta(fullDir).catch(console.warn)) throw new Error("Folder already exists");
     const location = masterHandle.getFolderLocation(dir);
     let dirMeta = yield masterHandle.getFolderMeta(dir);
 
@@ -1886,18 +1887,19 @@ const login$1 =
 /*#__PURE__*/
 function () {
   var _ref = _asyncToGenerator(function* (masterHandle) {
-    // try older meta first
+    // try newer meta
     try {
-      const meta = yield getFolderMeta(masterHandle, "/");
-      yield masterHandle.deleteFolderMeta("/").catch(console.warn);
-      yield masterHandle.createFolderMeta("/").catch(console.warn);
-      console.info("--- META ---", meta);
-      yield masterHandle.setFolderMeta("/", new FolderMeta(meta));
+      yield masterHandle.getFolderMeta("/");
     } catch (err) {
-      // try newer meta
+      // try older meta
       try {
-        yield masterHandle.getFolderMeta("/");
+        const meta = yield getFolderMeta(masterHandle, "/");
+        yield masterHandle.deleteFolderMeta("/").catch(console.warn);
+        yield masterHandle.createFolderMeta("/").catch(console.warn);
+        console.info("--- META ---", meta);
+        yield masterHandle.setFolderMeta("/", new FolderMeta(meta));
       } catch (err) {
+        // no meta exists
         // set meta to an empty meta
         console.warn(err);
         yield masterHandle.createFolderMeta("/").catch(console.warn);
