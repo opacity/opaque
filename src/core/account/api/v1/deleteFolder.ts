@@ -23,7 +23,7 @@ const deleteFolder = async (masterHandle: MasterHandle, dir: string, name: strin
 		async () => {
 			try {
 				for (let file of meta.files) {
-					await masterHandle.deleteFolder(fullDir, file.name)
+					await masterHandle.deleteFile(fullDir, file.name)
 				}
 			} catch (err) {
 				console.error("Failed to delete file")

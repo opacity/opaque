@@ -1879,7 +1879,7 @@ function () {
     _asyncToGenerator(function* () {
       try {
         for (let file of meta.files) {
-          yield masterHandle.deleteFolder(fullDir, file.name);
+          yield masterHandle.deleteFile(fullDir, file.name);
         }
       } catch (err) {
         console.error("Failed to delete file");

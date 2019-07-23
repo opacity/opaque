@@ -1839,7 +1839,7 @@ function () {
         try {
           for (var _iterator2 = meta.files[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
             let file = _step2.value;
-            yield masterHandle.deleteFolder(fullDir, file.name);
+            yield masterHandle.deleteFile(fullDir, file.name);
           }
         } catch (err) {
           _didIteratorError2 = true;
