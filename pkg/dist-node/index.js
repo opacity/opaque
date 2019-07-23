@@ -1797,9 +1797,7 @@ function () {
     const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
     if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
     const meta = yield masterHandle.getFolderMeta(fullDir);
-    yield Promise.all([
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+    yield Promise.all([_asyncToGenerator(function* () {
       try {
         var _iteratorNormalCompletion = true;
         var _didIteratorError = false;
@@ -1828,9 +1826,7 @@ function () {
         console.error("Failed to delete sub folders");
         throw err;
       }
-    }),
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+    })(), _asyncToGenerator(function* () {
       try {
         var _iteratorNormalCompletion2 = true;
         var _didIteratorError2 = false;
@@ -1859,7 +1855,7 @@ function () {
         console.error("Failed to delete file");
         throw err;
       }
-    })]);
+    })()]);
 
     try {
       yield masterHandle.deleteFolderMeta(fullDir);

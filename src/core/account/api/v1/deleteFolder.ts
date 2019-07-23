@@ -10,7 +10,7 @@ const deleteFolder = async (masterHandle: MasterHandle, dir: string, name: strin
 	const meta = await masterHandle.getFolderMeta(fullDir)
 
 	await Promise.all([
-		async () => {
+		(async () => {
 			try {
 				for (let folder of meta.folders) {
 					await masterHandle.deleteFolder(fullDir, folder.name)
@@ -19,8 +19,8 @@ const deleteFolder = async (masterHandle: MasterHandle, dir: string, name: strin
 				console.error("Failed to delete sub folders")
 				throw err
 			}
-		},
-		async () => {
+		})(),
+		(async () => {
 			try {
 				for (let file of meta.files) {
 					await masterHandle.deleteFile(fullDir, file.name)
@@ -29,7 +29,7 @@ const deleteFolder = async (masterHandle: MasterHandle, dir: string, name: strin
 				console.error("Failed to delete file")
 				throw err
 			}
-		}
+		})()
 	])
 
 	try {

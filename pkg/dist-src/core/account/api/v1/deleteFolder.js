@@ -5,7 +5,7 @@ const deleteFolder = async (masterHandle, dir, name) => {
         throw new Error("Invalid folder name");
     const meta = await masterHandle.getFolderMeta(fullDir);
     await Promise.all([
-        async () => {
+        (async () => {
             try {
                 for (let folder of meta.folders) {
                     await masterHandle.deleteFolder(fullDir, folder.name);
@@ -15,8 +15,8 @@ const deleteFolder = async (masterHandle, dir, name) => {
                 console.error("Failed to delete sub folders");
                 throw err;
             }
-        },
-        async () => {
+        })(),
+        (async () => {
             try {
                 for (let file of meta.files) {
                     await masterHandle.deleteFile(fullDir, file.name);
@@ -26,7 +26,7 @@ const deleteFolder = async (masterHandle, dir, name) => {
                 console.error("Failed to delete file");
                 throw err;
             }
-        }
+        })()
     ]);
     try {
         await masterHandle.deleteFolderMeta(fullDir);
