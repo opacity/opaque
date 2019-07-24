@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import HDKey from "hdkey";
-import { FolderMeta } from "./core/account/metadata";
+import { NetQueue } from "./utils/netQueue";
+import { FolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
 import { RequireOnlyOne } from "./types/require-only-one";
 /**
  * **_this should never be shared or left in storage_**
@@ -32,19 +33,7 @@ declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
     metaQueue: {
-        [key: string]: {
-            resolve: () => void;
-            file: {
-                [key: string]: any;
-                name: string;
-                size: number;
-                lastModified: number;
-            };
-            finishedUpload: {
-                [key: string]: any;
-                handle: string;
-            };
-        }[];
+        [key: string]: NetQueue<FolderMeta>;
     };
     /**
      * creates a master handle from an account
@@ -67,8 +56,8 @@ declare class MasterHandle extends HDKey {
     private generateSubHDKey;
     uploadFile: (dir: string, file: File) => import("events").EventEmitter;
     downloadFile: (handle: string) => import("./download").default;
-    deleteFile: (dir: string, name: string) => Promise<void>;
-    deleteVersion: (dir: string, handle: string) => Promise<void>;
+    deleteFile: (dir: string, file: FileEntryMeta) => Promise<void>;
+    deleteVersion: (dir: string, version: FileVersion) => Promise<void>;
     static getKey(from: HDKey, str: string): string;
     /**
      * creates a file key seed for validating
@@ -86,17 +75,12 @@ declare class MasterHandle extends HDKey {
     createFolderMeta: (dir: string) => Promise<void>;
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
-    deleteFolder: (dir: string, name: string) => Promise<void>;
+    deleteFolder: (dir: string, folder: FolderEntryMeta) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{}>;
-    queueMeta: (dir: string, { file, finishedUpload }: {
-        file: any;
-        finishedUpload: any;
-    }) => Promise<void>;
-    private _updateMetaFromQueue;
 }
 export { Account, MasterHandle, HDKey };
