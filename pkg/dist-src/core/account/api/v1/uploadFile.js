@@ -19,7 +19,13 @@ const uploadFile = (masterHandle, dir, file) => {
             payload: new FileEntryMeta({
                 name: file.name,
                 modified: file.lastModified,
-                versions: [new FileVersion({ handle: finishedUpload.handle })]
+                versions: [
+                    new FileVersion({
+                        handle: finishedUpload.handle,
+                        size: file.size,
+                        modified: file.lastModified
+                    })
+                ]
             })
         });
         masterHandle.metaQueue[dir].once("update", meta => {

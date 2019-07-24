@@ -28,7 +28,13 @@ const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 			payload: new FileEntryMeta({
 				name: file.name,
 				modified: file.lastModified,
-				versions: [new FileVersion({ handle: finishedUpload.handle })]
+				versions: [
+					new FileVersion({
+						handle: finishedUpload.handle,
+						size: file.size,
+						modified: file.lastModified
+					})
+				]
 			})
 		})
 
