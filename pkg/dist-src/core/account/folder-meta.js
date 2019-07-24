@@ -1,3 +1,5 @@
+import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
+import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
 /**
  * a metadata class to describe a folder for the UI
  */
@@ -8,18 +10,38 @@ class FolderMeta {
      * @param name - a nickname shown on the folder when accessed without adding to account metadata
      * @param files - the files included only in the most shallow part of the folder
      * @param created - when the folder was created (if not created now) in `ms`
-     * @param hidden - if the folder should be hidden (this could also be automatically generated within the UI)
-     * @param locked - if the folder's metadata is encrypted (will require password in the UI)
-     *  NOTE: may need bytes prefixed to meta to determine whether it was encrypted
-     * @param tags - tags assigned to the folder for organization/searching
+     * @param created - when the folder was changed (if not modified now) in `ms`
      */
-    constructor({ name = "Folder", files = [], created = Date.now(), hidden = false, locked = false, tags = [] } = {}) {
+    constructor({ name = "Folder", files = [], folders = [], created = Date.now(), modified = Date.now() } = {}) {
+        this.minify = () => new MinifiedFolderMeta([
+            this.name,
+            this.files.map(file => new FileEntryMeta(file).minify()),
+            this.folders.map(folder => new FolderEntryMeta(folder).minify()),
+            this.created,
+            this.modified
+        ]);
         this.name = name;
         this.files = files;
+        this.folders = folders;
         this.created = created;
-        this.hidden = hidden;
-        this.locked = locked;
-        this.tags = tags;
+        this.modified = modified;
     }
 }
-export { FolderMeta };
+class MinifiedFolderMeta extends Array {
+    constructor([name, files, folders, created, modified]) {
+        super(5);
+        this.unminify = () => new FolderMeta({
+            name: this[0],
+            files: this[1].map(file => new MinifiedFileEntryMeta(file).unminify()),
+            folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder).unminify()),
+            created: this[3],
+            modified: this[4]
+        });
+        this[0] = name;
+        this[1] = files;
+        this[2] = folders;
+        this[3] = created;
+        this[4] = modified;
+    }
+}
+export { FolderMeta, MinifiedFolderMeta };

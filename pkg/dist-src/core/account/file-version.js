@@ -5,21 +5,37 @@ class FileVersion {
     /**
      * create metadata for a file version
      *
-     * @param size - size in bytes of the file
-     * @param location - // DEPRECATED location on the network of the file
      * @param handle - the file handle
-     * @param hash - a hash of the file
-     *   NOTE: probably `sha1`
-     * @param modified - the date in `ms` that this version of the file was originally changed
+     * @param size - the size of the file in bytes
+     * @param created - the date this version was uploaded
+     * @param modified - the date the filesystem marked as last modified
      */
-    constructor({ size, 
-    // location,
-    handle, hash, modified = Date.now() }) {
-        this.size = size;
-        // this.location = location
+    constructor({ handle, size, created = Date.now(), modified = Date.now() }) {
+        this.minify = () => new MinifiedFileVersion([
+            this.handle,
+            this.size,
+            this.created,
+            this.modified
+        ]);
         this.handle = handle;
-        this.hash = hash;
+        this.size = size;
+        this.created = created;
         this.modified = modified;
     }
 }
-export { FileVersion };
+class MinifiedFileVersion extends Array {
+    constructor([handle, size, created, modified]) {
+        super(4);
+        this.unminify = () => new FileVersion({
+            handle: this[0],
+            size: this[1],
+            created: this[2],
+            modified: this[3]
+        });
+        this[0] = handle;
+        this[1] = size;
+        this[2] = created;
+        this[3] = modified;
+    }
+}
+export { FileVersion, MinifiedFileVersion };
