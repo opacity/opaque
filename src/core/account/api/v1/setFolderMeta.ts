@@ -1,16 +1,16 @@
-import { hash } from "../../../../core/hashing";
-import { encryptString } from "../../../../core/encryption";
-import { setMetadata } from "../../../../core/requests/metadata";
+import { hash } from "../../../hashing";
+import { encryptString } from "../../../encryption";
+import { setMetadata } from "../../../requests/metadata";
 
 import { MasterHandle } from "../../../../account";
-import { FolderMeta } from "../../../../core/account/folder-meta";
+import { FolderMeta } from "../../folder-meta";
 
 const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta: FolderMeta) => {
 	const
 		folderKey = masterHandle.getFolderHDKey(dir),
 		key = hash(folderKey.privateKey.toString("hex")),
-		metaString = JSON.stringify(folderMeta),
-		encryptedMeta = encryptString(key, metaString, "utf8").toHex()
+		metaString = JSON.stringify(folderMeta.minify()),
+		encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64")
 
 	// TODO: verify folder can only be changed by the creating account
 	await setMetadata(

@@ -1,6 +1,10 @@
 import { EventEmitter } from "events";
 import Upload from "../../../../upload";
+
 import { MasterHandle } from "../../../../account";
+import { FileEntryMeta } from "../../file-entry";
+import { FileVersion } from "../../file-version";
+import { createMetaQueue } from "./createMetaQueue";
 
 const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 	const
@@ -18,12 +22,22 @@ const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 	});
 
 	upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
-		await masterHandle.queueMeta(dir, { file, finishedUpload })
+		createMetaQueue(masterHandle, dir)
+		masterHandle.metaQueue[dir].push({
+			type: "add-file",
+			payload: new FileEntryMeta({
+				name: file.name,
+				modified: file.lastModified,
+				versions: [new FileVersion({ handle: finishedUpload.handle })]
+			})
+		})
 
-		ee.emit("finish", finishedUpload)
-	});
+		masterHandle.metaQueue[dir].once("update", meta => {
+			ee.emit("finish", finishedUpload)
+		})
+	})
 
-	return ee;
+	return ee
 }
 
 export { uploadFile }

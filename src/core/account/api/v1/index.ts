@@ -1,19 +1,22 @@
 export { getHandle } from "../v0/getHandle";
 export { generateSubHDKey } from "../v0/generateSubHDKey";
-export { deleteFile } from "../v0/deleteFile";
-export { deleteVersion } from "../v0/deleteVersion";
 export { downloadFile } from "../v0/downloadFile";
 export { getFolderHDKey } from "../v0/getFolderHDKey";
-export { uploadFile } from "../v0/uploadFile";
 export { getFolderLocation } from "../v0/getFolderLocation";
 export { getAccountInfo } from "../v0/getAccountInfo";
 export { isPaid } from "../v0/isPaid";
 export { register } from "../v0/register";
 
-export { createFolderMeta } from "./createFolderMeta";
 export { createFolder } from "./createFolder";
-export { deleteFolderMeta } from "./deleteFolderMeta";
+export { createFolderMeta } from "./createFolderMeta";
+export { createMetaQueue } from "./createMetaQueue";
+
+export { deleteFile } from "./deleteFile";
 export { deleteFolder } from "./deleteFolder";
+export { deleteFolderMeta } from "./deleteFolderMeta";
+export { deleteVersion } from "./deleteVersion";
+
+export { getFolderMeta } from "./getFolderMeta";
 export { login } from "./login";
 export { setFolderMeta } from "./setFolderMeta";
-export { getFolderMeta } from "./getFolderMeta";
+export { uploadFile } from "./uploadFile";

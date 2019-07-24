@@ -4,19 +4,25 @@ import { MasterHandle } from "../../../../account";
 import { getFolderMeta } from "../v0/index";
 
 const login = async (masterHandle: MasterHandle) => {
-	// try older meta first
+	// try newer meta
 	try {
-		const meta = await getFolderMeta(masterHandle, "/")
-
-		masterHandle.createFolderMeta("/")
-		masterHandle.setFolderMeta("/", meta)
+		await masterHandle.getFolderMeta("/")
 	} catch (err) {
+		// try older meta
 		try {
-			await masterHandle.getFolderMeta("/")
+			const meta = await getFolderMeta(masterHandle, "/")
+
+			await masterHandle.deleteFolderMeta("/").catch(console.warn)
+			await masterHandle.createFolderMeta("/").catch(console.warn)
+
+			console.info("--- META ---", meta)
+			await masterHandle.setFolderMeta("/", new FolderMeta(meta))
 		} catch (err) {
+			// no meta exists
+			// set meta to an empty meta
 			console.warn(err)
-			masterHandle.createFolderMeta("/")
-			masterHandle.setFolderMeta("/", new FolderMeta())
+			await masterHandle.createFolderMeta("/").catch(console.warn)
+			await masterHandle.setFolderMeta("/", new FolderMeta())
 		}
 	}
 }

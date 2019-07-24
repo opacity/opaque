@@ -2,19 +2,21 @@ import {
   generateMnemonic,
   mnemonicToSeedSync,
   validateMnemonic,
-} from "bip39";
-import HDKey, { fromMasterSeed } from "hdkey";
+} from "bip39"
+import HDKey, { fromMasterSeed } from "hdkey"
 import * as namehash from "eth-ens-namehash"
-import { debounce } from "debounce"
 
-import { hashToPath } from "./utils/hashToPath";
-import { hash } from "./core/hashing";
+import { hashToPath } from "./utils/hashToPath"
+import { hash } from "./core/hashing"
+
+import { NetQueue } from "./utils/netQueue"
 
 import {
   FolderMeta,
   FileEntryMeta,
-  FileVersion
-} from "./core/account/metadata";
+  FileVersion,
+  FolderEntryMeta
+} from "./core/account/metadata"
 
 import {
   getFolderHDKey,
@@ -35,9 +37,9 @@ import {
   register,
   generateSubHDKey,
   getHandle
-} from "./core/account/api/v1/index";
+} from "./core/account/api/v1/index"
 
-import { RequireOnlyOne } from "./types/require-only-one";
+import { RequireOnlyOne } from "./types/require-only-one"
 
 /**
  * **_this should never be shared or left in storage_**
@@ -83,19 +85,7 @@ class MasterHandle extends HDKey {
   uploadOpts
   downloadOpts
   metaQueue: {
-    [key: string]: {
-      resolve: () => void,
-      file: {
-        [key: string]: any,
-        name: string,
-        size: number,
-        lastModified: number
-      },
-      finishedUpload: {
-        [key: string]: any,
-        handle: string
-      }
-    }[]
+    [key: string]: NetQueue<FolderMeta>
   } = {}
 
   /**
@@ -153,11 +143,11 @@ class MasterHandle extends HDKey {
   downloadFile = (handle: string) =>
     downloadFile(this, handle)
 
-  deleteFile = (dir: string, name: string) =>
-    deleteFile(this, dir, name)
+  deleteFile = (dir: string, file: FileEntryMeta) =>
+    deleteFile(this, dir, file)
 
-  deleteVersion = (dir: string, handle: string) =>
-    deleteVersion(this, dir, handle)
+  deleteVersion = (dir: string, version: FileVersion) =>
+    deleteVersion(this, dir, version)
 
   static getKey(from: HDKey, str: string) {
     return hash(from.privateKey.toString("hex"), str);
@@ -192,8 +182,8 @@ class MasterHandle extends HDKey {
   deleteFolderMeta = async (dir: string) =>
     deleteFolderMeta(this, dir)
 
-  deleteFolder = async (dir: string, name: string) =>
-    deleteFolder(this, dir, name)
+  deleteFolder = async (dir: string, folder: FolderEntryMeta) =>
+    deleteFolder(this, dir, folder)
 
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) =>
     setFolderMeta(this, dir, folderMeta)
@@ -212,71 +202,6 @@ class MasterHandle extends HDKey {
 
   register = async (duration?: number, limit?: number) =>
     register(this, duration, limit)
-
-
-  queueMeta = async (dir: string, { file, finishedUpload }) => {
-    let
-      resolve,
-      promise = new Promise(resolvePromise => {
-        resolve = resolvePromise
-      })
-
-    this.metaQueue[dir] = this.metaQueue[dir] || []
-    this.metaQueue[dir].push({ file, finishedUpload, resolve })
-
-    this._updateMetaFromQueue(dir)
-
-    await promise
-  }
-
-  private _updateMetaFromQueue = debounce(async (dir: string) => {
-    const
-      folderMeta = await this.getFolderMeta(dir),
-      copy = Object.assign([], this.metaQueue[dir]),
-      finished: (() => void)[] = []
-
-    copy.forEach(({ file, finishedUpload, resolve }) => {
-      const
-        oldMetaIndex = folderMeta.files.findIndex(
-          e => e.type == "file" && e.name == file.name
-        ),
-        oldMeta = (
-          oldMetaIndex !== -1
-            ? (folderMeta.files[oldMetaIndex] as FileEntryMeta)
-            : ({} as FileEntryMeta)
-        ),
-        version = new FileVersion({
-          handle: finishedUpload.handle
-        }),
-        meta = new FileEntryMeta({
-          name: file.name,
-          created: oldMeta.created,
-          versions:
-            [version, ...(oldMeta.versions || [])],
-        })
-
-      // metadata existed previously
-      if (oldMetaIndex !== -1) {
-        folderMeta.files[oldMetaIndex] = meta;
-      } else {
-        folderMeta.files.unshift(meta);
-      }
-
-      finished.push(resolve)
-    })
-
-    try {
-      await this.setFolderMeta(dir, folderMeta)
-    } catch (err) {
-      console.error("could not finish setting meta")
-      throw err
-    }
-
-    // clean queue
-    this.metaQueue[dir].splice(0, copy.length)
-
-    finished.forEach(resolve => { resolve() })
-  }, 500)
 }
 
 export { Account, MasterHandle, HDKey };
