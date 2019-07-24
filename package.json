@@ -1,6 +1,6 @@
 {
   "name": "opaque",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "files": [
     "pkg/dist-*/",
     "pkg/bin/"
