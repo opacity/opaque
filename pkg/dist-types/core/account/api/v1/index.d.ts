@@ -1,9 +1,9 @@
-export { getHandle } from "../v0/getHandle";
-export { generateSubHDKey } from "../v0/generateSubHDKey";
 export { downloadFile } from "../v0/downloadFile";
+export { generateSubHDKey } from "../v0/generateSubHDKey";
+export { getAccountInfo } from "../v0/getAccountInfo";
 export { getFolderHDKey } from "../v0/getFolderHDKey";
 export { getFolderLocation } from "../v0/getFolderLocation";
-export { getAccountInfo } from "../v0/getAccountInfo";
+export { getHandle } from "../v0/getHandle";
 export { isPaid } from "../v0/isPaid";
 export { register } from "../v0/register";
 export { createFolder } from "./createFolder";
