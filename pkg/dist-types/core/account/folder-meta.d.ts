@@ -44,6 +44,6 @@ declare class MinifiedFolderMeta extends Array {
     /** when the folder was changed (if not modified now) in `ms` */
     4: number;
     constructor([name, files, folders, created, modified]: MinifiedFolderMetaProps);
-    unminify(): FolderMeta;
+    unminify: () => FolderMeta;
 }
 export { FolderMeta, MinifiedFolderMeta, MinifiedFolderMetaProps };

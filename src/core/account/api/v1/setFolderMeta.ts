@@ -23,3 +23,4 @@ const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta
 }
 
 export { setFolderMeta }
+

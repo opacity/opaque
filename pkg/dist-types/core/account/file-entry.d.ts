@@ -26,7 +26,7 @@ declare class FileEntryMeta {
         modified?: number;
         versions?: FileVersion[];
     });
-    minify(): MinifiedFileEntryMeta;
+    minify: () => MinifiedFileEntryMeta;
 }
 declare type MinifiedFileEntryMetaProps = [string, number, number, MinifiedFileVersion[]];
 declare class MinifiedFileEntryMeta extends Array {

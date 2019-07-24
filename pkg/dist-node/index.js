@@ -1395,12 +1395,10 @@ class FolderEntryMeta {
     name,
     location
   }) {
+    this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
+
     this.name = name;
     this.location = location;
-  }
-
-  minify() {
-    return new MinifiedFolderEntryMeta([this.name, this.location]);
   }
 
 }
@@ -1408,15 +1406,14 @@ class FolderEntryMeta {
 class MinifiedFolderEntryMeta extends Array {
   constructor([name, location]) {
     super(2);
-    this[0] = name;
-    this[1] = location;
-  }
 
-  unminify() {
-    return new FolderEntryMeta({
+    this.unminify = () => new FolderEntryMeta({
       name: this[0],
       location: this[1]
     });
+
+    this[0] = name;
+    this[1] = location;
   }
 
 }
@@ -1429,24 +1426,41 @@ class FileVersion {
    * create metadata for a file version
    *
    * @param handle - the file handle
+   * @param size - the size of the file in bytes
+   * @param created - the date this version was uploaded
+   * @param modified - the date the filesystem marked as last modified
    */
   constructor({
-    handle
+    handle,
+    size,
+    created = Date.now(),
+    modified = Date.now()
   }) {
-    this.handle = handle;
-  }
+    this.minify = () => new MinifiedFileVersion([this.handle, this.size, this.created, this.modified]);
 
-  minify() {
-    return new MinifiedFileVersion(this.handle);
+    this.handle = handle;
+    this.size = size;
+    this.created = created;
+    this.modified = modified;
   }
 
 }
 
-class MinifiedFileVersion extends String {
-  unminify() {
-    return new FileVersion({
-      handle: this.toString()
+class MinifiedFileVersion extends Array {
+  constructor([handle, size, created, modified]) {
+    super(4);
+
+    this.unminify = () => new FileVersion({
+      handle: this[0],
+      size: this[1],
+      created: this[2],
+      modified: this[3]
     });
+
+    this[0] = handle;
+    this[1] = size;
+    this[2] = created;
+    this[3] = modified;
   }
 
 }
@@ -1471,14 +1485,13 @@ class FileEntryMeta {
     versions = []
   }) {
     this.type = "file";
+
+    this.minify = () => new MinifiedFileEntryMeta([this.name, this.created, this.modified, this.versions.map(version => new FileVersion(version).minify())]);
+
     this.name = name;
     this.created = created;
     this.modified = modified;
     this.versions = versions;
-  }
-
-  minify() {
-    return new MinifiedFileEntryMeta([this.name, this.created, this.modified, this.versions.map(version => version.minify())]);
   }
 
 }
@@ -1522,7 +1535,7 @@ class FolderMeta {
     created = Date.now(),
     modified = Date.now()
   } = {}) {
-    this.minify = () => new MinifiedFolderMeta([this.name, this.files.map(file => file.minify()), this.folders.map(folder => folder.minify()), this.created, this.modified]);
+    this.minify = () => new MinifiedFolderMeta([this.name, this.files.map(file => new FileEntryMeta(file).minify()), this.folders.map(folder => new FolderEntryMeta(folder).minify()), this.created, this.modified]);
 
     this.name = name;
     this.files = files;
@@ -1536,21 +1549,20 @@ class FolderMeta {
 class MinifiedFolderMeta extends Array {
   constructor([name, files, folders, created, modified]) {
     super(5);
-    this[0] = name;
-    this[1] = files;
-    this[2] = folders;
-    this[3] = created;
-    this[4] = modified;
-  }
 
-  unminify() {
-    return new FolderMeta({
+    this.unminify = () => new FolderMeta({
       name: this[0],
       files: this[1].map(file => new MinifiedFileEntryMeta(file).unminify()),
       folders: this[2].map(folder => new MinifiedFolderEntryMeta(folder).unminify()),
       created: this[3],
       modified: this[4]
     });
+
+    this[0] = name;
+    this[1] = files;
+    this[2] = folders;
+    this[3] = created;
+    this[4] = modified;
   }
 
 }
@@ -2110,7 +2122,9 @@ const uploadFile = (masterHandle, dir, file) => {
           name: file.name,
           modified: file.lastModified,
           versions: [new FileVersion({
-            handle: finishedUpload.handle
+            handle: finishedUpload.handle,
+            size: file.size,
+            modified: file.lastModified
           })]
         })
       });
