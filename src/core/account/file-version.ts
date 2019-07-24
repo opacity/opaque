@@ -2,49 +2,80 @@
  * a metadata class to describe a version of a file as it relates to a filesystem
  */
 class FileVersion {
-	/** size in bytes of the file */
-	size: number
-	/** location on the network of the file */
-	// location: string
-	//** the shareable handle of the file */
+	/** the shareable handle of the file */
 	handle: string
-	/**
-	 * a hash of the file
-	 * NOTE: probably `sha1`
-	 */
-	hash: string
-	/** the date in `ms` that this version of the file was originally changed */
+	/** the size of the file in bytes */
+	size: number
+	/** the date in `ms` that this version was uploaded */
+	created: number
+	/** the date in `ms` that the filesystem marked as last modified */
 	modified: number
 
 	/**
 	 * create metadata for a file version
 	 *
-	 * @param size - size in bytes of the file
-	 * @param location - // DEPRECATED location on the network of the file
 	 * @param handle - the file handle
-	 * @param hash - a hash of the file
-	 *   NOTE: probably `sha1`
-	 * @param modified - the date in `ms` that this version of the file was originally changed
+	 * @param size - the size of the file in bytes
+	 * @param created - the date this version was uploaded
+	 * @param modified - the date the filesystem marked as last modified
 	 */
 	constructor ({
-		size,
-		// location,
 		handle,
-		hash,
+		size,
+		created = Date.now(),
 		modified = Date.now()
 	}: {
-		size: number
-		// location: string
 		handle: string
-		hash?: string
+		size: number
+		created?: number
 		modified?: number
 	}) {
-		this.size = size
-		// this.location = location
 		this.handle = handle
-		this.hash = hash
+		this.size = size
+		this.created = created
 		this.modified = modified
 	}
+
+	minify = () => new MinifiedFileVersion([
+		this.handle,
+		this.size,
+		this.created,
+		this.modified
+	])
 }
 
-export { FileVersion }
+type MinifiedFileVersionProps = [
+	/** the shareable handle of the file */
+	string,
+	/** the size of the file in bytes */
+	number,
+	/** the date in `ms` that this version was uploaded */
+	number,
+	/** the date in `ms` that the filesystem marked as last modified */
+	number
+]
+
+class MinifiedFileVersion extends Array {
+	constructor ([
+		handle,
+		size,
+		created,
+		modified
+	]: MinifiedFileVersionProps) {
+		super(4)
+
+		this[0] = handle
+		this[1] = size
+		this[2] = created
+		this[3] = modified
+	}
+
+	unminify = () => new FileVersion({
+		handle: this[0],
+		size: this[1],
+		created: this[2],
+		modified: this[3]
+	})
+}
+
+export { FileVersion, MinifiedFileVersion, MinifiedFileVersionProps }

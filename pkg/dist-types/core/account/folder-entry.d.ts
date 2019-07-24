@@ -2,7 +2,6 @@
  * a metadata class to describe where a folder can be found (for root metadata of an account)
  */
 declare class FolderEntryMeta {
-    type: string;
     /** a name of the folder shown in the UI */
     name: string;
     /**
@@ -21,5 +20,18 @@ declare class FolderEntryMeta {
         name: string;
         location: string;
     });
+    minify: () => MinifiedFolderEntryMeta;
 }
-export { FolderEntryMeta };
+declare type MinifiedFolderEntryMetaProps = [string, string];
+declare class MinifiedFolderEntryMeta extends Array {
+    /** a name of the folder shown in the UI */
+    0: string;
+    /**
+     * the public key for the metadata file
+     * it is how the file will be queried for (using the same system as for the account metadata)
+     */
+    1: string;
+    constructor([name, location]: MinifiedFolderEntryMetaProps);
+    unminify: () => FolderEntryMeta;
+}
+export { FolderEntryMeta, MinifiedFolderEntryMeta, MinifiedFolderEntryMetaProps };

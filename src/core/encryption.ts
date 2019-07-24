@@ -5,7 +5,7 @@ const Forge = { cipher: ForgeCipher, md: ForgeMd, util: ForgeUtil, random: Forge
 const ByteBuffer = Forge.util.ByteBuffer;
 
 // Encryption
-export function encrypt(key, byteBuffer) {
+export function encrypt(key, byteBuffer: ForgeUtil.ByteBuffer) {
   const keyBuf = new ByteBuffer(Buffer.from(key, "hex"))
   const iv = Forge.random.getBytesSync(IV_BYTE_LENGTH);
   const cipher = Forge.cipher.createCipher("AES-GCM", keyBuf);
