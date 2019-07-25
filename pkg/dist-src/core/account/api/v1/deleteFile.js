@@ -13,7 +13,7 @@ const deleteFile = async (masterHandle, dir, file) => {
     createMetaQueue(masterHandle, dir);
     masterHandle.metaQueue[dir].push({
         type: "remove-file",
-        payload: file
+        payload: existingFile
     });
 };
 export { deleteFile };

@@ -2,6 +2,7 @@
 import HDKey from "hdkey";
 import { NetQueue } from "./utils/netQueue";
 import { FolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
+import { MoveFileArgs, MoveFolderArgs, RenameFileArgs, RenameFolderArgs } from "./core/account/api/v1/index";
 import { RequireOnlyOne } from "./types/require-only-one";
 /**
  * **_this should never be shared or left in storage_**
@@ -76,6 +77,10 @@ declare class MasterHandle extends HDKey {
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
     deleteFolder: (dir: string, folder: FolderEntryMeta) => Promise<void>;
+    moveFile: (dir: string, { file, to }: MoveFileArgs) => Promise<void>;
+    moveFolder: (dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
+    renameFile: (dir: string, { file, name }: RenameFileArgs) => Promise<void>;
+    renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;

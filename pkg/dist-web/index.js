@@ -50,6 +50,40 @@ function _asyncToGenerator(fn) {
   };
 }
 
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    var ownKeys = Object.keys(source);
+
+    if (typeof Object.getOwnPropertySymbols === 'function') {
+      ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) {
+        return Object.getOwnPropertyDescriptor(source, sym).enumerable;
+      }));
+    }
+
+    ownKeys.forEach(function (key) {
+      _defineProperty(target, key, source[key]);
+    });
+  }
+
+  return target;
+}
+
 function _slicedToArray(arr, i) {
   return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _nonIterableRest();
 }
@@ -1982,7 +2016,7 @@ function () {
     createMetaQueue(masterHandle, dir);
     masterHandle.metaQueue[dir].push({
       type: "remove-file",
-      payload: file
+      payload: existingFile
     });
   });
 
@@ -2085,6 +2119,142 @@ function () {
   };
 }();
 
+const moveFile =
+/*#__PURE__*/
+function () {
+  var _ref2 = _asyncToGenerator(function* (masterHandle, dir, _ref) {
+    let file = _ref.file,
+        to = _ref.to;
+    const meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
+          toMeta = yield getFolderMeta$1(masterHandle, to).catch(console.warn);
+    if (!meta) throw new Error("Folder does not exist");
+    if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
+    const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
+
+    if (!existingFile) throw new Error("File no longer exists");
+    createMetaQueue(masterHandle, dir);
+    createMetaQueue(masterHandle, to);
+    masterHandle.metaQueue[dir].push({
+      type: "remove-file",
+      payload: existingFile
+    });
+    masterHandle.metaQueue[to].push({
+      type: "add-file",
+      payload: existingFile
+    });
+  });
+
+  return function moveFile(_x, _x2, _x3) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
+const moveFolder =
+/*#__PURE__*/
+function () {
+  var _ref2 = _asyncToGenerator(function* (masterHandle, dir, _ref) {
+    let folder = _ref.folder,
+        to = _ref.to;
+    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
+          newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
+    const folderMeta = yield getFolderMeta$1(masterHandle, oldDir).catch(console.warn),
+          outerMeta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
+          toMeta = yield getFolderMeta$1(masterHandle, to).catch(console.warn);
+    if (!folderMeta) throw new Error("Folder does not exist");
+    if (!outerMeta) throw new Error("Outer folder does not exist");
+    if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
+    if (yield getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
+    const existingFolder = outerMeta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
+
+    if (!existingFolder) throw new Error("File no longer exists");
+    yield createFolderMeta(masterHandle, newDir).catch(console.warn);
+    yield setFolderMeta(masterHandle, newDir, (yield getFolderMeta$1(masterHandle, oldDir)));
+    yield deleteFolderMeta(masterHandle, oldDir);
+    createMetaQueue(masterHandle, dir);
+    createMetaQueue(masterHandle, to);
+    masterHandle.metaQueue[dir].push({
+      type: "remove-folder",
+      payload: existingFolder
+    });
+    masterHandle.metaQueue[to].push({
+      type: "add-folder",
+      payload: existingFolder
+    });
+  });
+
+  return function moveFolder(_x, _x2, _x3) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
+const renameFile =
+/*#__PURE__*/
+function () {
+  var _ref2 = _asyncToGenerator(function* (masterHandle, dir, _ref) {
+    let file = _ref.file,
+        name = _ref.name;
+    const meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn);
+    if (!meta) throw new Error("Folder does not exist");
+    const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
+
+    if (!existingFile) throw new Error("File no longer exists");
+    createMetaQueue(masterHandle, dir);
+    masterHandle.metaQueue[dir].push({
+      type: "remove-file",
+      payload: existingFile
+    });
+    masterHandle.metaQueue[dir].push({
+      type: "add-file",
+      payload: new FileEntryMeta(_objectSpread({}, existingFile, {
+        name
+      }))
+    });
+  });
+
+  return function renameFile(_x, _x2, _x3) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
+const renameFolder =
+/*#__PURE__*/
+function () {
+  var _ref2 = _asyncToGenerator(function* (masterHandle, dir, _ref) {
+    let folder = _ref.folder,
+        name = _ref.name;
+    if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
+    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
+          newDir = (dir + "/" + name).replace(/\/+/g, "/");
+    const folderMeta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
+          meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn);
+    if (!folderMeta) throw new Error("Folder does not exist");
+    if (!meta) throw new Error("Outer folder does not exist");
+    if (yield getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
+    const existingFolder = meta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
+
+    if (!existingFolder) throw new Error("Folder no longer exists");
+    yield createFolder(masterHandle, dir, name);
+    yield setFolderMeta(masterHandle, newDir, (yield getFolderMeta$1(masterHandle, oldDir)));
+    yield deleteFolderMeta(masterHandle, oldDir);
+    createMetaQueue(masterHandle, dir);
+    masterHandle.metaQueue[dir].push({
+      type: "remove-folder",
+      payload: existingFolder
+    });
+    masterHandle.metaQueue[dir].push({
+      type: "add-folder",
+      payload: new FolderEntryMeta({
+        name,
+        location: getFolderLocation(masterHandle, newDir)
+      })
+    });
+  });
+
+  return function renameFolder(_x, _x2, _x3) {
+    return _ref2.apply(this, arguments);
+  };
+}();
+
 const uploadFile = (masterHandle, dir, file) => {
   const upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
         ee = new EventEmitter();
@@ -2146,6 +2316,10 @@ var index$1 = /*#__PURE__*/Object.freeze({
   deleteVersion: deleteVersion,
   getFolderMeta: getFolderMeta$1,
   login: login,
+  moveFile: moveFile,
+  moveFolder: moveFolder,
+  renameFile: renameFile,
+  renameFolder: renameFolder,
   setFolderMeta: setFolderMeta,
   uploadFile: uploadFile
 });
@@ -2299,27 +2473,95 @@ class MasterHandle extends HDKey {
       };
     }();
 
-    this.setFolderMeta =
+    this.moveFile =
     /*#__PURE__*/
     function () {
-      var _ref7 = _asyncToGenerator(function* (dir, folderMeta) {
-        return setFolderMeta(_this, dir, folderMeta);
+      var _ref8 = _asyncToGenerator(function* (dir, _ref7) {
+        let file = _ref7.file,
+            to = _ref7.to;
+        return moveFile(_this, dir, {
+          file,
+          to
+        });
       });
 
       return function (_x7, _x8) {
-        return _ref7.apply(this, arguments);
+        return _ref8.apply(this, arguments);
+      };
+    }();
+
+    this.moveFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref10 = _asyncToGenerator(function* (dir, _ref9) {
+        let folder = _ref9.folder,
+            to = _ref9.to;
+        return moveFolder(_this, dir, {
+          folder,
+          to
+        });
+      });
+
+      return function (_x9, _x10) {
+        return _ref10.apply(this, arguments);
+      };
+    }();
+
+    this.renameFile =
+    /*#__PURE__*/
+    function () {
+      var _ref12 = _asyncToGenerator(function* (dir, _ref11) {
+        let file = _ref11.file,
+            name = _ref11.name;
+        return renameFile(_this, dir, {
+          file,
+          name
+        });
+      });
+
+      return function (_x11, _x12) {
+        return _ref12.apply(this, arguments);
+      };
+    }();
+
+    this.renameFolder =
+    /*#__PURE__*/
+    function () {
+      var _ref14 = _asyncToGenerator(function* (dir, _ref13) {
+        let folder = _ref13.folder,
+            name = _ref13.name;
+        return renameFolder(_this, dir, {
+          folder,
+          name
+        });
+      });
+
+      return function (_x13, _x14) {
+        return _ref14.apply(this, arguments);
+      };
+    }();
+
+    this.setFolderMeta =
+    /*#__PURE__*/
+    function () {
+      var _ref15 = _asyncToGenerator(function* (dir, folderMeta) {
+        return setFolderMeta(_this, dir, folderMeta);
+      });
+
+      return function (_x15, _x16) {
+        return _ref15.apply(this, arguments);
       };
     }();
 
     this.getFolderMeta =
     /*#__PURE__*/
     function () {
-      var _ref8 = _asyncToGenerator(function* (dir) {
+      var _ref16 = _asyncToGenerator(function* (dir) {
         return getFolderMeta$1(_this, dir);
       });
 
-      return function (_x9) {
-        return _ref8.apply(this, arguments);
+      return function (_x17) {
+        return _ref16.apply(this, arguments);
       };
     }();
 
@@ -2342,12 +2584,12 @@ class MasterHandle extends HDKey {
     this.register =
     /*#__PURE__*/
     function () {
-      var _ref12 = _asyncToGenerator(function* (duration, limit) {
+      var _ref20 = _asyncToGenerator(function* (duration, limit) {
         return register(_this, duration, limit);
       });
 
-      return function (_x10, _x11) {
-        return _ref12.apply(this, arguments);
+      return function (_x18, _x19) {
+        return _ref20.apply(this, arguments);
       };
     }();
 

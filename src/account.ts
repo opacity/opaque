@@ -36,7 +36,15 @@ import {
   login,
   register,
   generateSubHDKey,
-  getHandle
+  getHandle,
+  moveFile,
+  MoveFileArgs,
+  moveFolder,
+  MoveFolderArgs,
+  renameFile,
+  RenameFileArgs,
+  renameFolder,
+  RenameFolderArgs
 } from "./core/account/api/v1/index"
 
 import { RequireOnlyOne } from "./types/require-only-one"
@@ -184,6 +192,18 @@ class MasterHandle extends HDKey {
 
   deleteFolder = async (dir: string, folder: FolderEntryMeta) =>
     deleteFolder(this, dir, folder)
+
+  moveFile = async (dir: string, { file, to }: MoveFileArgs) =>
+    moveFile(this, dir, { file, to })
+
+  moveFolder = async (dir: string, { folder, to }: MoveFolderArgs) =>
+    moveFolder(this, dir, { folder, to })
+
+  renameFile = async (dir: string, { file, name }: RenameFileArgs) =>
+    renameFile(this, dir, { file, name })
+
+  renameFolder = async (dir: string, { folder, name }: RenameFolderArgs) =>
+    renameFolder(this, dir, { folder, name })
 
   setFolderMeta = async (dir: string, folderMeta: FolderMeta) =>
     setFolderMeta(this, dir, folderMeta)
