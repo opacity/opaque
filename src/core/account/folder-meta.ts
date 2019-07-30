@@ -2,7 +2,9 @@ import { FileEntryMeta, MinifiedFileEntryMeta, MinifiedFileEntryMetaProps } from
 import { FolderEntryMeta, MinifiedFolderEntryMeta, MinifiedFolderEntryMetaProps } from "./folder-entry"
 
 /**
- * a metadata class to describe a folder for the UI
+ * metadata to describe a folder for the UI
+ *
+ * @public
  */
 class FolderMeta {
 	/** a nickname shown on the folder when accessed without adding to account metadata */
@@ -44,6 +46,7 @@ class FolderMeta {
 		this.modified = modified
 	}
 
+	/** @internal */
 	minify = () => new MinifiedFolderMeta([
 		this.name,
 		this.files.map(file => new FileEntryMeta(file).minify()),
@@ -61,6 +64,9 @@ type MinifiedFolderMetaProps = [
 	number
 ]
 
+/**
+ * @internal
+ */
 class MinifiedFolderMeta extends Array {
 	/** a nickname shown on the folder when accessed without adding to account metadata */
 	0: string

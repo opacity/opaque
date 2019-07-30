@@ -1,10 +1,11 @@
 import { FileVersion, MinifiedFileVersion, MinifiedFileVersionProps } from "./file-version"
 
 /**
- * a metadata class to describe a file as it relates to the UI
+ * metadata to describe a file as it relates to the UI
+ *
+ * @public
  */
 class FileEntryMeta {
-	type = "file"
 	/** the name of the file as shown in the UI */
 	name: string
 	/** the date in `ms` that this file was initially uploaded */
@@ -39,6 +40,7 @@ class FileEntryMeta {
 		this.versions = versions
 	}
 
+	/** @internal */
 	minify = () => new MinifiedFileEntryMeta([
 		this.name,
 		this.created,
@@ -54,6 +56,9 @@ type MinifiedFileEntryMetaProps = [
 	MinifiedFileVersion[]
 ]
 
+/**
+ * @internal
+ */
 class MinifiedFileEntryMeta extends Array {
 	/** the name of the file as shown in the UI */
 	0: string

@@ -1,20 +1,73 @@
-export { downloadFile } from "../v0/downloadFile";
-export { generateSubHDKey } from "../v0/generateSubHDKey";
-export { getAccountInfo } from "../v0/getAccountInfo";
-export { getFolderHDKey } from "../v0/getFolderHDKey";
-export { getFolderLocation } from "../v0/getFolderLocation";
-export { getHandle } from "../v0/getHandle";
-export { isPaid } from "../v0/isPaid";
-export { register } from "../v0/register";
+import { downloadFile } from "../v0/downloadFile";
+import { generateSubHDKey } from "../v0/generateSubHDKey";
+import { getAccountInfo } from "../v0/getAccountInfo";
+import { getFolderHDKey } from "../v0/getFolderHDKey";
+import { getFolderLocation } from "../v0/getFolderLocation";
+import { getHandle } from "../v0/getHandle";
+import { isPaid } from "../v0/isPaid";
+import { register } from "../v0/register";
 
-export { createFolder } from "./createFolder";
-export { createFolderMeta } from "./createFolderMeta";
-export { createMetaQueue } from "./createMetaQueue";
-export { deleteFile } from "./deleteFile";
-export { deleteFolder } from "./deleteFolder";
-export { deleteFolderMeta } from "./deleteFolderMeta";
-export { deleteVersion } from "./deleteVersion";
-export { getFolderMeta } from "./getFolderMeta";
-export { login } from "./login";
-export { setFolderMeta } from "./setFolderMeta";
-export { uploadFile } from "./uploadFile";
+import { createFolder } from "./createFolder";
+import { createFolderMeta } from "./createFolderMeta";
+import { createMetaQueue } from "./createMetaQueue";
+import { deleteFile } from "./deleteFile";
+import { deleteFolder } from "./deleteFolder";
+import { deleteFolderMeta } from "./deleteFolderMeta";
+import { deleteVersion } from "./deleteVersion";
+import { getFolderMeta } from "./getFolderMeta";
+import { login } from "./login";
+import { setFolderMeta } from "./setFolderMeta";
+import { uploadFile } from "./uploadFile";
+
+export {
+	downloadFile,
+	generateSubHDKey,
+	getAccountInfo,
+	getFolderHDKey,
+	getFolderLocation,
+	getHandle,
+	isPaid,
+	register,
+
+	createFolder,
+	createFolderMeta,
+	createMetaQueue,
+	deleteFile,
+	deleteFolder,
+	deleteFolderMeta,
+	deleteVersion,
+	getFolderMeta,
+	login,
+	setFolderMeta,
+	uploadFile
+}
+
+/**
+ * internal API v1
+ *
+ * @internal
+ */
+const v1 = {
+	downloadFile,
+	generateSubHDKey,
+	getAccountInfo,
+	getFolderHDKey,
+	getFolderLocation,
+	getHandle,
+	isPaid,
+	register,
+
+	createFolder,
+	createFolderMeta,
+	createMetaQueue,
+	deleteFile,
+	deleteFolder,
+	deleteFolderMeta,
+	deleteVersion,
+	getFolderMeta,
+	login,
+	setFolderMeta,
+	uploadFile
+}
+
+export default v1
