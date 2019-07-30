@@ -551,7 +551,7 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
   autoStart: true
 });
 /**
- * Downloading files
+ * @internal
  */
 
 class Download extends EventEmitter {
@@ -761,6 +761,14 @@ class EncryptStream extends Transform {
 
 }
 
+/**
+ * get a list of available plans
+ *
+ * @param endpoint
+ *
+ * @internal
+ */
+
 function getPlans(_x) {
   return _getPlans.apply(this, arguments);
 }
@@ -771,6 +779,15 @@ function _getPlans() {
   });
   return _getPlans.apply(this, arguments);
 }
+
+/**
+ * check whether a payment has gone through for an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to check
+ *
+ * @internal
+ */
 
 function checkPaymentStatus(_x, _x2) {
   return _checkPaymentStatus.apply(this, arguments);
@@ -786,6 +803,18 @@ function _checkPaymentStatus() {
   });
   return _checkPaymentStatus.apply(this, arguments);
 }
+
+/**
+ * request the creation of an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param metadataKey
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
 
 function createAccount(_x, _x2, _x3) {
   return _createAccount.apply(this, arguments);
@@ -807,9 +836,28 @@ function _createAccount() {
   return _createAccount.apply(this, arguments);
 }
 
+/**
+ * request creating a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
+
 function createMetadata$1(_x, _x2, _x3) {
   return _createMetadata.apply(this, arguments);
 }
+/**
+ * request deleting a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
 
 function _createMetadata() {
   _createMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
@@ -826,7 +874,17 @@ function _createMetadata() {
 
 function deleteMetadata(_x4, _x5, _x6) {
   return _deleteMetadata.apply(this, arguments);
-} // Metadata as hexstring as of right now
+}
+/**
+ * request changing a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ * @param metadata - the metadata to put
+ *
+ * @internal
+ */
 
 function _deleteMetadata() {
   _deleteMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
@@ -844,6 +902,15 @@ function _deleteMetadata() {
 function setMetadata(_x7, _x8, _x9, _x10) {
   return _setMetadata.apply(this, arguments);
 }
+/**
+ * request get of a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
 
 function _setMetadata() {
   _setMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
@@ -877,6 +944,16 @@ function _getMetadata() {
 }
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
+/**
+ * get a signed payload from an hdkey
+ *
+ * @param rawPayload - a payload object to be processed and signed
+ * @param hdNode = the account to sign with
+ * @param key
+ *
+ * @internal
+ */
+
 function getPayload(rawPayload, hdNode) {
   let key = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "requestBody";
   const payload = JSON.stringify(rawPayload);
@@ -891,6 +968,17 @@ function getPayload(rawPayload, hdNode) {
   signedPayload[key] = payload;
   return signedPayload;
 }
+/**
+ * get a signed formdata payload from an hdkey
+ *
+ * @param rawPayload - a payload object to be processed and signed
+ * @param extraPayload - additional (unsigned) payload information
+ * @param hdNode - the account to sign with
+ * @param key
+ *
+ * @internal
+ */
+
 function getPayloadFD(rawPayload, extraPayload, hdNode) {
   let key = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : "requestBody";
   // rawPayload.timestamp = Date.now();
@@ -1134,6 +1222,10 @@ const DEFAULT_OPTIONS$7 = Object.freeze({
 const DEFAULT_FILE_PARAMS = {
   blockSize: 64 * 1024
 };
+/**
+ * @internal
+ */
+
 class Upload extends EventEmitter {
   constructor(file, account) {
     var _this;
@@ -1239,8 +1331,8 @@ class Upload extends EventEmitter {
 
 }
 
-const getHandle = masterHandle => {
-  return masterHandle.privateKey.toString("hex") + masterHandle.chainCode.toString("hex");
+const downloadFile = (masterHandle, handle) => {
+  return new Download(handle, masterHandle.downloadOpts);
 };
 
 const hash = function hash() {
@@ -1266,9 +1358,17 @@ const generateSubHDKey = (masterHandle, pathString) => {
   return masterHandle.derive(path);
 };
 
-const downloadFile = (masterHandle, handle) => {
-  return new Download(handle, masterHandle.downloadOpts);
-};
+const getAccountInfo =
+/*#__PURE__*/
+function () {
+  var _ref = _asyncToGenerator(function* (masterHandle) {
+    return (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account;
+  });
+
+  return function getAccountInfo(_x) {
+    return _ref.apply(this, arguments);
+  };
+}();
 
 const getFolderHDKey = (masterHandle, dir) => {
   return generateSubHDKey(masterHandle, "folder: " + dir);
@@ -1313,17 +1413,9 @@ function () {
   };
 }();
 
-const getAccountInfo =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle) {
-    return (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account;
-  });
-
-  return function getAccountInfo(_x) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const getHandle = masterHandle => {
+  return masterHandle.privateKey.toString("hex") + masterHandle.chainCode.toString("hex");
+};
 
 const isPaid =
 /*#__PURE__*/
@@ -1399,22 +1491,28 @@ function () {
   };
 }();
 
+/**
+ * internal API v0
+ *
+ * @internal
+ */
 
-
-var index = /*#__PURE__*/Object.freeze({
-  getHandle: getHandle,
-  generateSubHDKey: generateSubHDKey,
-  downloadFile: downloadFile,
-  getFolderHDKey: getFolderHDKey,
-  getFolderLocation: getFolderLocation,
-  getFolderMeta: getFolderMeta,
-  getAccountInfo: getAccountInfo,
-  isPaid: isPaid,
-  register: register
-});
+const v0 = {
+  downloadFile,
+  generateSubHDKey,
+  getAccountInfo,
+  getFolderHDKey,
+  getFolderLocation,
+  getFolderMeta,
+  getHandle,
+  isPaid,
+  register
+};
 
 /**
- * a metadata class to describe where a folder can be found (for root metadata of an account)
+ * metadata to describe where a folder can be found (for root metadata of an account)
+ *
+ * @public
  */
 class FolderEntryMeta {
   /**
@@ -1428,6 +1526,7 @@ class FolderEntryMeta {
     let name = _ref.name,
         location = _ref.location;
 
+    /** @internal */
     this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
 
     this.name = name;
@@ -1435,6 +1534,10 @@ class FolderEntryMeta {
   }
 
 }
+/**
+ * @internal
+ */
+
 
 class MinifiedFolderEntryMeta extends Array {
   constructor(_ref2) {
@@ -1456,7 +1559,9 @@ class MinifiedFolderEntryMeta extends Array {
 }
 
 /**
- * a metadata class to describe a version of a file as it relates to a filesystem
+ * metadata to describe a version of a file as it relates to a filesystem
+ *
+ * @public
  */
 class FileVersion {
   /**
@@ -1475,6 +1580,7 @@ class FileVersion {
         _ref$modified = _ref.modified,
         modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
 
+    /** @internal */
     this.minify = () => new MinifiedFileVersion([this.handle, this.size, this.created, this.modified]);
 
     this.handle = handle;
@@ -1484,6 +1590,10 @@ class FileVersion {
   }
 
 }
+/**
+ * @internal
+ */
+
 
 class MinifiedFileVersion extends Array {
   constructor(_ref2) {
@@ -1511,7 +1621,9 @@ class MinifiedFileVersion extends Array {
 }
 
 /**
- * a metadata class to describe a file as it relates to the UI
+ * metadata to describe a file as it relates to the UI
+ *
+ * @public
  */
 
 class FileEntryMeta {
@@ -1531,8 +1643,8 @@ class FileEntryMeta {
         modified = _ref$modified === void 0 ? Date.now() : _ref$modified,
         _ref$versions = _ref.versions,
         versions = _ref$versions === void 0 ? [] : _ref$versions;
-    this.type = "file";
 
+    /** @internal */
     this.minify = () => new MinifiedFileEntryMeta([this.name, this.created, this.modified, this.versions.map(version => new FileVersion(version).minify())]);
 
     this.name = name;
@@ -1542,6 +1654,10 @@ class FileEntryMeta {
   }
 
 }
+/**
+ * @internal
+ */
+
 
 class MinifiedFileEntryMeta extends Array {
   constructor(_ref2) {
@@ -1569,7 +1685,9 @@ class MinifiedFileEntryMeta extends Array {
 }
 
 /**
- * a metadata class to describe a folder for the UI
+ * metadata to describe a folder for the UI
+ *
+ * @public
  */
 
 class FolderMeta {
@@ -1594,6 +1712,7 @@ class FolderMeta {
         _ref$modified = _ref.modified,
         modified = _ref$modified === void 0 ? Date.now() : _ref$modified;
 
+    /** @internal */
     this.minify = () => new MinifiedFolderMeta([this.name, this.files.map(file => new FileEntryMeta(file).minify()), this.folders.map(folder => new FolderEntryMeta(folder).minify()), this.created, this.modified]);
 
     this.name = name;
@@ -1604,6 +1723,10 @@ class FolderMeta {
   }
 
 }
+/**
+ * @internal
+ */
+
 
 class MinifiedFolderMeta extends Array {
   constructor(_ref2) {
@@ -2126,34 +2249,40 @@ const uploadFile = (masterHandle, dir, file) => {
   return ee;
 };
 
+/**
+ * internal API v1
+ *
+ * @internal
+ */
 
-
-var index$1 = /*#__PURE__*/Object.freeze({
-  downloadFile: downloadFile,
-  generateSubHDKey: generateSubHDKey,
-  getAccountInfo: getAccountInfo,
-  getFolderHDKey: getFolderHDKey,
-  getFolderLocation: getFolderLocation,
-  getHandle: getHandle,
-  isPaid: isPaid,
-  register: register,
-  createFolder: createFolder,
-  createFolderMeta: createFolderMeta,
-  createMetaQueue: createMetaQueue,
+const v1 = {
+  downloadFile,
+  generateSubHDKey,
+  getAccountInfo,
+  getFolderHDKey,
+  getFolderLocation,
+  getHandle,
+  isPaid,
+  register,
+  createFolder,
+  createFolderMeta,
+  createMetaQueue,
   deleteFile: deleteFile$1,
-  deleteFolder: deleteFolder,
-  deleteFolderMeta: deleteFolderMeta,
-  deleteVersion: deleteVersion,
+  deleteFolder,
+  deleteFolderMeta,
+  deleteVersion,
   getFolderMeta: getFolderMeta$1,
-  login: login,
-  setFolderMeta: setFolderMeta,
-  uploadFile: uploadFile
-});
+  login,
+  setFolderMeta,
+  uploadFile
+};
 
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for representing the account mnemonic
+ *
+ * @public
  */
 
 class Account {
@@ -2183,14 +2312,18 @@ class Account {
 
 }
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for creating a master handle from an account mnemonic
  *
+ * @remarks
+ *
  * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
+ *  <br /> - logging in to an account
+ *  <br /> - signing changes for the account
+ *  <br /> - deterministic entropy for generating features of an account (such as folder keys)
+ *
+ * @public
  */
 
 
@@ -2198,7 +2331,9 @@ class MasterHandle extends HDKey {
   /**
    * creates a master handle from an account
    *
-   * @param account - the account to generate the handle from
+   * @param _ - the account to generate the handle from
+   * @param _.account - an {@link Account}
+   * @param _.handle - an account handle as a string
    */
   constructor(_ref) {
     var _this;
@@ -2226,30 +2361,48 @@ class MasterHandle extends HDKey {
     this.uploadFile = (dir, file) => uploadFile(this, dir, file);
 
     this.downloadFile = handle => downloadFile(this, handle);
-
-    this.deleteFile = (dir, file) => deleteFile$1(this, dir, file);
-
-    this.deleteVersion = (dir, version) => deleteVersion(this, dir, version);
     /**
-     * creates a file key seed for validating
+     * deletes every version of a file and removes it from the metadata
      *
-     * @param file - the location of the file on the network
+     * @param dir - the containing folder
+     * @param file - file entry to delete (loosely matched name)
      */
 
 
-    this.getFileHDKey = file => {
-      return this.generateSubHDKey("file: " + file);
-    };
+    this.deleteFile = (dir, file) => deleteFile$1(this, dir, file);
+    /**
+     * deletes a single version of a file (ie. delete by handle)
+     *
+     * @param dir - the containing folder
+     * @param version - version to delete (loosely matched by handle)
+     */
+
+
+    this.deleteVersion = (dir, version) => deleteVersion(this, dir, version);
     /**
      * creates a dir key seed for validating and folder navigation
      *
-     * @param dir - the folder path in the UI
+     * @param dir - the folder
      */
 
 
     this.getFolderHDKey = dir => getFolderHDKey(this, dir);
+    /**
+     * get the location (ie. metadata id) of a folder
+     *
+     * @remarks this is a deterministic location derived from the account's hdkey to allow for random folder access
+     *
+     * @param dir - the folder to locate
+     */
+
 
     this.getFolderLocation = dir => getFolderLocation(this, dir);
+    /**
+     * request the creation of a folder metadata
+     *
+     * @param dir - the folder to create
+     */
+
 
     this.createFolderMeta =
     /*#__PURE__*/
@@ -2262,6 +2415,13 @@ class MasterHandle extends HDKey {
         return _ref3.apply(this, arguments);
       };
     }();
+    /**
+     * create folder {name} inside of {dir}
+     *
+     * @param dir - the containing folder
+     * @param name - the name of the new folder
+     */
+
 
     this.createFolder =
     /*#__PURE__*/
@@ -2365,39 +2525,15 @@ class MasterHandle extends HDKey {
       throw new Error("master handle was not of expected type");
     }
   }
+  /**
+   * get the account handle
+   */
+
 
   get handle() {
     return getHandle(this);
   }
 
-  static getKey(from, str) {
-    return hash(from.privateKey.toString("hex"), str);
-  }
-
 }
 
-class AccountMeta {
-  constructor(_ref) {
-    let planSize = _ref.planSize,
-        paidUntil = _ref.paidUntil,
-        _ref$preferences = _ref.preferences,
-        preferences = _ref$preferences === void 0 ? {} : _ref$preferences;
-    this.planSize = planSize;
-    this.paidUntil = paidUntil;
-    this.preferences = preferences;
-  }
-
-  setPreference(key, preference) {
-    Object.assign(this.preferences[key], preference);
-  }
-
-}
-
-class AccountPreferences {
-  constructor(obj) {
-    Object.assign(this, obj);
-  }
-
-}
-
-export { Account, AccountMeta, AccountPreferences, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata, index as v0, index$1 as v1 };
+export { Account, Download, FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MasterHandle, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta, Upload, checkPaymentStatus, createAccount, createMetadata$1 as createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata, v0, v1 };

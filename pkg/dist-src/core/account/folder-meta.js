@@ -1,7 +1,9 @@
 import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
 import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
 /**
- * a metadata class to describe a folder for the UI
+ * metadata to describe a folder for the UI
+ *
+ * @public
  */
 class FolderMeta {
     /**
@@ -13,6 +15,7 @@ class FolderMeta {
      * @param created - when the folder was changed (if not modified now) in `ms`
      */
     constructor({ name = "Folder", files = [], folders = [], created = Date.now(), modified = Date.now() } = {}) {
+        /** @internal */
         this.minify = () => new MinifiedFolderMeta([
             this.name,
             this.files.map(file => new FileEntryMeta(file).minify()),
@@ -27,6 +30,9 @@ class FolderMeta {
         this.modified = modified;
     }
 }
+/**
+ * @internal
+ */
 class MinifiedFolderMeta extends Array {
     constructor([name, files, folders, created, modified]) {
         super(5);

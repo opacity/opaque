@@ -1,5 +1,7 @@
 /**
- * a metadata class to describe a version of a file as it relates to a filesystem
+ * metadata to describe a version of a file as it relates to a filesystem
+ *
+ * @public
  */
 class FileVersion {
     /**
@@ -11,6 +13,7 @@ class FileVersion {
      * @param modified - the date the filesystem marked as last modified
      */
     constructor({ handle, size, created = Date.now(), modified = Date.now() }) {
+        /** @internal */
         this.minify = () => new MinifiedFileVersion([
             this.handle,
             this.size,
@@ -23,6 +26,9 @@ class FileVersion {
         this.modified = modified;
     }
 }
+/**
+ * @internal
+ */
 class MinifiedFileVersion extends Array {
     constructor([handle, size, created, modified]) {
         super(4);

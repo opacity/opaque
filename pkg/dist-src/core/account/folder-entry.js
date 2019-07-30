@@ -1,5 +1,7 @@
 /**
- * a metadata class to describe where a folder can be found (for root metadata of an account)
+ * metadata to describe where a folder can be found (for root metadata of an account)
+ *
+ * @public
  */
 class FolderEntryMeta {
     /**
@@ -10,6 +12,7 @@ class FolderEntryMeta {
      *   it is how the file will be queried for (using the same system as for the account metadata)
      */
     constructor({ name, location }) {
+        /** @internal */
         this.minify = () => new MinifiedFolderEntryMeta([
             this.name,
             this.location
@@ -18,6 +21,9 @@ class FolderEntryMeta {
         this.location = location;
     }
 }
+/**
+ * @internal
+ */
 class MinifiedFolderEntryMeta extends Array {
     constructor([name, location]) {
         super(2);
