@@ -10,7 +10,8 @@
   "main": "pkg/dist-node/index.js",
   "module": "pkg/dist-web/index.js",
   "scripts": {
-    "build": "pack build"
+    "build": "pack build",
+    "docs": "npm run build && npx api-extractor run --local --verbose && npx api-documenter markdown --input-folder=docs --output-folder=docs"
   },
   "@pika/pack": {
     "pipeline": [
@@ -26,6 +27,7 @@
     ]
   },
   "dependencies": {
+    "@microsoft/api-documenter": "^7.3.11",
     "axios": "^0.19.0",
     "bip39": "^3.0.2",
     "bn.js": "^4.11.8",
@@ -40,6 +42,7 @@
     "web3-utils": "^1.0.0-beta.54"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.3.4",
     "@pika/pack": "^0.3.7",
     "@pika/plugin-build-node": "^0.3.16",
     "@pika/plugin-build-web": "^0.3.16",
