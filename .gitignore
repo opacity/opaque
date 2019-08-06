@@ -62,3 +62,6 @@ typings/
 
 # build artifacts
 # pkg/**/*
+
+# docs artifacts
+temp/**/*

@@ -4,6 +4,15 @@ import HDKey from "hdkey"
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 
+/**
+ * get a signed payload from an hdkey
+ *
+ * @param rawPayload - a payload object to be processed and signed
+ * @param hdNode = the account to sign with
+ * @param key
+ *
+ * @internal
+ */
 export function getPayload(rawPayload, hdNode: HDKey, key = "requestBody") {
   const payload = JSON.stringify(rawPayload);
   const hash = EthUtil.keccak256(payload);
@@ -20,6 +29,16 @@ export function getPayload(rawPayload, hdNode: HDKey, key = "requestBody") {
   return signedPayload;
 }
 
+/**
+ * get a signed formdata payload from an hdkey
+ *
+ * @param rawPayload - a payload object to be processed and signed
+ * @param extraPayload - additional (unsigned) payload information
+ * @param hdNode - the account to sign with
+ * @param key
+ *
+ * @internal
+ */
 export function getPayloadFD(rawPayload: { [key: string]: any }, extraPayload, hdNode: HDKey, key = "requestBody") {
   // rawPayload.timestamp = Date.now();
 

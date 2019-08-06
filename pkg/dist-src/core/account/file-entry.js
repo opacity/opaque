@@ -1,6 +1,8 @@
 import { FileVersion, MinifiedFileVersion } from "./file-version";
 /**
- * a metadata class to describe a file as it relates to the UI
+ * metadata to describe a file as it relates to the UI
+ *
+ * @public
  */
 class FileEntryMeta {
     /**
@@ -12,7 +14,7 @@ class FileEntryMeta {
      * @param versions - versions of the uploaded file (the most recent of which should be the current version of the file)
      */
     constructor({ name, created = Date.now(), modified = Date.now(), versions = [] }) {
-        this.type = "file";
+        /** @internal */
         this.minify = () => new MinifiedFileEntryMeta([
             this.name,
             this.created,
@@ -25,6 +27,9 @@ class FileEntryMeta {
         this.versions = versions;
     }
 }
+/**
+ * @internal
+ */
 class MinifiedFileEntryMeta extends Array {
     constructor([name, created, modified, versions]) {
         super(4);

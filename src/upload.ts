@@ -30,6 +30,9 @@ const DEFAULT_FILE_PARAMS = {
   blockSize: 64 * 1024, // 64 KiB encryption blocks
 }
 
+/**
+ * @internal
+ */
 export default class Upload extends EventEmitter {
   account: HDKey
   options: UploadOptions

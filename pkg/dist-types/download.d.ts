@@ -8,7 +8,7 @@ declare type DownloadOptions = {
     endpoint?: string;
 };
 /**
- * Downloading files
+ * @internal
  */
 export default class Download extends EventEmitter {
     options: DownloadOptions;

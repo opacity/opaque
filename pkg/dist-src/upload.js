@@ -13,6 +13,9 @@ const DEFAULT_OPTIONS = Object.freeze({
 const DEFAULT_FILE_PARAMS = {
     blockSize: 64 * 1024,
 };
+/**
+ * @internal
+ */
 export default class Upload extends EventEmitter {
     constructor(file, account, opts = {}) {
         super();
