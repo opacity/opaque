@@ -1,11 +1,14 @@
 /// <reference types="node" />
 import HDKey from "hdkey";
-import { FolderMeta } from "./core/account/metadata";
+import { NetQueue } from "./utils/netQueue";
+import { FolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
 import { RequireOnlyOne } from "./types/require-only-one";
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for representing the account mnemonic
+ *
+ * @public
  */
 declare class Account {
     private _mnemonic;
@@ -18,46 +21,45 @@ declare class Account {
     constructor(mnemonic?: string);
     readonly seed: Buffer;
 }
+declare type MasterHandleCreator = RequireOnlyOne<{
+    account: Account;
+    handle: string;
+}, "account" | "handle">;
+declare type MasterHandleOptions = {
+    uploadOpts?: any;
+    downloadOpts?: any;
+};
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for creating a master handle from an account mnemonic
  *
+ * @remarks
+ *
  * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
+ *  <br /> - logging in to an account
+ *  <br /> - signing changes for the account
+ *  <br /> - deterministic entropy for generating features of an account (such as folder keys)
+ *
+ * @public
  */
 declare class MasterHandle extends HDKey {
     uploadOpts: any;
     downloadOpts: any;
     metaQueue: {
-        [key: string]: {
-            resolve: () => void;
-            file: {
-                [key: string]: any;
-                name: string;
-                size: number;
-                lastModified: number;
-            };
-            finishedUpload: {
-                [key: string]: any;
-                handle: string;
-            };
-        }[];
+        [key: string]: NetQueue<FolderMeta>;
     };
     /**
      * creates a master handle from an account
      *
-     * @param account - the account to generate the handle from
+     * @param _ - the account to generate the handle from
+     * @param _.account - an {@link Account}
+     * @param _.handle - an account handle as a string
      */
-    constructor({ account, handle, }: RequireOnlyOne<{
-        account: Account;
-        handle: string;
-    }, "account" | "handle">, { uploadOpts, downloadOpts }?: {
-        uploadOpts?: {};
-        downloadOpts?: {};
-    });
+    constructor({ account, handle, }: MasterHandleCreator, { uploadOpts, downloadOpts }?: MasterHandleOptions);
+    /**
+     * get the account handle
+     */
     readonly handle: string;
     /**
      * creates a sub key seed for validating
@@ -67,36 +69,54 @@ declare class MasterHandle extends HDKey {
     private generateSubHDKey;
     uploadFile: (dir: string, file: File) => import("events").EventEmitter;
     downloadFile: (handle: string) => import("./download").default;
-    deleteFile: (dir: string, name: string) => Promise<void>;
-    deleteVersion: (dir: string, handle: string) => Promise<void>;
-    static getKey(from: HDKey, str: string): string;
     /**
-     * creates a file key seed for validating
+     * deletes every version of a file and removes it from the metadata
      *
-     * @param file - the location of the file on the network
+     * @param dir - the containing folder
+     * @param file - file entry to delete (loosely matched name)
      */
-    getFileHDKey: (file: string) => HDKey;
+    deleteFile: (dir: string, file: FileEntryMeta) => Promise<void>;
+    /**
+     * deletes a single version of a file (ie. delete by handle)
+     *
+     * @param dir - the containing folder
+     * @param version - version to delete (loosely matched by handle)
+     */
+    deleteVersion: (dir: string, version: FileVersion) => Promise<void>;
     /**
      * creates a dir key seed for validating and folder navigation
      *
-     * @param dir - the folder path in the UI
+     * @param dir - the folder
      */
     getFolderHDKey: (dir: string) => HDKey;
+    /**
+     * get the location (ie. metadata id) of a folder
+     *
+     * @remarks this is a deterministic location derived from the account's hdkey to allow for random folder access
+     *
+     * @param dir - the folder to locate
+     */
     getFolderLocation: (dir: string) => string;
+    /**
+     * request the creation of a folder metadata
+     *
+     * @param dir - the folder to create
+     */
     createFolderMeta: (dir: string) => Promise<void>;
+    /**
+     * create folder {name} inside of {dir}
+     *
+     * @param dir - the containing folder
+     * @param name - the name of the new folder
+     */
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
-    deleteFolder: (dir: string, name: string) => Promise<void>;
+    deleteFolder: (dir: string, folder: FolderEntryMeta) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{}>;
-    queueMeta: (dir: string, { file, finishedUpload }: {
-        file: any;
-        finishedUpload: any;
-    }) => Promise<void>;
-    private _updateMetaFromQueue;
 }
-export { Account, MasterHandle, HDKey };
+export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };

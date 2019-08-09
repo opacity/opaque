@@ -1,9 +1,12 @@
 import Download from "./download";
 import Upload from "./upload";
-import * as v0 from "./core/account/api/v0/index";
-import * as v1 from "./core/account/api/v1/index";
-export { v0, v1 };
-export * from "./account";
-export * from "./core/account/metadata";
-export * from "./core/request";
 export { Download, Upload };
+import v0 from "./core/account/api/v0/index";
+import v1 from "./core/account/api/v1/index";
+export { v0, v1 };
+import { Account, MasterHandle, HDKey } from "./account";
+export { Account, MasterHandle, HDKey };
+import { FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta } from "./core/account/metadata";
+export { FileEntryMeta, FileVersion, FolderEntryMeta, FolderMeta, MinifiedFileEntryMeta, MinifiedFileVersion, MinifiedFolderEntryMeta, MinifiedFolderMeta };
+import { checkPaymentStatus, createAccount, createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata } from "./core/request";
+export { checkPaymentStatus, createAccount, createMetadata, deleteMetadata, getMetadata, getPayload, getPayloadFD, getPlans, setMetadata };

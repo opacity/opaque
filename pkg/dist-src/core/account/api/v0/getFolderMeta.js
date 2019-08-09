@@ -18,7 +18,7 @@ const getFolderMeta = async (masterHandle, dir) => {
         }
         catch (err) {
             console.error(err);
-            console.log(metaString);
+            console.info("META STRING:", metaString);
             throw new Error("metadata corrupted");
         }
     }

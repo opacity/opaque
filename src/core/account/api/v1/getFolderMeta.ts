@@ -10,7 +10,11 @@ import {
 	MinifiedFolderMeta
 } from "../../../../core/account/folder-meta";
 
+import { createMetaQueue } from "./createMetaQueue"
+
 const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<FolderMeta> => {
+	createMetaQueue(masterHandle, dir)
+
 	const
 		folderKey = masterHandle.getFolderHDKey(dir),
 		location = masterHandle.getFolderLocation(dir),
@@ -24,8 +28,6 @@ const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<F
 		)
 
 	try {
-		// TODO
-		// I have no idea why but the decrypted is correct hex without converting
 		const metaString = (
 			decrypt(
 				key,
@@ -39,7 +41,7 @@ const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<F
 			return new MinifiedFolderMeta(meta).unminify()
 		} catch (err) {
 			console.error(err)
-			console.warn(metaString)
+			console.info("META STRING:", metaString)
 
 			throw new Error("metadata corrupted")
 		}

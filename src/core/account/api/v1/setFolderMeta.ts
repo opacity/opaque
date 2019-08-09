@@ -1,9 +1,9 @@
-import { hash } from "../../../../core/hashing";
-import { encryptString } from "../../../../core/encryption";
-import { setMetadata } from "../../../../core/requests/metadata";
+import { hash } from "../../../hashing";
+import { encryptString } from "../../../encryption";
+import { setMetadata } from "../../../requests/metadata";
 
 import { MasterHandle } from "../../../../account";
-import { FolderMeta } from "../../../../core/account/folder-meta";
+import { FolderMeta } from "../../folder-meta";
 
 const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta: FolderMeta) => {
 	const

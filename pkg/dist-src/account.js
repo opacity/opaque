@@ -1,15 +1,14 @@
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
-import { debounce } from "debounce";
 import { hashToPath } from "./utils/hashToPath";
-import { hash } from "./core/hashing";
-import { FileEntryMeta, FileVersion } from "./core/account/metadata";
 import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle } from "./core/account/api/v1/index";
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for representing the account mnemonic
+ *
+ * @public
  */
 class Account {
     get mnemonic() {
@@ -31,20 +30,26 @@ class Account {
     }
 }
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for creating a master handle from an account mnemonic
  *
+ * @remarks
+ *
  * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
+ *  <br /> - logging in to an account
+ *  <br /> - signing changes for the account
+ *  <br /> - deterministic entropy for generating features of an account (such as folder keys)
+ *
+ * @public
  */
 class MasterHandle extends HDKey {
     /**
      * creates a master handle from an account
      *
-     * @param account - the account to generate the handle from
+     * @param _ - the account to generate the handle from
+     * @param _.account - an {@link Account}
+     * @param _.handle - an account handle as a string
      */
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
@@ -57,76 +62,55 @@ class MasterHandle extends HDKey {
         this.generateSubHDKey = (pathString) => generateSubHDKey(this, pathString);
         this.uploadFile = (dir, file) => uploadFile(this, dir, file);
         this.downloadFile = (handle) => downloadFile(this, handle);
-        this.deleteFile = (dir, name) => deleteFile(this, dir, name);
-        this.deleteVersion = (dir, handle) => deleteVersion(this, dir, handle);
         /**
-         * creates a file key seed for validating
+         * deletes every version of a file and removes it from the metadata
          *
-         * @param file - the location of the file on the network
+         * @param dir - the containing folder
+         * @param file - file entry to delete (loosely matched name)
          */
-        this.getFileHDKey = (file) => {
-            return this.generateSubHDKey("file: " + file);
-        };
+        this.deleteFile = (dir, file) => deleteFile(this, dir, file);
+        /**
+         * deletes a single version of a file (ie. delete by handle)
+         *
+         * @param dir - the containing folder
+         * @param version - version to delete (loosely matched by handle)
+         */
+        this.deleteVersion = (dir, version) => deleteVersion(this, dir, version);
         /**
          * creates a dir key seed for validating and folder navigation
          *
-         * @param dir - the folder path in the UI
+         * @param dir - the folder
          */
         this.getFolderHDKey = (dir) => getFolderHDKey(this, dir);
+        /**
+         * get the location (ie. metadata id) of a folder
+         *
+         * @remarks this is a deterministic location derived from the account's hdkey to allow for random folder access
+         *
+         * @param dir - the folder to locate
+         */
         this.getFolderLocation = (dir) => getFolderLocation(this, dir);
+        /**
+         * request the creation of a folder metadata
+         *
+         * @param dir - the folder to create
+         */
         this.createFolderMeta = async (dir) => createFolderMeta(this, dir);
+        /**
+         * create folder {name} inside of {dir}
+         *
+         * @param dir - the containing folder
+         * @param name - the name of the new folder
+         */
         this.createFolder = async (dir, name) => createFolder(this, dir, name);
         this.deleteFolderMeta = async (dir) => deleteFolderMeta(this, dir);
-        this.deleteFolder = async (dir, name) => deleteFolder(this, dir, name);
+        this.deleteFolder = async (dir, folder) => deleteFolder(this, dir, folder);
         this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
         this.getFolderMeta = async (dir) => getFolderMeta(this, dir);
         this.getAccountInfo = async () => getAccountInfo(this);
         this.isPaid = async () => isPaid(this);
         this.login = async () => login(this);
         this.register = async (duration, limit) => register(this, duration, limit);
-        this.queueMeta = async (dir, { file, finishedUpload }) => {
-            let resolve, promise = new Promise(resolvePromise => {
-                resolve = resolvePromise;
-            });
-            this.metaQueue[dir] = this.metaQueue[dir] || [];
-            this.metaQueue[dir].push({ file, finishedUpload, resolve });
-            this._updateMetaFromQueue(dir);
-            await promise;
-        };
-        this._updateMetaFromQueue = debounce(async (dir) => {
-            const folderMeta = await this.getFolderMeta(dir), copy = Object.assign([], this.metaQueue[dir]), finished = [];
-            copy.forEach(({ file, finishedUpload, resolve }) => {
-                const oldMetaIndex = folderMeta.files.findIndex(e => e.type == "file" && e.name == file.name), oldMeta = (oldMetaIndex !== -1
-                    ? folderMeta.files[oldMetaIndex]
-                    : {}), version = new FileVersion({
-                    handle: finishedUpload.handle,
-                    size: file.size,
-                    modified: file.lastModified
-                }), meta = new FileEntryMeta({
-                    name: file.name,
-                    created: oldMeta.created,
-                    versions: [version, ...(oldMeta.versions || [])],
-                });
-                // metadata existed previously
-                if (oldMetaIndex !== -1) {
-                    folderMeta.files[oldMetaIndex] = meta;
-                }
-                else {
-                    folderMeta.files.unshift(meta);
-                }
-                finished.push(resolve);
-            });
-            try {
-                await this.setFolderMeta(dir, folderMeta);
-            }
-            catch (err) {
-                console.error("could not finish setting meta");
-                throw err;
-            }
-            // clean queue
-            this.metaQueue[dir].splice(0, copy.length);
-            finished.forEach(resolve => { resolve(); });
-        }, 500);
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
@@ -142,11 +126,11 @@ class MasterHandle extends HDKey {
             throw new Error("master handle was not of expected type");
         }
     }
+    /**
+     * get the account handle
+     */
     get handle() {
         return getHandle(this);
-    }
-    static getKey(from, str) {
-        return hash(from.privateKey.toString("hex"), str);
     }
 }
 export { Account, MasterHandle, HDKey };
