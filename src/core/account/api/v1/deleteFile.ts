@@ -3,7 +3,8 @@ import { deleteVersion } from "./deleteVersion"
 
 import { MasterHandle } from "../../../../account"
 import { FileEntryMeta } from "../../file-entry"
-import { createMetaQueue } from "./createMetaQueue";
+
+import { createMetaQueue } from "./createMetaQueue"
 
 const deleteFile = async (masterHandle: MasterHandle, dir: string, file: FileEntryMeta) => {
 	const meta = await getFolderMeta(masterHandle, dir)
@@ -21,7 +22,7 @@ const deleteFile = async (masterHandle: MasterHandle, dir: string, file: FileEnt
 	createMetaQueue(masterHandle, dir)
 	masterHandle.metaQueue[dir].push({
 		type: "remove-file",
-		payload: file
+		payload: existingFile
 	})
 }
 

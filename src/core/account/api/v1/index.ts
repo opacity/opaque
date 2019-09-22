@@ -16,6 +16,10 @@ import { deleteFolderMeta } from "./deleteFolderMeta";
 import { deleteVersion } from "./deleteVersion";
 import { getFolderMeta } from "./getFolderMeta";
 import { login } from "./login";
+import { moveFile, MoveFileArgs } from "./moveFile";
+import { moveFolder, MoveFolderArgs } from "./moveFolder";
+import { renameFile, RenameFileArgs } from "./renameFile";
+import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
 import { uploadFile } from "./uploadFile";
 
@@ -38,6 +42,14 @@ export {
 	deleteVersion,
 	getFolderMeta,
 	login,
+	moveFile,
+	MoveFileArgs,
+	moveFolder,
+	MoveFolderArgs,
+	renameFile,
+	RenameFileArgs,
+	renameFolder,
+	RenameFolderArgs,
 	setFolderMeta,
 	uploadFile
 }
@@ -66,6 +78,10 @@ const v1 = {
 	deleteVersion,
 	getFolderMeta,
 	login,
+	moveFile,
+	moveFolder,
+	renameFile,
+	renameFolder,
 	setFolderMeta,
 	uploadFile
 }

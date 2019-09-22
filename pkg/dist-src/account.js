@@ -2,7 +2,7 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { hashToPath } from "./utils/hashToPath";
-import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle } from "./core/account/api/v1/index";
+import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle, moveFile, moveFolder, renameFile, renameFolder } from "./core/account/api/v1/index";
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
  *
@@ -105,6 +105,10 @@ class MasterHandle extends HDKey {
         this.createFolder = async (dir, name) => createFolder(this, dir, name);
         this.deleteFolderMeta = async (dir) => deleteFolderMeta(this, dir);
         this.deleteFolder = async (dir, folder) => deleteFolder(this, dir, folder);
+        this.moveFile = async (dir, { file, to }) => moveFile(this, dir, { file, to });
+        this.moveFolder = async (dir, { folder, to }) => moveFolder(this, dir, { folder, to });
+        this.renameFile = async (dir, { file, name }) => renameFile(this, dir, { file, name });
+        this.renameFolder = async (dir, { folder, name }) => renameFolder(this, dir, { folder, name });
         this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
         this.getFolderMeta = async (dir) => getFolderMeta(this, dir);
         this.getAccountInfo = async () => getAccountInfo(this);

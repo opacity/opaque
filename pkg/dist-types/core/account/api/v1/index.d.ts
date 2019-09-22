@@ -17,9 +17,13 @@ import { deleteFolderMeta } from "./deleteFolderMeta";
 import { deleteVersion } from "./deleteVersion";
 import { getFolderMeta } from "./getFolderMeta";
 import { login } from "./login";
+import { moveFile, MoveFileArgs } from "./moveFile";
+import { moveFolder, MoveFolderArgs } from "./moveFolder";
+import { renameFile, RenameFileArgs } from "./renameFile";
+import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, setFolderMeta, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, uploadFile };
 /**
  * internal API v1
  *
@@ -43,6 +47,10 @@ declare const v1: {
     deleteVersion: (masterHandle: import("../../../../account").MasterHandle, dir: string, version: import("../../file-version").FileVersion) => Promise<void>;
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
     login: (masterHandle: import("../../../../account").MasterHandle) => Promise<void>;
+    moveFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, to }: MoveFileArgs) => Promise<void>;
+    moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
+    renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
+    renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
     uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
 };
