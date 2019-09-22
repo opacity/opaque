@@ -331,6 +331,10 @@ export declare class MasterHandle extends HDKey {
     createFolder: (dir: string, name: string) => Promise<void>;
     deleteFolderMeta: (dir: string) => Promise<void>;
     deleteFolder: (dir: string, folder: FolderEntryMeta) => Promise<void>;
+    moveFile: (dir: string, { file, to }: MoveFileArgs) => Promise<void>;
+    moveFolder: (dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
+    renameFile: (dir: string, { file, name }: RenameFileArgs) => Promise<void>;
+    renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
     getAccountInfo: () => Promise<any>;
@@ -373,6 +377,16 @@ declare type MinifiedFolderEntryMetaProps = [string, string];
 
 declare type MinifiedFolderMetaProps = [string, MinifiedFileEntryMeta[], MinifiedFolderEntryMeta[], number, number];
 
+declare type MoveFileArgs = {
+    file: FileEntryMeta;
+    to: string;
+};
+
+declare type MoveFolderArgs = {
+    folder: FolderEntryMeta;
+    to: string;
+};
+
 declare class NetQueue<T> extends EventEmitter {
     updating: boolean;
     queue: NetQueueEntry[];
@@ -409,6 +423,16 @@ declare type NetQueueProps<T> = {
 declare type NetQueueType<T> = {
     type: string;
     handler: (obj: T, payload: any) => T | Promise<T>;
+};
+
+declare type RenameFileArgs = {
+    file: FileEntryMeta;
+    name: string;
+};
+
+declare type RenameFolderArgs = {
+    folder: FolderEntryMeta;
+    name: string;
 };
 
 declare type RequireOnlyOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
