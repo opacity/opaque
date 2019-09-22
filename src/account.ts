@@ -50,9 +50,11 @@ import {
 import { RequireOnlyOne } from "./types/require-only-one"
 
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for representing the account mnemonic
+ *
+ * @public
  */
 class Account {
   private _mnemonic: string;
@@ -79,15 +81,29 @@ class Account {
   }
 }
 
+type MasterHandleCreator = RequireOnlyOne<
+  { account: Account; handle: string },
+  "account" | "handle"
+>
+
+type MasterHandleOptions = {
+  uploadOpts?
+  downloadOpts?
+}
+
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for creating a master handle from an account mnemonic
  *
+ * @remarks
+ *
  * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
+ *  <br /> - logging in to an account
+ *  <br /> - signing changes for the account
+ *  <br /> - deterministic entropy for generating features of an account (such as folder keys)
+ *
+ * @public
  */
 class MasterHandle extends HDKey {
   uploadOpts
@@ -99,19 +115,18 @@ class MasterHandle extends HDKey {
   /**
    * creates a master handle from an account
    *
-   * @param account - the account to generate the handle from
+   * @param _ - the account to generate the handle from
+   * @param _.account - an {@link Account}
+   * @param _.handle - an account handle as a string
    */
   constructor({
     account,
     handle,
-  }: RequireOnlyOne<
-    { account: Account; handle: string },
-    "account" | "handle"
-  >,
+  }: MasterHandleCreator,
   {
     uploadOpts = {},
     downloadOpts = {}
-  } = {}) {
+  }: MasterHandleOptions = {}) {
     super();
 
     this.uploadOpts = uploadOpts
@@ -133,6 +148,9 @@ class MasterHandle extends HDKey {
     }
   }
 
+  /**
+   * get the account handle
+   */
   get handle () {
     return getHandle(this)
   }
@@ -151,39 +169,56 @@ class MasterHandle extends HDKey {
   downloadFile = (handle: string) =>
     downloadFile(this, handle)
 
+  /**
+   * deletes every version of a file and removes it from the metadata
+   *
+   * @param dir - the containing folder
+   * @param file - file entry to delete (loosely matched name)
+   */
   deleteFile = (dir: string, file: FileEntryMeta) =>
     deleteFile(this, dir, file)
 
+  /**
+   * deletes a single version of a file (ie. delete by handle)
+   *
+   * @param dir - the containing folder
+   * @param version - version to delete (loosely matched by handle)
+   */
   deleteVersion = (dir: string, version: FileVersion) =>
     deleteVersion(this, dir, version)
-
-  static getKey(from: HDKey, str: string) {
-    return hash(from.privateKey.toString("hex"), str);
-  }
-
-  /**
-   * creates a file key seed for validating
-   *
-   * @param file - the location of the file on the network
-   */
-  getFileHDKey = (file: string) => {
-    return this.generateSubHDKey("file: " + file);
-  }
 
   /**
    * creates a dir key seed for validating and folder navigation
    *
-   * @param dir - the folder path in the UI
+   * @param dir - the folder
    */
   getFolderHDKey = (dir: string) =>
     getFolderHDKey(this, dir)
 
+  /**
+   * get the location (ie. metadata id) of a folder
+   *
+   * @remarks this is a deterministic location derived from the account's hdkey to allow for random folder access
+   *
+   * @param dir - the folder to locate
+   */
   getFolderLocation = (dir: string) =>
     getFolderLocation(this, dir)
 
+  /**
+   * request the creation of a folder metadata
+   *
+   * @param dir - the folder to create
+   */
   createFolderMeta = async (dir: string) =>
     createFolderMeta(this, dir)
 
+  /**
+   * create folder {name} inside of {dir}
+   *
+   * @param dir - the containing folder
+   * @param name - the name of the new folder
+   */
   createFolder = async (dir: string, name: string) =>
     createFolder(this, dir, name)
 
@@ -224,4 +259,4 @@ class MasterHandle extends HDKey {
     register(this, duration, limit)
 }
 
-export { Account, MasterHandle, HDKey };
+export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };

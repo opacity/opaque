@@ -1,5 +1,7 @@
 /**
- * a metadata class to describe where a folder can be found (for root metadata of an account)
+ * metadata to describe where a folder can be found (for root metadata of an account)
+ *
+ * @public
  */
 declare class FolderEntryMeta {
     /** a name of the folder shown in the UI */
@@ -20,9 +22,13 @@ declare class FolderEntryMeta {
         name: string;
         location: string;
     });
+    /** @internal */
     minify: () => MinifiedFolderEntryMeta;
 }
 declare type MinifiedFolderEntryMetaProps = [string, string];
+/**
+ * @internal
+ */
 declare class MinifiedFolderEntryMeta extends Array {
     /** a name of the folder shown in the UI */
     0: string;

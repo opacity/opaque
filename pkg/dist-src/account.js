@@ -2,12 +2,13 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { hashToPath } from "./utils/hashToPath";
-import { hash } from "./core/hashing";
 import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle, moveFile, moveFolder, renameFile, renameFolder } from "./core/account/api/v1/index";
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for representing the account mnemonic
+ *
+ * @public
  */
 class Account {
     get mnemonic() {
@@ -29,20 +30,26 @@ class Account {
     }
 }
 /**
- * **_this should never be shared or left in storage_**
+ * <b><i>this should never be shared or left in storage</i></b><br />
  *
  * a class for creating a master handle from an account mnemonic
  *
+ * @remarks
+ *
  * a master handle is responsible for:
- *  - logging in to an account
- *  - signing changes for the account
- *  - deterministic entropy for generating features of an account (such as file keys)
+ *  <br /> - logging in to an account
+ *  <br /> - signing changes for the account
+ *  <br /> - deterministic entropy for generating features of an account (such as folder keys)
+ *
+ * @public
  */
 class MasterHandle extends HDKey {
     /**
      * creates a master handle from an account
      *
-     * @param account - the account to generate the handle from
+     * @param _ - the account to generate the handle from
+     * @param _.account - an {@link Account}
+     * @param _.handle - an account handle as a string
      */
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
@@ -55,24 +62,46 @@ class MasterHandle extends HDKey {
         this.generateSubHDKey = (pathString) => generateSubHDKey(this, pathString);
         this.uploadFile = (dir, file) => uploadFile(this, dir, file);
         this.downloadFile = (handle) => downloadFile(this, handle);
-        this.deleteFile = (dir, file) => deleteFile(this, dir, file);
-        this.deleteVersion = (dir, version) => deleteVersion(this, dir, version);
         /**
-         * creates a file key seed for validating
+         * deletes every version of a file and removes it from the metadata
          *
-         * @param file - the location of the file on the network
+         * @param dir - the containing folder
+         * @param file - file entry to delete (loosely matched name)
          */
-        this.getFileHDKey = (file) => {
-            return this.generateSubHDKey("file: " + file);
-        };
+        this.deleteFile = (dir, file) => deleteFile(this, dir, file);
+        /**
+         * deletes a single version of a file (ie. delete by handle)
+         *
+         * @param dir - the containing folder
+         * @param version - version to delete (loosely matched by handle)
+         */
+        this.deleteVersion = (dir, version) => deleteVersion(this, dir, version);
         /**
          * creates a dir key seed for validating and folder navigation
          *
-         * @param dir - the folder path in the UI
+         * @param dir - the folder
          */
         this.getFolderHDKey = (dir) => getFolderHDKey(this, dir);
+        /**
+         * get the location (ie. metadata id) of a folder
+         *
+         * @remarks this is a deterministic location derived from the account's hdkey to allow for random folder access
+         *
+         * @param dir - the folder to locate
+         */
         this.getFolderLocation = (dir) => getFolderLocation(this, dir);
+        /**
+         * request the creation of a folder metadata
+         *
+         * @param dir - the folder to create
+         */
         this.createFolderMeta = async (dir) => createFolderMeta(this, dir);
+        /**
+         * create folder {name} inside of {dir}
+         *
+         * @param dir - the containing folder
+         * @param name - the name of the new folder
+         */
         this.createFolder = async (dir, name) => createFolder(this, dir, name);
         this.deleteFolderMeta = async (dir) => deleteFolderMeta(this, dir);
         this.deleteFolder = async (dir, folder) => deleteFolder(this, dir, folder);
@@ -101,11 +130,11 @@ class MasterHandle extends HDKey {
             throw new Error("master handle was not of expected type");
         }
     }
+    /**
+     * get the account handle
+     */
     get handle() {
         return getHandle(this);
-    }
-    static getKey(from, str) {
-        return hash(from.privateKey.toString("hex"), str);
     }
 }
 export { Account, MasterHandle, HDKey };

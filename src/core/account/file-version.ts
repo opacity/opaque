@@ -1,5 +1,7 @@
 /**
- * a metadata class to describe a version of a file as it relates to a filesystem
+ * metadata to describe a version of a file as it relates to a filesystem
+ *
+ * @public
  */
 class FileVersion {
 	/** the shareable handle of the file */
@@ -36,6 +38,7 @@ class FileVersion {
 		this.modified = modified
 	}
 
+	/** @internal */
 	minify = () => new MinifiedFileVersion([
 		this.handle,
 		this.size,
@@ -55,6 +58,9 @@ type MinifiedFileVersionProps = [
 	number
 ]
 
+/**
+ * @internal
+ */
 class MinifiedFileVersion extends Array {
 	constructor ([
 		handle,

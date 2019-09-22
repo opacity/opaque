@@ -26,7 +26,7 @@ const DEFAULT_OPTIONS: DownloadOptions = Object.freeze({
 });
 
 /**
- * Downloading files
+ * @internal
  */
 export default class Download extends EventEmitter {
   options: DownloadOptions

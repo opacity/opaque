@@ -11,6 +11,9 @@ declare type UploadOptions = {
     endpoint?: boolean;
     params?: FileMetaOptions;
 };
+/**
+ * @internal
+ */
 export default class Upload extends EventEmitter {
     account: HDKey;
     options: UploadOptions;

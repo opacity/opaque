@@ -9,7 +9,7 @@ const DEFAULT_OPTIONS = Object.freeze({
     autoStart: true
 });
 /**
- * Downloading files
+ * @internal
  */
 export default class Download extends EventEmitter {
     constructor(handle, opts = {}) {

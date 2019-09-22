@@ -1,7 +1,9 @@
 import { FileEntryMeta, MinifiedFileEntryMeta } from "./file-entry";
 import { FolderEntryMeta, MinifiedFolderEntryMeta } from "./folder-entry";
 /**
- * a metadata class to describe a folder for the UI
+ * metadata to describe a folder for the UI
+ *
+ * @public
  */
 declare class FolderMeta {
     /** a nickname shown on the folder when accessed without adding to account metadata */
@@ -29,9 +31,13 @@ declare class FolderMeta {
         created?: number;
         modified?: number;
     });
+    /** @internal */
     minify: () => MinifiedFolderMeta;
 }
 declare type MinifiedFolderMetaProps = [string, MinifiedFileEntryMeta[], MinifiedFolderEntryMeta[], number, number];
+/**
+ * @internal
+ */
 declare class MinifiedFolderMeta extends Array {
     /** a nickname shown on the folder when accessed without adding to account metadata */
     0: string;
