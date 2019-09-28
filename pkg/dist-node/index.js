@@ -19,76 +19,6 @@ var HDKey = require('hdkey');
 var HDKey__default = _interopDefault(HDKey);
 var namehash = require('eth-ens-namehash');
 
-function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
-  try {
-    var info = gen[key](arg);
-    var value = info.value;
-  } catch (error) {
-    reject(error);
-    return;
-  }
-
-  if (info.done) {
-    resolve(value);
-  } else {
-    Promise.resolve(value).then(_next, _throw);
-  }
-}
-
-function _asyncToGenerator(fn) {
-  return function () {
-    var self = this,
-        args = arguments;
-    return new Promise(function (resolve, reject) {
-      var gen = fn.apply(self, args);
-
-      function _next(value) {
-        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
-      }
-
-      function _throw(err) {
-        asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
-      }
-
-      _next(undefined);
-    });
-  };
-}
-
-function _defineProperty(obj, key, value) {
-  if (key in obj) {
-    Object.defineProperty(obj, key, {
-      value: value,
-      enumerable: true,
-      configurable: true,
-      writable: true
-    });
-  } else {
-    obj[key] = value;
-  }
-
-  return obj;
-}
-
-function _objectSpread(target) {
-  for (var i = 1; i < arguments.length; i++) {
-    var source = arguments[i] != null ? arguments[i] : {};
-    var ownKeys = Object.keys(source);
-
-    if (typeof Object.getOwnPropertySymbols === 'function') {
-      ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function (sym) {
-        return Object.getOwnPropertyDescriptor(source, sym).enumerable;
-      }));
-    }
-
-    ownKeys.forEach(function (key) {
-      _defineProperty(target, key, source[key]);
-    });
-  }
-
-  return target;
-}
-
 const DEFAULT_OPTIONS = Object.freeze({
   objectMode: false
 });
@@ -468,59 +398,50 @@ class DownloadStream extends readableStream.Readable {
     this._pushChunk();
   }
 
-  _download(chunkIndex) {
-    var _this = this;
+  async _download(chunkIndex) {
+    const size = this.size;
+    const partSize = this.options.partSize;
+    const index = chunkIndex || this.chunks.length;
+    const offset = index * partSize; // TODO: Make sure last byte works to prevent edge case
 
-    return _asyncToGenerator(function* () {
-      const size = _this.size;
-      const partSize = _this.options.partSize;
-      const index = chunkIndex || _this.chunks.length;
-      const offset = index * partSize; // TODO: Make sure last byte works to prevent edge case
-
-      if (offset >= size) {
-        _this.isDownloadFinished = true;
-        return;
-      }
-
-      const limit = Math.min(offset + partSize, size) - offset;
-      const range = `bytes=${offset}-${offset + limit - 1}`;
-      const chunk = {
-        id: _this.chunkId++,
-        data: null,
-        offset,
-        limit
-      };
-
-      try {
-        _this.chunks.push(chunk);
-
-        _this.ongoingDownloads++;
-        const download = yield Axios.get(_this.url + "/file", {
-          responseType: "arraybuffer",
-          headers: {
-            range
-          }
-        });
-        chunk.data = new Uint8Array(download.data);
-        _this.bytesDownloaded += chunk.data.length;
-        _this.ongoingDownloads--;
-
-        _this.emit("progress", _this.bytesDownloaded / _this.size);
-
-        _this._pushChunk();
-      } catch (error) {
-        _this.ongoingDownloads--;
-
-        _this.emit("error", error);
-      }
-
+    if (offset >= size) {
+      this.isDownloadFinished = true;
       return;
-    })();
+    }
+
+    const limit = Math.min(offset + partSize, size) - offset;
+    const range = `bytes=${offset}-${offset + limit - 1}`;
+    const chunk = {
+      id: this.chunkId++,
+      data: null,
+      offset,
+      limit
+    };
+
+    try {
+      this.chunks.push(chunk);
+      this.ongoingDownloads++;
+      const download = await Axios.get(this.url + "/file", {
+        responseType: "arraybuffer",
+        headers: {
+          range
+        }
+      });
+      chunk.data = new Uint8Array(download.data);
+      this.bytesDownloaded += chunk.data.length;
+      this.ongoingDownloads--;
+      this.emit("progress", this.bytesDownloaded / this.size);
+
+      this._pushChunk();
+    } catch (error) {
+      this.ongoingDownloads--;
+      this.emit("error", error);
+    }
+
+    return;
   }
 
-  _afterDownload() {
-    return _asyncToGenerator(function* () {})();
-  }
+  async _afterDownload() {}
 
   _pushChunk() {
     if (!this.pushChunk) {
@@ -552,22 +473,17 @@ const DEFAULT_OPTIONS$4 = Object.freeze({
 
 class Download extends events.EventEmitter {
   constructor(handle, opts = {}) {
-    var _this;
-
     super();
-    _this = this;
-    this.metadata =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      if (_this._metadata) {
-        return _this._metadata;
+
+    this.metadata = async () => {
+      if (this._metadata) {
+        return this._metadata;
       } else {
-        return yield _this.downloadMetadata();
+        return await this.downloadMetadata();
       }
-    });
-    this.toBuffer =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+    };
+
+    this.toBuffer = async () => {
       const chunks = [];
       let totalLength = 0;
 
@@ -575,142 +491,114 @@ class Download extends events.EventEmitter {
         return false;
       }
 
-      yield _this.startDownload();
+      await this.startDownload();
       return new Promise(resolve => {
-        _this.decryptStream.on("data", data => {
+        this.decryptStream.on("data", data => {
           chunks.push(data);
           totalLength += data.length;
         });
-
-        _this.decryptStream.once("finish", () => {
+        this.decryptStream.once("finish", () => {
           resolve(Buffer.concat(chunks, totalLength));
         });
       }).catch(err => {
         throw err;
       });
-    });
-    this.toFile =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+    };
+
+    this.toFile = async () => {
       const chunks = [];
       let totalLength = 0;
-      yield _this.startDownload();
+      await this.startDownload();
       return new Promise(resolve => {
-        _this.decryptStream.on("data", data => {
+        this.decryptStream.on("data", data => {
           chunks.push(data);
           totalLength += data.length;
         });
-
-        _this.decryptStream.once("finish",
-        /*#__PURE__*/
-        _asyncToGenerator(function* () {
-          const meta = yield _this.metadata();
+        this.decryptStream.once("finish", async () => {
+          const meta = await this.metadata();
           resolve(new File(chunks, meta.name, {
             type: getMimeType(meta)
           }));
-        }));
+        });
       }).catch(err => {
         throw err;
       });
-    });
-    this.startDownload =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+    };
+
+    this.startDownload = async () => {
       try {
-        yield _this.getDownloadURL();
-        yield _this.downloadMetadata();
-        yield _this.downloadFile();
+        await this.getDownloadURL();
+        await this.downloadMetadata();
+        await this.downloadFile();
       } catch (e) {
-        _this.propagateError(e);
+        this.propagateError(e);
       }
-    });
+    };
 
-    this.getDownloadURL =
-    /*#__PURE__*/
-    function () {
-      var _ref6 = _asyncToGenerator(function* (overwrite = false) {
-        let req;
+    this.getDownloadURL = async (overwrite = false) => {
+      let req;
 
-        if (!overwrite && _this.downloadURLRequest) {
-          req = _this.downloadURLRequest;
-        } else {
-          req = Axios.post(_this.options.endpoint + "/api/v1/download", {
-            fileID: _this.hash
-          });
-          _this.downloadURLRequest = req;
-        }
+      if (!overwrite && this.downloadURLRequest) {
+        req = this.downloadURLRequest;
+      } else {
+        req = Axios.post(this.options.endpoint + "/api/v1/download", {
+          fileID: this.hash
+        });
+        this.downloadURLRequest = req;
+      }
 
-        const res = yield req;
+      const res = await req;
 
-        if (res.status === 200) {
-          _this.downloadURL = res.data.fileDownloadUrl;
-          return _this.downloadURL;
-        }
-      });
+      if (res.status === 200) {
+        this.downloadURL = res.data.fileDownloadUrl;
+        return this.downloadURL;
+      }
+    };
 
-      return function () {
-        return _ref6.apply(this, arguments);
-      };
-    }();
+    this.downloadMetadata = async (overwrite = false) => {
+      let req;
 
-    this.downloadMetadata =
-    /*#__PURE__*/
-    function () {
-      var _ref7 = _asyncToGenerator(function* (overwrite = false) {
-        let req;
+      if (!this.downloadURL) {
+        await this.getDownloadURL();
+      }
 
-        if (!_this.downloadURL) {
-          yield _this.getDownloadURL();
-        }
+      if (!overwrite && this.metadataRequest) {
+        req = this.metadataRequest;
+      } else {
+        const endpoint = this.options.endpoint;
+        const path = METADATA_PATH + this.hash;
+        req = Axios.get(this.downloadURL + "/metadata", {
+          responseType: "arraybuffer"
+        });
+        this.metadataRequest = req;
+      }
 
-        if (!overwrite && _this.metadataRequest) {
-          req = _this.metadataRequest;
-        } else {
-          const endpoint = _this.options.endpoint;
-          const path = METADATA_PATH + _this.hash;
-          req = Axios.get(_this.downloadURL + "/metadata", {
-            responseType: "arraybuffer"
-          });
-          _this.metadataRequest = req;
-        }
+      const res = await req;
+      const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
+      this._metadata = metadata;
+      this.size = getUploadSize(metadata.size, metadata.p || {});
+      return metadata;
+    };
 
-        const res = yield req;
-        const metadata = decryptMetadata(new Uint8Array(res.data), _this.key);
-        _this._metadata = metadata;
-        _this.size = getUploadSize(metadata.size, metadata.p || {});
-        return metadata;
-      });
-
-      return function () {
-        return _ref7.apply(this, arguments);
-      };
-    }();
-
-    this.downloadFile =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      if (_this.isDownloading) {
+    this.downloadFile = async () => {
+      if (this.isDownloading) {
         return true;
       }
 
-      _this.isDownloading = true;
-      _this.downloadStream = new DownloadStream(_this.downloadURL, (yield _this.metadata), _this.size, _this.options);
-      _this.decryptStream = new DecryptStream(_this.key);
-
-      _this.downloadStream.on("progress", progress => {
-        _this.emit("download-progress", {
-          target: _this,
-          handle: _this.handle,
+      this.isDownloading = true;
+      this.downloadStream = new DownloadStream(this.downloadURL, (await this.metadata), this.size, this.options);
+      this.decryptStream = new DecryptStream(this.key);
+      this.downloadStream.on("progress", progress => {
+        this.emit("download-progress", {
+          target: this,
+          handle: this.handle,
           progress: progress
         });
       });
-
-      _this.downloadStream.pipe(_this.decryptStream);
-
-      _this.downloadStream.on("error", _this.propagateError);
-
-      _this.decryptStream.on("error", _this.propagateError);
-    });
+      this.downloadStream.pipe(this.decryptStream);
+      this.downloadStream.on("error", this.propagateError);
+      this.decryptStream.on("error", this.propagateError);
+    };
 
     this.finishDownload = error => {
       if (error) {
@@ -726,11 +614,10 @@ class Download extends events.EventEmitter {
     };
 
     const options = Object.assign({}, DEFAULT_OPTIONS$4, opts);
-
-    const _keysFromHandle = keysFromHandle(handle),
-          hash = _keysFromHandle.hash,
-          key = _keysFromHandle.key;
-
+    const {
+      hash,
+      key
+    } = keysFromHandle(handle);
     this.options = options;
     this.handle = handle;
     this.hash = hash;
@@ -777,15 +664,8 @@ class EncryptStream extends readableStream.Transform {
  * @internal
  */
 
-function getPlans(_x) {
-  return _getPlans.apply(this, arguments);
-}
-
-function _getPlans() {
-  _getPlans = _asyncToGenerator(function* (endpoint) {
-    return Axios.get(endpoint + "/plans");
-  });
-  return _getPlans.apply(this, arguments);
+async function getPlans(endpoint) {
+  return Axios.get(endpoint + "/plans");
 }
 
 /**
@@ -797,19 +677,12 @@ function _getPlans() {
  * @internal
  */
 
-function checkPaymentStatus(_x, _x2) {
-  return _checkPaymentStatus.apply(this, arguments);
-}
-
-function _checkPaymentStatus() {
-  _checkPaymentStatus = _asyncToGenerator(function* (endpoint, hdNode) {
-    const payload = {
-      timestamp: Math.floor(Date.now() / 1000)
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
-  });
-  return _checkPaymentStatus.apply(this, arguments);
+async function checkPaymentStatus(endpoint, hdNode) {
+  const payload = {
+    timestamp: Math.floor(Date.now() / 1000)
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/account-data", signedPayload);
 }
 
 /**
@@ -824,22 +697,15 @@ function _checkPaymentStatus() {
  * @internal
  */
 
-function createAccount(_x, _x2, _x3) {
-  return _createAccount.apply(this, arguments);
-}
-
-function _createAccount() {
-  _createAccount = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, duration = 12, limit = 128) {
-    const payload = {
-      metadataKey: metadataKey,
-      durationInMonths: duration,
-      // TODO: I'm not sure why this is like this, but it doesn't match what was planned
-      storageLimit: limit
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
-  });
-  return _createAccount.apply(this, arguments);
+async function createAccount(endpoint, hdNode, metadataKey, duration = 12, limit = 128) {
+  const payload = {
+    metadataKey: metadataKey,
+    durationInMonths: duration,
+    // TODO: I'm not sure why this is like this, but it doesn't match what was planned
+    storageLimit: limit
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/accounts", signedPayload);
 }
 
 /**
@@ -852,8 +718,14 @@ function _createAccount() {
  * @internal
  */
 
-function createMetadata$1(_x, _x2, _x3) {
-  return _createMetadata.apply(this, arguments);
+async function createMetadata$1(endpoint, hdNode, metadataKey) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    timestamp,
+    metadataKey
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/metadata/create", signedPayload);
 }
 /**
  * request deleting a metadata entry
@@ -865,21 +737,14 @@ function createMetadata$1(_x, _x2, _x3) {
  * @internal
  */
 
-function _createMetadata() {
-  _createMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/metadata/create", signedPayload);
-  });
-  return _createMetadata.apply(this, arguments);
-}
-
-function deleteMetadata(_x4, _x5, _x6) {
-  return _deleteMetadata.apply(this, arguments);
+async function deleteMetadata(endpoint, hdNode, metadataKey) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    timestamp,
+    metadataKey
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/metadata/delete", signedPayload);
 }
 /**
  * request changing a metadata entry
@@ -892,21 +757,15 @@ function deleteMetadata(_x4, _x5, _x6) {
  * @internal
  */
 
-function _deleteMetadata() {
-  _deleteMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/metadata/delete", signedPayload);
-  });
-  return _deleteMetadata.apply(this, arguments);
-}
-
-function setMetadata(_x7, _x8, _x9, _x10) {
-  return _setMetadata.apply(this, arguments);
+async function setMetadata(endpoint, hdNode, metadataKey, metadata) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    timestamp,
+    metadata,
+    metadataKey
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/metadata/set", signedPayload);
 }
 /**
  * request get of a metadata entry
@@ -918,35 +777,14 @@ function setMetadata(_x7, _x8, _x9, _x10) {
  * @internal
  */
 
-function _setMetadata() {
-  _setMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey, metadata) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadata,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/metadata/set", signedPayload);
-  });
-  return _setMetadata.apply(this, arguments);
-}
-
-function getMetadata(_x11, _x12, _x13) {
-  return _getMetadata.apply(this, arguments);
-}
-
-function _getMetadata() {
-  _getMetadata = _asyncToGenerator(function* (endpoint, hdNode, metadataKey) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const payload = {
-      timestamp,
-      metadataKey
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/metadata/get", signedPayload);
-  });
-  return _getMetadata.apply(this, arguments);
+async function getMetadata(endpoint, hdNode, metadataKey) {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = {
+    timestamp,
+    metadataKey
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/metadata/get", signedPayload);
 }
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
@@ -1154,47 +992,39 @@ class UploadStream extends readableStream.Writable {
     }
   }
 
-  _finishUpload() {
-    var _this = this;
+  async _finishUpload() {
+    const confirmUpload = this._confirmUpload.bind(this);
 
-    return _asyncToGenerator(function* () {
-      const confirmUpload = _this._confirmUpload.bind(_this);
+    const data = getPayload({
+      fileHandle: this.hash
+    }, this.account);
+    let uploadFinished = false;
 
-      const data = getPayload({
-        fileHandle: _this.hash
-      }, _this.account);
-      let uploadFinished = false;
+    do {
+      uploadFinished = await confirmUpload(data);
 
-      do {
-        uploadFinished = yield confirmUpload(data);
+      if (!uploadFinished) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } while (!uploadFinished);
 
-        if (!uploadFinished) {
-          yield new Promise(resolve => setTimeout(resolve, 5000));
-        }
-      } while (!uploadFinished);
-
-      _this.finalCallback();
-    })();
+    this.finalCallback();
   }
 
-  _confirmUpload(data) {
-    var _this2 = this;
+  async _confirmUpload(data) {
+    try {
+      const req = Axios.post(this.endpoint + "/api/v1/upload-status", data);
+      const res = await req;
 
-    return _asyncToGenerator(function* () {
-      try {
-        const req = Axios.post(_this2.endpoint + "/api/v1/upload-status", data);
-        const res = yield req;
-
-        if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
-          return true;
-        } else {
-          return false;
-        }
-      } catch (err) {
-        console.warn(err.message || err);
+      if (!res.data.missingIndexes || !res.data.missingIndexes.length) {
+        return true;
+      } else {
         return false;
       }
-    })();
+    } catch (err) {
+      console.warn(err.message || err);
+      return false;
+    }
   }
 
   _uploadError(error, part) {
@@ -1232,74 +1062,61 @@ const DEFAULT_FILE_PARAMS = {
 
 class Upload extends events.EventEmitter {
   constructor(file, account, opts = {}) {
-    var _this;
-
     super();
-    _this = this;
-    this.startUpload =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
+
+    this.startUpload = async () => {
       try {
-        yield _this.uploadMetadata();
-        yield _this.uploadFile();
+        await this.uploadMetadata();
+        await this.uploadFile();
       } catch (e) {
-        _this.propagateError(e);
+        this.propagateError(e);
       }
-    });
-    this.uploadMetadata =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      const meta = createMetadata(_this.data, _this.options.params);
-      const encryptedMeta = encryptMetadata(meta, _this.key);
+    };
+
+    this.uploadMetadata = async () => {
+      const meta = createMetadata(this.data, this.options.params);
+      const encryptedMeta = encryptMetadata(meta, this.key);
       const data = getPayloadFD({
-        fileHandle: _this.hash,
-        fileSizeInByte: _this.uploadSize,
-        endIndex: getEndIndex(_this.uploadSize, _this.options.params)
+        fileHandle: this.hash,
+        fileSizeInByte: this.uploadSize,
+        endIndex: getEndIndex(this.uploadSize, this.options.params)
       }, {
         metadata: encryptedMeta
-      }, _this.account);
-      const url = _this.options.endpoint + "/api/v1/init-upload";
+      }, this.account);
+      const url = this.options.endpoint + "/api/v1/init-upload";
       const headers = data.getHeaders ? data.getHeaders() : {};
       const req = Axios.post(url, data, {
         headers
       });
-      const res = yield req;
+      const res = await req;
+      this.emit("metadata", meta);
+    };
 
-      _this.emit("metadata", meta);
-    });
-    this.uploadFile =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      const readStream = new _this.data.reader(_this.data, _this.options.params);
-      _this.readStream = readStream;
-      _this.encryptStream = new EncryptStream(_this.key, _this.options.params);
-      _this.uploadStream = new UploadStream(_this.account, _this.hash, _this.uploadSize, _this.options.endpoint, _this.options.params);
-
-      _this.uploadStream.on("progress", progress => {
-        _this.emit("upload-progress", {
-          target: _this,
-          handle: _this.handle,
+    this.uploadFile = async () => {
+      const readStream = new this.data.reader(this.data, this.options.params);
+      this.readStream = readStream;
+      this.encryptStream = new EncryptStream(this.key, this.options.params);
+      this.uploadStream = new UploadStream(this.account, this.hash, this.uploadSize, this.options.endpoint, this.options.params);
+      this.uploadStream.on("progress", progress => {
+        this.emit("upload-progress", {
+          target: this,
+          handle: this.handle,
           progress
         });
       });
+      this.readStream.pipe(this.encryptStream).pipe(this.uploadStream).on("finish", this.finishUpload);
+      this.readStream.on("error", this.propagateError);
+      this.encryptStream.on("error", this.propagateError);
+      this.uploadStream.on("error", this.propagateError);
+    };
 
-      _this.readStream.pipe(_this.encryptStream).pipe(_this.uploadStream).on("finish", _this.finishUpload);
-
-      _this.readStream.on("error", _this.propagateError);
-
-      _this.encryptStream.on("error", _this.propagateError);
-
-      _this.uploadStream.on("error", _this.propagateError);
-    });
-    this.finishUpload =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      _this.emit("finish", {
-        target: _this,
-        handle: _this.handle,
-        metadata: _this.metadata
+    this.finishUpload = async () => {
+      this.emit("finish", {
+        target: this,
+        handle: this.handle,
+        metadata: this.metadata
       });
-    });
+    };
 
     this.propagateError = error => {
       process.nextTick(() => this.emit("error", error));
@@ -1307,12 +1124,11 @@ class Upload extends events.EventEmitter {
 
     const options = Object.assign({}, DEFAULT_OPTIONS$7, opts);
     options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
-
-    const _generateFileKeys = generateFileKeys(),
-          handle = _generateFileKeys.handle,
-          hash = _generateFileKeys.hash,
-          key = _generateFileKeys.key;
-
+    const {
+      handle,
+      hash,
+      key
+    } = generateFileKeys();
     const data = getFileData(file, handle);
     const size = getUploadSize(data.size, options.params);
     this.account = account;
@@ -1359,17 +1175,7 @@ const generateSubHDKey = (masterHandle, pathString) => {
   return masterHandle.derive(path);
 };
 
-const getAccountInfo =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle) {
-    return (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account;
-  });
-
-  return function getAccountInfo(_x) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const getAccountInfo = async masterHandle => (await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account;
 
 const getFolderHDKey = (masterHandle, dir) => {
   return generateSubHDKey(masterHandle, "folder: " + dir);
@@ -1379,118 +1185,80 @@ const getFolderLocation = (masterHandle, dir) => {
   return hash(masterHandle.getFolderHDKey(dir).publicKey.toString("hex"));
 };
 
-const getFolderMeta =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
-    const folderKey = masterHandle.getFolderHDKey(dir),
-          location = masterHandle.getFolderLocation(dir),
-          key = hash(folderKey.privateKey.toString("hex")),
-          // TODO: verify folder can only be read by the creating account
-    response = yield getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
-    location);
+const getFolderMeta = async (masterHandle, dir) => {
+  const folderKey = masterHandle.getFolderHDKey(dir),
+        location = masterHandle.getFolderLocation(dir),
+        key = hash(folderKey.privateKey.toString("hex")),
+        // TODO: verify folder can only be read by the creating account
+  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
+  location);
+
+  try {
+    // TODO
+    // I have no idea why but the decrypted is correct hex without converting
+    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
 
     try {
-      // TODO
-      // I have no idea why but the decrypted is correct hex without converting
-      const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "hex"))).toString();
-
-      try {
-        const meta = JSON.parse(metaString);
-        return meta;
-      } catch (err) {
-        console.error(err);
-        console.info("META STRING:", metaString);
-        throw new Error("metadata corrupted");
-      }
+      const meta = JSON.parse(metaString);
+      return meta;
     } catch (err) {
       console.error(err);
-      throw new Error("error decrypting meta");
+      console.info("META STRING:", metaString);
+      throw new Error("metadata corrupted");
     }
-  });
-
-  return function getFolderMeta(_x, _x2) {
-    return _ref.apply(this, arguments);
-  };
-}();
+  } catch (err) {
+    console.error(err);
+    throw new Error("error decrypting meta");
+  }
+};
 
 const getHandle = masterHandle => {
   return masterHandle.privateKey.toString("hex") + masterHandle.chainCode.toString("hex");
 };
 
-const isPaid =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle) {
-    try {
-      const accountInfoResponse = yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle);
-      return accountInfoResponse.data.paymentStatus == "paid";
-    } catch (_a) {
-      return false;
-    }
-  });
+const isPaid = async masterHandle => {
+  try {
+    const accountInfoResponse = await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle);
+    return accountInfoResponse.data.paymentStatus == "paid";
+  } catch (_unused) {
+    return false;
+  }
+};
 
-  return function isPaid(_x) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const register = async (masterHandle, duration, limit) => {
+  if (await masterHandle.isPaid()) {
+    return {
+      data: {
+        invoice: {
+          cost: 0,
+          ethAddress: "0x0"
+        }
+      },
+      waitForPayment: async () => ({
+        data: (await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
+      })
+    };
+  }
 
-const register =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, duration, limit) {
-    if (yield masterHandle.isPaid()) {
-      return Promise.resolve({
-        data: {
-          invoice: {
-            cost: 0,
-            ethAddress: "0x0"
-          }
-        },
-        waitForPayment: function () {
-          var _waitForPayment = _asyncToGenerator(function* () {
-            return {
-              data: (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
-            };
+  const createAccountResponse = await createAccount(masterHandle.uploadOpts.endpoint, masterHandle, masterHandle.getFolderLocation("/"), duration, limit);
+  return {
+    data: createAccountResponse.data,
+    waitForPayment: () => new Promise(resolve => {
+      const interval = setInterval(async () => {
+        // don't perform run if it takes more than 5 seconds for response
+        const time = Date.now();
+
+        if ((await masterHandle.isPaid()) && time + 5 * 1000 > Date.now()) {
+          clearInterval(interval);
+          await masterHandle.login();
+          resolve({
+            data: (await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
           });
-
-          function waitForPayment() {
-            return _waitForPayment.apply(this, arguments);
-          }
-
-          return waitForPayment;
-        }()
-      });
-    }
-
-    const createAccountResponse = yield createAccount(masterHandle.uploadOpts.endpoint, masterHandle, masterHandle.getFolderLocation("/"), duration, limit);
-    return new Promise(resolve => {
-      resolve({
-        data: createAccountResponse.data,
-        waitForPayment: () => new Promise(resolve => {
-          const interval = setInterval(
-          /*#__PURE__*/
-          _asyncToGenerator(function* () {
-            // don't perform run if it takes more than 5 seconds for response
-            const time = Date.now();
-
-            if ((yield masterHandle.isPaid()) && time + 5 * 1000 > Date.now()) {
-              clearInterval(interval);
-              yield masterHandle.login();
-              resolve({
-                data: (yield checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data
-              });
-            }
-          }), 10 * 1000);
-        })
-      });
-    });
-  });
-
-  return function register(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
+        }
+      }, 10 * 1000);
+    })
   };
-}();
+};
 
 /**
  * internal API v0
@@ -1730,10 +1498,7 @@ class NetQueue extends events.EventEmitter {
     data = {},
     timeout = 1000
   }) {
-    var _this;
-
     super();
-    _this = this;
     this.updating = false;
     this.queue = [];
     this.types = {};
@@ -1758,48 +1523,25 @@ class NetQueue extends events.EventEmitter {
       this.types[type] = handler;
     };
 
-    this._process = debounce(
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      if (_this.updating) return;
-      _this.updating = true;
-      const queueCopy = Object.assign([], _this.queue);
-      _this.result = yield Promise.resolve(_this._fetch());
-      var _iteratorNormalCompletion = true;
-      var _didIteratorError = false;
-      var _iteratorError = undefined;
+    this._process = debounce(async () => {
+      if (this.updating) return;
+      this.updating = true;
+      const queueCopy = Object.assign([], this.queue);
+      this.result = await Promise.resolve(this._fetch());
 
-      try {
-        for (var _iterator = queueCopy[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-          let _step$value = _step.value,
-              type = _step$value.type,
-              payload = _step$value.payload;
-          if (_this.types[type]) _this.result = yield Promise.resolve(_this.types[type](_this.result, payload));else throw new Error("unknown type: " + type);
-
-          _this.queue.shift();
-        }
-      } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-      } finally {
-        try {
-          if (!_iteratorNormalCompletion && _iterator.return != null) {
-            _iterator.return();
-          }
-        } finally {
-          if (_didIteratorError) {
-            throw _iteratorError;
-          }
-        }
+      for (let {
+        type,
+        payload
+      } of queueCopy) {
+        if (this.types[type]) this.result = await Promise.resolve(this.types[type](this.result, payload));else throw new Error("unknown type: " + type);
+        this.queue.shift();
       }
 
-      yield Promise.resolve(_this._update(_this.result));
-      _this.updating = false;
-
-      _this.emit("update", _this.result);
-
-      if (_this.queue.length) _this._process();
-    }), this._timeout);
+      await Promise.resolve(this._update(this.result));
+      this.updating = false;
+      this.emit("update", this.result);
+      if (this.queue.length) this._process();
+    }, this._timeout);
     this._fetch = fetch;
     this._update = update;
     this.data = data;
@@ -1808,92 +1550,60 @@ class NetQueue extends events.EventEmitter {
 
 }
 
-const getFolderMeta$1 =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
-    createMetaQueue(masterHandle, dir);
-    const folderKey = masterHandle.getFolderHDKey(dir),
-          location = masterHandle.getFolderLocation(dir),
-          key = hash(folderKey.privateKey.toString("hex")),
-          // TODO: verify folder can only be read by the creating account
-    response = yield getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
-    location);
+const getFolderMeta$1 = async (masterHandle, dir) => {
+  createMetaQueue(masterHandle, dir);
+  const folderKey = masterHandle.getFolderHDKey(dir),
+        location = masterHandle.getFolderLocation(dir),
+        key = hash(folderKey.privateKey.toString("hex")),
+        // TODO: verify folder can only be read by the creating account
+  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
+  location);
+
+  try {
+    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
 
     try {
-      const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
-
-      try {
-        const meta = JSON.parse(metaString);
-        return new MinifiedFolderMeta(meta).unminify();
-      } catch (err) {
-        console.error(err);
-        console.info("META STRING:", metaString);
-        throw new Error("metadata corrupted");
-      }
+      const meta = JSON.parse(metaString);
+      return new MinifiedFolderMeta(meta).unminify();
     } catch (err) {
       console.error(err);
-      throw new Error("error decrypting meta");
+      console.info("META STRING:", metaString);
+      throw new Error("metadata corrupted");
     }
+  } catch (err) {
+    console.error(err);
+    throw new Error("error decrypting meta");
+  }
+};
+
+const setFolderMeta = async (masterHandle, dir, folderMeta) => {
+  const folderKey = masterHandle.getFolderHDKey(dir),
+        key = hash(folderKey.privateKey.toString("hex")),
+        metaString = JSON.stringify(folderMeta.minify()),
+        encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
+
+  await setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+  masterHandle.getFolderLocation(dir), encryptedMeta);
+};
+
+const removeFile = async (metaQueue, meta, file) => {
+  // precondition for if file is no longer in the metadata
+  if (!meta.files.find(f => file === f || file.name === f.name)) return meta;
+  meta.files = meta.files.filter(f => file !== f && file.name !== f.name);
+  return meta;
+};
+
+const removeVersion = async (metaQueue, meta, version) => {
+  const file = meta.files.find(f => f.versions.includes(version) || !!f.versions.find(v => version.handle === v.handle)); // precondition for if version no longer exists in meta
+
+  if (!file) return meta;
+  file.versions = file.versions.filter(v => version !== v && version.handle !== v.handle);
+  if (file.versions.length === 0) metaQueue.push({
+    type: "remove-file",
+    payload: file
   });
-
-  return function getFolderMeta(_x, _x2) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const setFolderMeta =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, folderMeta) {
-    const folderKey = masterHandle.getFolderHDKey(dir),
-          key = hash(folderKey.privateKey.toString("hex")),
-          metaString = JSON.stringify(folderMeta.minify()),
-          encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64"); // TODO: verify folder can only be changed by the creating account
-
-    yield setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
-    masterHandle.getFolderLocation(dir), encryptedMeta);
-  });
-
-  return function setFolderMeta(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const removeFile =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (metaQueue, meta, file) {
-    // precondition for if file is no longer in the metadata
-    if (!meta.files.find(f => file === f || file.name === f.name)) return meta;
-    meta.files = meta.files.filter(f => file !== f && file.name !== f.name);
-    return meta;
-  });
-
-  return function removeFile(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const removeVersion =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (metaQueue, meta, version) {
-    const file = meta.files.find(f => f.versions.includes(version) || !!f.versions.find(v => version.handle === v.handle)); // precondition for if version no longer exists in meta
-
-    if (!file) return meta;
-    file.versions = file.versions.filter(v => version !== v && version.handle !== v.handle);
-    if (file.versions.length === 0) metaQueue.push({
-      type: "remove-file",
-      payload: file
-    });
-    return meta;
-  });
-
-  return function removeVersion(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
+  return meta;
+};
 
 const addFile = (metaQueue, meta, file) => {
   const existingFile = meta.files.find(f => file === f || file.name === f.name);
@@ -1914,46 +1624,22 @@ const addFolder = (metaQueue, meta, folder) => {
   return meta;
 };
 
-const removeFolder =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (metaQueue, meta, folder) {
-    // precondition for if folder is no longer in the metadata
-    if (!meta.folders.find(f => folder === f || folder.name === f.name)) return meta;
-    meta.folders = meta.folders.filter(f => folder !== f && folder.name !== f.name);
-    return meta;
-  });
-
-  return function removeFolder(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const removeFolder = async (metaQueue, meta, folder) => {
+  // precondition for if folder is no longer in the metadata
+  if (!meta.folders.find(f => folder === f || folder.name === f.name)) return meta;
+  meta.folders = meta.folders.filter(f => folder !== f && folder.name !== f.name);
+  return meta;
+};
 
 const createMetaQueue = (masterHandle, dir) => {
   if (masterHandle.metaQueue[dir]) return;
   const metaQueue = new NetQueue({
-    fetch: function () {
-      var _fetch = _asyncToGenerator(function* () {
-        return getFolderMeta$1(masterHandle, dir);
-      });
-
-      function fetch() {
-        return _fetch.apply(this, arguments);
-      }
-
-      return fetch;
-    }(),
-    update: function () {
-      var _update = _asyncToGenerator(function* (meta) {
-        yield setFolderMeta(masterHandle, dir, meta);
-      });
-
-      function update(_x) {
-        return _update.apply(this, arguments);
-      }
-
-      return update;
-    }()
+    fetch: async () => {
+      return getFolderMeta$1(masterHandle, dir);
+    },
+    update: async meta => {
+      await setFolderMeta(masterHandle, dir, meta);
+    }
   });
   const types = [{
     type: "add-folder",
@@ -1972,428 +1658,314 @@ const createMetaQueue = (masterHandle, dir) => {
     action: removeVersion
   }];
 
-  for (var _i = 0, _types = types; _i < _types.length; _i++) {
-    let type = _types[_i];
+  for (let type of types) {
     metaQueue.addType({
       type: type.type,
-      handler: function () {
-        var _handler = _asyncToGenerator(function* (meta, payload) {
-          return yield type.action(metaQueue, meta, payload);
-        });
-
-        function handler(_x2, _x3) {
-          return _handler.apply(this, arguments);
-        }
-
-        return handler;
-      }()
+      handler: async (meta, payload) => {
+        return await type.action(metaQueue, meta, payload);
+      }
     });
   }
 
   masterHandle.metaQueue[dir] = metaQueue;
 };
 
-const createFolder =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, name) {
-    dir = dir.replace(/\/+/g, "/");
-    const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-    if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
-    if (yield masterHandle.getFolderMeta(fullDir).catch(console.warn)) throw new Error("Folder already exists");
-    yield masterHandle.createFolderMeta(fullDir).catch(console.warn);
-    yield masterHandle.setFolderMeta(fullDir, new FolderMeta({
-      name
-    }));
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "add-folder",
-      payload: new FolderEntryMeta({
-        name,
-        location: masterHandle.getFolderLocation(fullDir)
-      })
-    });
+const createFolder = async (masterHandle, dir, name) => {
+  dir = dir.replace(/\/+/g, "/");
+  const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+  if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
+  if (await masterHandle.getFolderMeta(fullDir).catch(console.warn)) throw new Error("Folder already exists");
+  await masterHandle.createFolderMeta(fullDir).catch(console.warn);
+  await masterHandle.setFolderMeta(fullDir, new FolderMeta({
+    name
+  }));
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "add-folder",
+    payload: new FolderEntryMeta({
+      name,
+      location: masterHandle.getFolderLocation(fullDir)
+    })
   });
+};
 
-  return function createFolder(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const createFolderMeta = async (masterHandle, dir) => {
+  dir = dir.replace(/\/+/g, "/");
 
-const createFolderMeta =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
-    dir = dir.replace(/\/+/g, "/");
-
-    try {
-      // TODO: verify folder can only be changed by the creating account
-      yield createMetadata$1(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
-      masterHandle.getFolderLocation(dir));
-    } catch (err) {
-      console.error(`Can't create folder metadata for folder ${dir}`);
-      throw err;
-    }
-  });
-
-  return function createFolderMeta(_x, _x2) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-function deleteFile(_x, _x2, _x3) {
-  return _deleteFile.apply(this, arguments);
-}
-
-function _deleteFile() {
-  _deleteFile = _asyncToGenerator(function* (endpoint, hdNode, fileID) {
-    const payload = {
-      fileID
-    };
-    const signedPayload = getPayload(payload, hdNode);
-    return Axios.post(endpoint + "/api/v1/delete", signedPayload);
-  });
-  return _deleteFile.apply(this, arguments);
-}
-
-const deleteVersion =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, version) {
-    yield deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, // only send the location, not the private key
-    version.handle.slice(0, 64)).catch(err => {
-      console.warn("version does not exist");
-      console.warn(err);
-    });
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-version",
-      payload: version
-    });
-  });
-
-  return function deleteVersion(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const deleteFile$1 =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, file) {
-    const meta = yield getFolderMeta$1(masterHandle, dir);
-    const existingFile = meta.files.find(f => file === f || file.name === f.name); // precondition for if file is no longer in the metadata
-
-    if (!existingFile) return;
-    var _iteratorNormalCompletion = true;
-    var _didIteratorError = false;
-    var _iteratorError = undefined;
-
-    try {
-      for (var _iterator = existingFile.versions[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-        let version = _step.value;
-        yield deleteVersion(masterHandle, dir, version);
-      }
-    } catch (err) {
-      _didIteratorError = true;
-      _iteratorError = err;
-    } finally {
-      try {
-        if (!_iteratorNormalCompletion && _iterator.return != null) {
-          _iterator.return();
-        }
-      } finally {
-        if (_didIteratorError) {
-          throw _iteratorError;
-        }
-      }
-    }
-
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-file",
-      payload: existingFile
-    });
-  });
-
-  return function deleteFile(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const deleteFolder =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, folder) {
-    dir = dir.replace(/\/+/g, "/");
-    const fullDir = (dir + "/" + folder.name).replace(/\/+/g, "/");
-    if (folder.name.indexOf("/") > 0 || folder.name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
-    const meta = yield masterHandle.getFolderMeta(fullDir).catch(console.warn);
-
-    if (meta) {
-      yield Promise.all([_asyncToGenerator(function* () {
-        try {
-          var _iteratorNormalCompletion = true;
-          var _didIteratorError = false;
-          var _iteratorError = undefined;
-
-          try {
-            for (var _iterator = meta.folders[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-              let folder = _step.value;
-              yield masterHandle.deleteFolder(fullDir, folder);
-            }
-          } catch (err) {
-            _didIteratorError = true;
-            _iteratorError = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion && _iterator.return != null) {
-                _iterator.return();
-              }
-            } finally {
-              if (_didIteratorError) {
-                throw _iteratorError;
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Failed to delete sub folders");
-          throw err;
-        }
-      })(), _asyncToGenerator(function* () {
-        try {
-          var _iteratorNormalCompletion2 = true;
-          var _didIteratorError2 = false;
-          var _iteratorError2 = undefined;
-
-          try {
-            for (var _iterator2 = meta.files[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
-              let file = _step2.value;
-              yield masterHandle.deleteFile(fullDir, file);
-            }
-          } catch (err) {
-            _didIteratorError2 = true;
-            _iteratorError2 = err;
-          } finally {
-            try {
-              if (!_iteratorNormalCompletion2 && _iterator2.return != null) {
-                _iterator2.return();
-              }
-            } finally {
-              if (_didIteratorError2) {
-                throw _iteratorError2;
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Failed to delete file");
-          throw err;
-        }
-      })()]);
-    }
-
-    try {
-      yield masterHandle.deleteFolderMeta(fullDir);
-    } catch (err) {
-      console.error("Failed to delete meta entry");
-      throw err;
-    }
-
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-folder",
-      payload: folder
-    });
-  });
-
-  return function deleteFolder(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const deleteFolderMeta =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir) {
+  try {
     // TODO: verify folder can only be changed by the creating account
-    yield deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+    await createMetadata$1(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
     masterHandle.getFolderLocation(dir));
-  });
+  } catch (err) {
+    console.error(`Can't create folder metadata for folder ${dir}`);
+    throw err;
+  }
+};
 
-  return function deleteFolderMeta(_x, _x2) {
-    return _ref.apply(this, arguments);
+async function deleteFile(endpoint, hdNode, fileID) {
+  const payload = {
+    fileID
   };
-}();
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/delete", signedPayload);
+}
 
-const login =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle) {
-    // try newer meta
-    try {
-      yield masterHandle.getFolderMeta("/");
-    } catch (err) {
-      // try older meta
+const deleteVersion = async (masterHandle, dir, version) => {
+  await deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, // only send the location, not the private key
+  version.handle.slice(0, 64)).catch(err => {
+    console.warn("version does not exist");
+    console.warn(err);
+  });
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-version",
+    payload: version
+  });
+};
+
+const deleteFile$1 = async (masterHandle, dir, file) => {
+  const meta = await getFolderMeta$1(masterHandle, dir);
+  const existingFile = meta.files.find(f => file === f || file.name === f.name); // precondition for if file is no longer in the metadata
+
+  if (!existingFile) return;
+
+  for (let version of existingFile.versions) {
+    await deleteVersion(masterHandle, dir, version);
+  }
+
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-file",
+    payload: existingFile
+  });
+};
+
+const deleteFolder = async (masterHandle, dir, folder) => {
+  dir = dir.replace(/\/+/g, "/");
+  const fullDir = (dir + "/" + folder.name).replace(/\/+/g, "/");
+  if (folder.name.indexOf("/") > 0 || folder.name.length > 2 ** 8) throw new Error("Invalid folder name");
+  const meta = await masterHandle.getFolderMeta(fullDir).catch(console.warn);
+
+  if (meta) {
+    await Promise.all([(async () => {
       try {
-        const meta = yield getFolderMeta(masterHandle, "/");
-        yield masterHandle.deleteFolderMeta("/").catch(console.warn);
-        yield masterHandle.createFolderMeta("/").catch(console.warn);
-        console.info("--- META ---", meta);
-        yield masterHandle.setFolderMeta("/", new FolderMeta(meta));
+        for (let folder of meta.folders) {
+          await masterHandle.deleteFolder(fullDir, folder);
+        }
       } catch (err) {
-        // no meta exists
-        // set meta to an empty meta
-        console.warn(err);
-        yield masterHandle.createFolderMeta("/").catch(console.warn);
-        yield masterHandle.setFolderMeta("/", new FolderMeta());
+        console.error("Failed to delete sub folders");
+        throw err;
       }
+    })(), (async () => {
+      try {
+        for (let file of meta.files) {
+          await masterHandle.deleteFile(fullDir, file);
+        }
+      } catch (err) {
+        console.error("Failed to delete file");
+        throw err;
+      }
+    })()]);
+  }
+
+  try {
+    await masterHandle.deleteFolderMeta(fullDir);
+  } catch (err) {
+    console.error("Failed to delete meta entry");
+    throw err;
+  }
+
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-folder",
+    payload: folder
+  });
+};
+
+const deleteFolderMeta = async (masterHandle, dir) => {
+  // TODO: verify folder can only be changed by the creating account
+  await deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
+  masterHandle.getFolderLocation(dir));
+};
+
+const login = async masterHandle => {
+  // try newer meta
+  try {
+    await masterHandle.getFolderMeta("/");
+  } catch (err) {
+    // try older meta
+    try {
+      const meta = await getFolderMeta(masterHandle, "/");
+      await masterHandle.deleteFolderMeta("/").catch(console.warn);
+      await masterHandle.createFolderMeta("/").catch(console.warn);
+      console.info("--- META ---", meta);
+      await masterHandle.setFolderMeta("/", new FolderMeta(meta));
+    } catch (err) {
+      // no meta exists
+      // set meta to an empty meta
+      console.warn(err);
+      await masterHandle.createFolderMeta("/").catch(console.warn);
+      await masterHandle.setFolderMeta("/", new FolderMeta());
     }
+  }
+};
+
+const moveFile = async (masterHandle, dir, {
+  file,
+  to
+}) => {
+  const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
+        toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
+  if (!meta) throw new Error("Folder does not exist");
+  if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
+  const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
+
+  if (!existingFile) throw new Error("File no longer exists");
+  createMetaQueue(masterHandle, dir);
+  createMetaQueue(masterHandle, to);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-file",
+    payload: existingFile
   });
-
-  return function login(_x) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const moveFile =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, {
-    file,
-    to
-  }) {
-    const meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
-          toMeta = yield getFolderMeta$1(masterHandle, to).catch(console.warn);
-    if (!meta) throw new Error("Folder does not exist");
-    if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
-    const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
-
-    if (!existingFile) throw new Error("File no longer exists");
-    createMetaQueue(masterHandle, dir);
-    createMetaQueue(masterHandle, to);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-file",
-      payload: existingFile
-    });
-    masterHandle.metaQueue[to].push({
-      type: "add-file",
-      payload: existingFile
-    });
+  masterHandle.metaQueue[to].push({
+    type: "add-file",
+    payload: existingFile
   });
+};
 
-  return function moveFile(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const moveFolder = async (masterHandle, dir, {
+  folder,
+  to
+}) => {
+  const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
+        newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
+  const folderMeta = await getFolderMeta$1(masterHandle, oldDir).catch(console.warn),
+        outerMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
+        toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
+  if (!folderMeta) throw new Error("Folder does not exist");
+  if (!outerMeta) throw new Error("Outer folder does not exist");
+  if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
+  if (await getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
+  const existingFolder = outerMeta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
 
-const moveFolder =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, {
-    folder,
-    to
-  }) {
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-          newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
-    const folderMeta = yield getFolderMeta$1(masterHandle, oldDir).catch(console.warn),
-          outerMeta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
-          toMeta = yield getFolderMeta$1(masterHandle, to).catch(console.warn);
-    if (!folderMeta) throw new Error("Folder does not exist");
-    if (!outerMeta) throw new Error("Outer folder does not exist");
-    if (!toMeta) throw new Error("Can't move to folder that doesn't exist");
-    if (yield getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
-    const existingFolder = outerMeta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
-
-    if (!existingFolder) throw new Error("File no longer exists");
-    yield createFolderMeta(masterHandle, newDir).catch(console.warn);
-    yield setFolderMeta(masterHandle, newDir, (yield getFolderMeta$1(masterHandle, oldDir)));
-    yield deleteFolderMeta(masterHandle, oldDir);
-    createMetaQueue(masterHandle, dir);
-    createMetaQueue(masterHandle, to);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-folder",
-      payload: existingFolder
-    });
-    masterHandle.metaQueue[to].push({
-      type: "add-folder",
-      payload: existingFolder
-    });
+  if (!existingFolder) throw new Error("File no longer exists");
+  await createFolderMeta(masterHandle, newDir).catch(console.warn);
+  await setFolderMeta(masterHandle, newDir, (await getFolderMeta$1(masterHandle, oldDir)));
+  await deleteFolderMeta(masterHandle, oldDir);
+  createMetaQueue(masterHandle, dir);
+  createMetaQueue(masterHandle, to);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-folder",
+    payload: existingFolder
   });
-
-  return function moveFolder(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const renameFile =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, {
-    file,
-    name
-  }) {
-    const meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn);
-    if (!meta) throw new Error("Folder does not exist");
-    const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
-
-    if (!existingFile) throw new Error("File no longer exists");
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-file",
-      payload: existingFile
-    });
-    masterHandle.metaQueue[dir].push({
-      type: "add-file",
-      payload: new FileEntryMeta(_objectSpread({}, existingFile, {
-        name
-      }))
-    });
+  masterHandle.metaQueue[to].push({
+    type: "add-folder",
+    payload: existingFolder
   });
+};
 
-  return function renameFile(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
-
-const renameFolder =
-/*#__PURE__*/
-function () {
-  var _ref = _asyncToGenerator(function* (masterHandle, dir, {
-    folder,
-    name
-  }) {
-    if (name.indexOf("/") > 0 || name.length > Math.pow(2, 8)) throw new Error("Invalid folder name");
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-          newDir = (dir + "/" + name).replace(/\/+/g, "/");
-    const folderMeta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn),
-          meta = yield getFolderMeta$1(masterHandle, dir).catch(console.warn);
-    if (!folderMeta) throw new Error("Folder does not exist");
-    if (!meta) throw new Error("Outer folder does not exist");
-    if (yield getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
-    const existingFolder = meta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
-
-    if (!existingFolder) throw new Error("Folder no longer exists");
-    yield createFolder(masterHandle, dir, name);
-    yield setFolderMeta(masterHandle, newDir, (yield getFolderMeta$1(masterHandle, oldDir)));
-    yield deleteFolderMeta(masterHandle, oldDir);
-    createMetaQueue(masterHandle, dir);
-    masterHandle.metaQueue[dir].push({
-      type: "remove-folder",
-      payload: existingFolder
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, {
+      value: value,
+      enumerable: true,
+      configurable: true,
+      writable: true
     });
-    masterHandle.metaQueue[dir].push({
-      type: "add-folder",
-      payload: new FolderEntryMeta({
-        name,
-        location: getFolderLocation(masterHandle, newDir)
-      })
+  } else {
+    obj[key] = value;
+  }
+
+  return obj;
+}
+
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+
+  if (Object.getOwnPropertySymbols) {
+    var symbols = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly) symbols = symbols.filter(function (sym) {
+      return Object.getOwnPropertyDescriptor(object, sym).enumerable;
     });
+    keys.push.apply(keys, symbols);
+  }
+
+  return keys;
+}
+
+function _objectSpread2(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+
+    if (i % 2) {
+      ownKeys(source, true).forEach(function (key) {
+        _defineProperty(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(source).forEach(function (key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+  }
+
+  return target;
+}
+
+const renameFile = async (masterHandle, dir, {
+  file,
+  name
+}) => {
+  const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
+  if (!meta) throw new Error("Folder does not exist");
+  const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
+
+  if (!existingFile) throw new Error("File no longer exists");
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-file",
+    payload: existingFile
   });
+  masterHandle.metaQueue[dir].push({
+    type: "add-file",
+    payload: new FileEntryMeta(_objectSpread2({}, existingFile, {
+      name
+    }))
+  });
+};
 
-  return function renameFolder(_x, _x2, _x3) {
-    return _ref.apply(this, arguments);
-  };
-}();
+const renameFolder = async (masterHandle, dir, {
+  folder,
+  name
+}) => {
+  if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
+  const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
+        newDir = (dir + "/" + name).replace(/\/+/g, "/");
+  const folderMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
+        meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
+  if (!folderMeta) throw new Error("Folder does not exist");
+  if (!meta) throw new Error("Outer folder does not exist");
+  if (await getFolderMeta$1(masterHandle, newDir).catch(console.warn)) throw new Error("Folder already exists");
+  const existingFolder = meta.folders.find(f => folder === f || folder.name === f.name); // folder is no longer in the metadata
+
+  if (!existingFolder) throw new Error("Folder no longer exists");
+  await createFolder(masterHandle, dir, name);
+  await setFolderMeta(masterHandle, newDir, (await getFolderMeta$1(masterHandle, oldDir)));
+  await deleteFolderMeta(masterHandle, oldDir);
+  createMetaQueue(masterHandle, dir);
+  masterHandle.metaQueue[dir].push({
+    type: "remove-folder",
+    payload: existingFolder
+  });
+  masterHandle.metaQueue[dir].push({
+    type: "add-folder",
+    payload: new FolderEntryMeta({
+      name,
+      location: getFolderLocation(masterHandle, newDir)
+    })
+  });
+};
 
 const uploadFile = (masterHandle, dir, file) => {
   const upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
@@ -2407,32 +1979,24 @@ const uploadFile = (masterHandle, dir, file) => {
   upload.on("error", err => {
     ee.emit("error", err);
   });
-  upload.on("finish",
-  /*#__PURE__*/
-  function () {
-    var _ref = _asyncToGenerator(function* (finishedUpload) {
-      createMetaQueue(masterHandle, dir);
-      masterHandle.metaQueue[dir].push({
-        type: "add-file",
-        payload: new FileEntryMeta({
-          name: file.name,
-          modified: file.lastModified,
-          versions: [new FileVersion({
-            handle: finishedUpload.handle,
-            size: file.size,
-            modified: file.lastModified
-          })]
-        })
-      });
-      masterHandle.metaQueue[dir].once("update", meta => {
-        ee.emit("finish", finishedUpload);
-      });
+  upload.on("finish", async finishedUpload => {
+    createMetaQueue(masterHandle, dir);
+    masterHandle.metaQueue[dir].push({
+      type: "add-file",
+      payload: new FileEntryMeta({
+        name: file.name,
+        modified: file.lastModified,
+        versions: [new FileVersion({
+          handle: finishedUpload.handle,
+          size: file.size,
+          modified: file.lastModified
+        })]
+      })
     });
-
-    return function (_x) {
-      return _ref.apply(this, arguments);
-    };
-  }());
+    masterHandle.metaQueue[dir].once("update", meta => {
+      ee.emit("finish", finishedUpload);
+    });
+  });
   return ee;
 };
 
@@ -2477,22 +2041,21 @@ const v1 = {
  */
 
 class Account {
-  get mnemonic() {
-    return this._mnemonic.trim().split(/\s+/g);
-  }
   /**
    * creates an account from a mnemonic if provided, otherwise from entropy
    *
    * @param mnemonic - the mnemonic to use for the account
    */
-
-
   constructor(mnemonic = bip39.generateMnemonic()) {
     if (!bip39.validateMnemonic(mnemonic)) {
       throw new Error("mnemonic provided was not valid");
     }
 
     this._mnemonic = mnemonic;
+  }
+
+  get mnemonic() {
+    return this._mnemonic.trim().split(/\s+/g);
   }
 
   get seed() {
@@ -2531,10 +2094,7 @@ class MasterHandle extends HDKey__default {
     uploadOpts = {},
     downloadOpts = {}
   } = {}) {
-    var _this;
-
     super();
-    _this = this;
     this.metaQueue = {};
     /**
      * creates a sub key seed for validating
@@ -2590,17 +2150,7 @@ class MasterHandle extends HDKey__default {
      */
 
 
-    this.createFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref = _asyncToGenerator(function* (dir) {
-        return createFolderMeta(_this, dir);
-      });
-
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }();
+    this.createFolderMeta = async dir => createFolderMeta(this, dir);
     /**
      * create folder {name} inside of {dir}
      *
@@ -2609,165 +2159,55 @@ class MasterHandle extends HDKey__default {
      */
 
 
-    this.createFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref2 = _asyncToGenerator(function* (dir, name) {
-        return createFolder(_this, dir, name);
-      });
+    this.createFolder = async (dir, name) => createFolder(this, dir, name);
 
-      return function (_x2, _x3) {
-        return _ref2.apply(this, arguments);
-      };
-    }();
+    this.deleteFolderMeta = async dir => deleteFolderMeta(this, dir);
 
-    this.deleteFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref3 = _asyncToGenerator(function* (dir) {
-        return deleteFolderMeta(_this, dir);
-      });
+    this.deleteFolder = async (dir, folder) => deleteFolder(this, dir, folder);
 
-      return function (_x4) {
-        return _ref3.apply(this, arguments);
-      };
-    }();
-
-    this.deleteFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref4 = _asyncToGenerator(function* (dir, folder) {
-        return deleteFolder(_this, dir, folder);
-      });
-
-      return function (_x5, _x6) {
-        return _ref4.apply(this, arguments);
-      };
-    }();
-
-    this.moveFile =
-    /*#__PURE__*/
-    function () {
-      var _ref5 = _asyncToGenerator(function* (dir, {
-        file,
-        to
-      }) {
-        return moveFile(_this, dir, {
-          file,
-          to
-        });
-      });
-
-      return function (_x7, _x8) {
-        return _ref5.apply(this, arguments);
-      };
-    }();
-
-    this.moveFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref6 = _asyncToGenerator(function* (dir, {
-        folder,
-        to
-      }) {
-        return moveFolder(_this, dir, {
-          folder,
-          to
-        });
-      });
-
-      return function (_x9, _x10) {
-        return _ref6.apply(this, arguments);
-      };
-    }();
-
-    this.renameFile =
-    /*#__PURE__*/
-    function () {
-      var _ref7 = _asyncToGenerator(function* (dir, {
-        file,
-        name
-      }) {
-        return renameFile(_this, dir, {
-          file,
-          name
-        });
-      });
-
-      return function (_x11, _x12) {
-        return _ref7.apply(this, arguments);
-      };
-    }();
-
-    this.renameFolder =
-    /*#__PURE__*/
-    function () {
-      var _ref8 = _asyncToGenerator(function* (dir, {
-        folder,
-        name
-      }) {
-        return renameFolder(_this, dir, {
-          folder,
-          name
-        });
-      });
-
-      return function (_x13, _x14) {
-        return _ref8.apply(this, arguments);
-      };
-    }();
-
-    this.setFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref9 = _asyncToGenerator(function* (dir, folderMeta) {
-        return setFolderMeta(_this, dir, folderMeta);
-      });
-
-      return function (_x15, _x16) {
-        return _ref9.apply(this, arguments);
-      };
-    }();
-
-    this.getFolderMeta =
-    /*#__PURE__*/
-    function () {
-      var _ref10 = _asyncToGenerator(function* (dir) {
-        return getFolderMeta$1(_this, dir);
-      });
-
-      return function (_x17) {
-        return _ref10.apply(this, arguments);
-      };
-    }();
-
-    this.getAccountInfo =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return getAccountInfo(_this);
-    });
-    this.isPaid =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return isPaid(_this);
-    });
-    this.login =
-    /*#__PURE__*/
-    _asyncToGenerator(function* () {
-      return login(_this);
+    this.moveFile = async (dir, {
+      file,
+      to
+    }) => moveFile(this, dir, {
+      file,
+      to
     });
 
-    this.register =
-    /*#__PURE__*/
-    function () {
-      var _ref14 = _asyncToGenerator(function* (duration, limit) {
-        return register(_this, duration, limit);
-      });
+    this.moveFolder = async (dir, {
+      folder,
+      to
+    }) => moveFolder(this, dir, {
+      folder,
+      to
+    });
 
-      return function (_x18, _x19) {
-        return _ref14.apply(this, arguments);
-      };
-    }();
+    this.renameFile = async (dir, {
+      file,
+      name
+    }) => renameFile(this, dir, {
+      file,
+      name
+    });
+
+    this.renameFolder = async (dir, {
+      folder,
+      name
+    }) => renameFolder(this, dir, {
+      folder,
+      name
+    });
+
+    this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
+
+    this.getFolderMeta = async dir => getFolderMeta$1(this, dir);
+
+    this.getAccountInfo = async () => getAccountInfo(this);
+
+    this.isPaid = async () => isPaid(this);
+
+    this.login = async () => login(this);
+
+    this.register = async (duration, limit) => register(this, duration, limit);
 
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
@@ -2818,3 +2258,4 @@ exports.getPlans = getPlans;
 exports.setMetadata = setMetadata;
 exports.v0 = v0;
 exports.v1 = v1;
+//# sourceMappingURL=index.js.map

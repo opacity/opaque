@@ -340,7 +340,10 @@ export declare class MasterHandle extends HDKey {
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
-    register: (duration?: number, limit?: number) => Promise<{}>;
+    register: (duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 
 export declare type MasterHandleCreator = RequireOnlyOne<{

@@ -25,8 +25,8 @@ export default class Download extends EventEmitter {
     private size;
     constructor(handle: any, opts?: DownloadOptions);
     metadata: () => Promise<FileMeta>;
-    toBuffer: () => Promise<{}>;
-    toFile: () => Promise<{}>;
+    toBuffer: () => Promise<unknown>;
+    toFile: () => Promise<unknown>;
     startDownload: () => Promise<void>;
     getDownloadURL: (overwrite?: boolean) => Promise<string>;
     downloadMetadata: (overwrite?: boolean) => Promise<FileMeta>;

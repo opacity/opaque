@@ -42,7 +42,7 @@ declare class MasterHandle extends HDKey
 |  [metaQueue](./opaque.masterhandle.metaqueue.md) |  | <code>{</code><br/><code>        [key: string]: NetQueue&lt;FolderMeta&gt;;</code><br/><code>    }</code> |  |
 |  [moveFile](./opaque.masterhandle.movefile.md) |  | <code>(dir: string, { file, to }: MoveFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [moveFolder](./opaque.masterhandle.movefolder.md) |  | <code>(dir: string, { folder, to }: MoveFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
-|  [register](./opaque.masterhandle.register.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{}&gt;</code> |  |
+|  [register](./opaque.masterhandle.register.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
 |  [renameFile](./opaque.masterhandle.renamefile.md) |  | <code>(dir: string, { file, name }: RenameFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [renameFolder](./opaque.masterhandle.renamefolder.md) |  | <code>(dir: string, { folder, name }: RenameFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [setFolderMeta](./opaque.masterhandle.setfoldermeta.md) |  | <code>(dir: string, folderMeta: FolderMeta) =&gt; Promise&lt;void&gt;</code> |  |

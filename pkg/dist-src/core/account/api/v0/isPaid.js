@@ -4,7 +4,7 @@ const isPaid = async (masterHandle) => {
         const accountInfoResponse = await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle);
         return accountInfoResponse.data.paymentStatus == "paid";
     }
-    catch (_a) {
+    catch {
         return false;
     }
 };

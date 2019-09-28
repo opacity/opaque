@@ -37,7 +37,10 @@ declare const v1: {
     getFolderLocation: (masterHandle: import("../../../../account").MasterHandle, dir: string) => string;
     getHandle: (masterHandle: import("../../../../account").MasterHandle) => string;
     isPaid: (masterHandle: import("../../../../account").MasterHandle) => Promise<boolean>;
-    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{}>;
+    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     createMetaQueue: (masterHandle: import("../../../../account").MasterHandle, dir: string) => void;
