@@ -10,7 +10,11 @@ import {
 	MinifiedFolderMeta
 } from "../../../../core/account/folder-meta";
 
+import { cleanPath } from "../../../../utils/cleanPath";
+
 const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<FolderMeta> => {
+	dir = cleanPath(dir)
+
 	const
 		folderKey = masterHandle.getFolderHDKey(dir),
 		location = masterHandle.getFolderLocation(dir),

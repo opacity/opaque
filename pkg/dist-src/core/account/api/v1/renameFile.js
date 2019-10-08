@@ -1,7 +1,9 @@
 import { getFolderMeta } from "./getFolderMeta";
 import { FileEntryMeta } from "../../file-entry";
 import { createMetaQueue } from "./createMetaQueue";
+import { cleanPath } from "../../../../utils/cleanPath";
 const renameFile = async (masterHandle, dir, { file, name }) => {
+    dir = cleanPath(dir);
     const meta = await getFolderMeta(masterHandle, dir).catch(console.warn);
     if (!meta)
         throw new Error("Folder does not exist");

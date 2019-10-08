@@ -3,7 +3,12 @@ import Upload from "../../../../upload";
 import { FileEntryMeta } from "../../file-entry";
 import { FileVersion } from "../../file-version";
 import { createMetaQueue } from "./createMetaQueue";
+import { getFolderMeta } from "./getFolderMeta";
+import { createFolder } from "./createFolder";
+import { posix } from "path-browserify";
+import { cleanPath } from "../../../../utils/cleanPath";
 const uploadFile = (masterHandle, dir, file) => {
+    dir = cleanPath(dir);
     const upload = new Upload(file, masterHandle, masterHandle.uploadOpts), ee = new EventEmitter();
     Object.assign(ee, { handle: upload.handle });
     upload.on("upload-progress", progress => {
@@ -13,6 +18,8 @@ const uploadFile = (masterHandle, dir, file) => {
         ee.emit("error", err);
     });
     upload.on("finish", async (finishedUpload) => {
+        if (!await getFolderMeta(masterHandle, dir).catch(console.warn))
+            await createFolder(masterHandle, posix.dirname(dir), posix.basename(dir));
         createMetaQueue(masterHandle, dir);
         masterHandle.metaQueue[dir].push({
             type: "add-file",

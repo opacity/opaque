@@ -12,7 +12,11 @@ import {
 
 import { createMetaQueue } from "./createMetaQueue"
 
+import { cleanPath } from "../../../../utils/cleanPath";
+
 const getFolderMeta = async (masterHandle: MasterHandle, dir: string): Promise<FolderMeta> => {
+	dir = cleanPath(dir)
+
 	createMetaQueue(masterHandle, dir)
 
 	const

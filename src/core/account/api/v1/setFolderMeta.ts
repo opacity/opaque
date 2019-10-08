@@ -5,7 +5,11 @@ import { setMetadata } from "../../../requests/metadata";
 import { MasterHandle } from "../../../../account";
 import { FolderMeta } from "../../folder-meta";
 
+import { cleanPath } from "../../../../utils/cleanPath";
+
 const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta: FolderMeta) => {
+	dir = cleanPath(dir)
+
 	const
 		folderKey = masterHandle.getFolderHDKey(dir),
 		key = hash(folderKey.privateKey.toString("hex")),
@@ -23,4 +27,3 @@ const setFolderMeta = async (masterHandle: MasterHandle, dir: string, folderMeta
 }
 
 export { setFolderMeta }
-

@@ -14,6 +14,10 @@ a class for creating a master handle from an account mnemonic
 declare class MasterHandle extends HDKey 
 ```
 
+## Remarks
+
+a master handle is responsible for: <br /> - logging in to an account <br /> - signing changes for the account <br /> - deterministic entropy for generating features of an account (such as folder keys)
+
 ## Constructors
 
 |  Constructor | Modifiers | Description |
@@ -39,17 +43,14 @@ declare class MasterHandle extends HDKey
 |  [handle](./opaque.masterhandle.handle.md) |  | <code>string</code> | get the account handle |
 |  [isPaid](./opaque.masterhandle.ispaid.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [login](./opaque.masterhandle.login.md) |  | <code>() =&gt; Promise&lt;void&gt;</code> |  |
+|  [metaFolderCreating](./opaque.masterhandle.metafoldercreating.md) |  | <code>{</code><br/><code>        [key: string]: boolean;</code><br/><code>    }</code> |  |
 |  [metaQueue](./opaque.masterhandle.metaqueue.md) |  | <code>{</code><br/><code>        [key: string]: NetQueue&lt;FolderMeta&gt;;</code><br/><code>    }</code> |  |
 |  [moveFile](./opaque.masterhandle.movefile.md) |  | <code>(dir: string, { file, to }: MoveFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [moveFolder](./opaque.masterhandle.movefolder.md) |  | <code>(dir: string, { folder, to }: MoveFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
-|  [register](./opaque.masterhandle.register.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{}&gt;</code> |  |
+|  [register](./opaque.masterhandle.register.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
 |  [renameFile](./opaque.masterhandle.renamefile.md) |  | <code>(dir: string, { file, name }: RenameFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [renameFolder](./opaque.masterhandle.renamefolder.md) |  | <code>(dir: string, { folder, name }: RenameFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [setFolderMeta](./opaque.masterhandle.setfoldermeta.md) |  | <code>(dir: string, folderMeta: FolderMeta) =&gt; Promise&lt;void&gt;</code> |  |
 |  [uploadFile](./opaque.masterhandle.uploadfile.md) |  | <code>(dir: string, file: File) =&gt; import(&quot;events&quot;).EventEmitter</code> |  |
 |  [uploadOpts](./opaque.masterhandle.uploadopts.md) |  | <code>any</code> |  |
-
-## Remarks
-
-a master handle is responsible for: <br /> - logging in to an account <br /> - signing changes for the account <br /> - deterministic entropy for generating features of an account (such as folder keys)
 

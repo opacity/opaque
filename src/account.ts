@@ -111,6 +111,9 @@ class MasterHandle extends HDKey {
   metaQueue: {
     [key: string]: NetQueue<FolderMeta>
   } = {}
+  metaFolderCreating: {
+    [key: string]: boolean
+  } = {}
 
   /**
    * creates a master handle from an account

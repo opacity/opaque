@@ -1,6 +1,7 @@
 import { createMetadata } from "../../../../core/requests/metadata";
+import { cleanPath } from "../../../../utils/cleanPath";
 const createFolderMeta = async (masterHandle, dir) => {
-    dir = dir.replace(/\/+/g, "/");
+    dir = cleanPath(dir);
     try {
         // TODO: verify folder can only be changed by the creating account
         await createMetadata(masterHandle.uploadOpts.endpoint, masterHandle, 

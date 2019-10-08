@@ -1,6 +1,6 @@
 {
   "name": "opaque",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "files": [
     "pkg/dist-*/",
     "pkg/bin/"
@@ -10,7 +10,7 @@
   "main": "pkg/dist-node/index.js",
   "module": "pkg/dist-web/index.js",
   "scripts": {
-    "build": "pack build",
+    "build": "pika build",
     "docs": "npm run build && npx api-extractor run --local --verbose && npx api-documenter markdown --input-folder=docs --output-folder=docs"
   },
   "@pika/pack": {
@@ -27,31 +27,32 @@
     ]
   },
   "dependencies": {
-    "@microsoft/api-documenter": "^7.3.11",
+    "@microsoft/api-documenter": "^7.5.0",
     "axios": "^0.19.0",
     "bip39": "^3.0.2",
-    "bn.js": "^4.11.8",
+    "bn.js": "^5.0.0",
     "debounce": "^1.2.0",
     "eth-ens-namehash": "^2.0.8",
     "ethereumjs-util": "^6.1.0",
-    "form-data": "^2.3.3",
+    "form-data": "^2.5.1",
     "hdkey": "^1.1.1",
-    "mime": "^2.4.2",
-    "node-forge": "^0.8.2",
-    "readable-stream": "^2.3.6",
-    "web3-utils": "^1.0.0-beta.54"
+    "is-buffer": "^2.0.4",
+    "mime": "^2.4.4",
+    "node-forge": "^0.9.1",
+    "path-browserify": "^1.0.0",
+    "readable-stream": "^3.4.0",
+    "web3-utils": "^2.0.0-alpha.1"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "^7.3.4",
-    "@pika/pack": "^0.3.7",
-    "@pika/plugin-build-node": "^0.3.16",
-    "@pika/plugin-build-web": "^0.3.16",
-    "@pika/plugin-bundle-web": "^0.3.16",
-    "@pika/plugin-ts-standard-pkg": "^0.3.16",
+    "@microsoft/api-extractor": "^7.5.0",
+    "@pika/pack": "^0.5.0",
+    "@pika/plugin-build-node": "^0.6.1",
+    "@pika/plugin-build-web": "^0.6.1",
+    "@pika/plugin-bundle-web": "^0.6.1",
+    "@pika/plugin-ts-standard-pkg": "^0.6.1",
     "@types/debounce": "^1.2.0",
-    "@types/form-data": "^2.2.1",
-    "@types/is-buffer": "^2.0.0",
-    "@types/readable-stream": "^2.3.1",
-    "typescript": "^3.4.5"
+    "@types/form-data": "^2.5.0",
+    "@types/readable-stream": "^2.3.5",
+    "typescript": "^3.6.3"
   }
 }

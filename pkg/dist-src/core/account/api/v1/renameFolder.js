@@ -5,10 +5,13 @@ import { getFolderLocation } from "./index";
 import { FolderEntryMeta } from "../../folder-entry";
 import { createMetaQueue } from "./createMetaQueue";
 import { createFolder } from "./createFolder";
+import { posix } from "path-browserify";
+import { cleanPath } from "../../../../utils/cleanPath";
 const renameFolder = async (masterHandle, dir, { folder, name }) => {
+    dir = cleanPath(dir);
     if (name.indexOf("/") > 0 || name.length > 2 ** 8)
         throw new Error("Invalid folder name");
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"), newDir = (dir + "/" + name).replace(/\/+/g, "/");
+    const oldDir = posix.join(dir, folder.name), newDir = posix.join(dir, name);
     const folderMeta = await getFolderMeta(masterHandle, dir).catch(console.warn), meta = await getFolderMeta(masterHandle, dir).catch(console.warn);
     if (!folderMeta)
         throw new Error("Folder does not exist");

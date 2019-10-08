@@ -50,6 +50,9 @@ declare class MasterHandle extends HDKey {
     metaQueue: {
         [key: string]: NetQueue<FolderMeta>;
     };
+    metaFolderCreating: {
+        [key: string]: boolean;
+    };
     /**
      * creates a master handle from an account
      *
@@ -122,6 +125,9 @@ declare class MasterHandle extends HDKey {
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
-    register: (duration?: number, limit?: number) => Promise<{}>;
+    register: (duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };

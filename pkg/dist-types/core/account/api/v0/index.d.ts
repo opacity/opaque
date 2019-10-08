@@ -23,6 +23,9 @@ declare const v0: {
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
     getHandle: (masterHandle: import("../../../../account").MasterHandle) => string;
     isPaid: (masterHandle: import("../../../../account").MasterHandle) => Promise<boolean>;
-    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{}>;
+    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 };
 export default v0;

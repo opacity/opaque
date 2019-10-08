@@ -7,5 +7,8 @@
 <b>Signature:</b>
 
 ```typescript
-register: (duration?: number, limit?: number) => Promise<{}>;
+register: (duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 ```

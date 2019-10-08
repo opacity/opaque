@@ -6,7 +6,9 @@ import { removeVersion } from "./meta/removeVersion";
 import { addFile } from "./meta/addFile";
 import { addFolder } from "./meta/addFolder";
 import { removeFolder } from "./meta/removeFolder";
+import { cleanPath } from "../../../../utils/cleanPath";
 const createMetaQueue = (masterHandle, dir) => {
+    dir = cleanPath(dir);
     if (masterHandle.metaQueue[dir])
         return;
     const metaQueue = new NetQueue({

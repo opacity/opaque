@@ -5,12 +5,16 @@ import { FileEntryMeta } from "../../file-entry"
 
 import { createMetaQueue } from "./createMetaQueue"
 
+import { cleanPath } from "../../../../utils/cleanPath"
+
 type MoveFileArgs = {
 	file: FileEntryMeta,
 	to: string
 }
 
 const moveFile = async (masterHandle: MasterHandle, dir: string, { file, to }: MoveFileArgs) => {
+	dir = cleanPath(dir)
+
 	const
 		meta = await getFolderMeta(masterHandle, dir).catch(console.warn),
 		toMeta = await getFolderMeta(masterHandle, to).catch(console.warn)

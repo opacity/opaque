@@ -5,12 +5,16 @@ import { FileEntryMeta } from "../../file-entry"
 
 import { createMetaQueue } from "./createMetaQueue"
 
+import { cleanPath } from "../../../../utils/cleanPath"
+
 type RenameFileArgs = {
 	file: FileEntryMeta,
 	name: string
 }
 
 const renameFile = async (masterHandle: MasterHandle, dir: string, { file, name }: RenameFileArgs) => {
+	dir = cleanPath(dir)
+
 	const meta = await getFolderMeta(masterHandle, dir).catch(console.warn)
 
 	if (!meta)

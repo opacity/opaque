@@ -1,6 +1,8 @@
 import { deleteFile as requestDeleteFile } from "../../../../core/requests/deleteFile";
 import { createMetaQueue } from "./createMetaQueue";
+import { cleanPath } from "../../../../utils/cleanPath";
 const deleteVersion = async (masterHandle, dir, version) => {
+    dir = cleanPath(dir);
     await requestDeleteFile(masterHandle.uploadOpts.endpoint, masterHandle, 
     // only send the location, not the private key
     version.handle.slice(0, 64)).catch(err => {

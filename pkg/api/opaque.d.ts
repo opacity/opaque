@@ -107,8 +107,8 @@ export declare class Download extends EventEmitter {
     private size;
     constructor(handle: any, opts?: DownloadOptions);
     metadata: () => Promise<FileMeta>;
-    toBuffer: () => Promise<{}>;
-    toFile: () => Promise<{}>;
+    toBuffer: () => Promise<unknown>;
+    toFile: () => Promise<unknown>;
     startDownload: () => Promise<void>;
     getDownloadURL: (overwrite?: boolean) => Promise<string>;
     downloadMetadata: (overwrite?: boolean) => Promise<FileMeta>;
@@ -376,6 +376,9 @@ export declare class MasterHandle extends HDKey {
     metaQueue: {
         [key: string]: NetQueue<FolderMeta>;
     };
+    metaFolderCreating: {
+        [key: string]: boolean;
+    };
     /**
      * creates a master handle from an account
      *
@@ -448,7 +451,10 @@ export declare class MasterHandle extends HDKey {
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
-    register: (duration?: number, limit?: number) => Promise<{}>;
+    register: (duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 
 export declare type MasterHandleCreator = RequireOnlyOne<{
@@ -678,7 +684,10 @@ export declare const v0: {
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
     getHandle: (masterHandle: import("../../../../account").MasterHandle) => string;
     isPaid: (masterHandle: import("../../../../account").MasterHandle) => Promise<boolean>;
-    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{}>;
+    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 };
 
 /**
@@ -694,7 +703,10 @@ export declare const v1: {
     getFolderLocation: (masterHandle: import("../../../../account").MasterHandle, dir: string) => string;
     getHandle: (masterHandle: import("../../../../account").MasterHandle) => string;
     isPaid: (masterHandle: import("../../../../account").MasterHandle) => Promise<boolean>;
-    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{}>;
+    register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     createMetaQueue: (masterHandle: import("../../../../account").MasterHandle, dir: string) => void;

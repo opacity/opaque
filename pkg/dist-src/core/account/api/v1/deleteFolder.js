@@ -1,7 +1,9 @@
 import { createMetaQueue } from "./createMetaQueue";
+import { posix } from "path-browserify";
+import { cleanPath } from "../../../../utils/cleanPath";
 const deleteFolder = async (masterHandle, dir, folder) => {
-    dir = dir.replace(/\/+/g, "/");
-    const fullDir = (dir + "/" + folder.name).replace(/\/+/g, "/");
+    dir = cleanPath(dir);
+    const fullDir = posix.join(dir, folder.name);
     if (folder.name.indexOf("/") > 0 || folder.name.length > 2 ** 8)
         throw new Error("Invalid folder name");
     const meta = await masterHandle.getFolderMeta(fullDir).catch(console.warn);

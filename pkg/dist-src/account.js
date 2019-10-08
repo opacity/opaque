@@ -11,9 +11,6 @@ import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, ge
  * @public
  */
 class Account {
-    get mnemonic() {
-        return this._mnemonic.trim().split(/\s+/g);
-    }
     /**
      * creates an account from a mnemonic if provided, otherwise from entropy
      *
@@ -24,6 +21,9 @@ class Account {
             throw new Error("mnemonic provided was not valid");
         }
         this._mnemonic = mnemonic;
+    }
+    get mnemonic() {
+        return this._mnemonic.trim().split(/\s+/g);
     }
     get seed() {
         return mnemonicToSeedSync(this._mnemonic);
@@ -54,6 +54,7 @@ class MasterHandle extends HDKey {
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
         this.metaQueue = {};
+        this.metaFolderCreating = {};
         /**
          * creates a sub key seed for validating
          *

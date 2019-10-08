@@ -49,6 +49,7 @@ export function sanitizeFilename(filename) {
 // Rudimentary format normalization
 export function getFileData(file, nameFallback = "file") {
     if (isBuffer(file)) {
+        file = file;
         return {
             data: file,
             size: file.length,
