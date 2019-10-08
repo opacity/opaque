@@ -5,7 +5,11 @@ import { FolderMeta } from "../../metadata"
 import { FileVersion } from "../../file-version"
 import { createMetaQueue } from "./createMetaQueue";
 
+import { cleanPath } from "../../../../utils/cleanPath";
+
 const deleteVersion = async (masterHandle: MasterHandle, dir: string, version: FileVersion) => {
+	dir = cleanPath(dir)
+
 	await requestDeleteFile(
 		masterHandle.uploadOpts.endpoint,
 		masterHandle,

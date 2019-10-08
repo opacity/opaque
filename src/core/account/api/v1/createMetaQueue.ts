@@ -12,7 +12,11 @@ import { addFile } from "./meta/addFile"
 import { addFolder } from "./meta/addFolder"
 import { removeFolder } from "./meta/removeFolder"
 
+import { cleanPath } from "../../../../utils/cleanPath"
+
 const createMetaQueue = (masterHandle: MasterHandle, dir: string) => {
+	dir = cleanPath(dir)
+
 	if (masterHandle.metaQueue[dir])
 		return
 

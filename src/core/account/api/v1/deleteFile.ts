@@ -6,7 +6,11 @@ import { FileEntryMeta } from "../../file-entry"
 
 import { createMetaQueue } from "./createMetaQueue"
 
+import { cleanPath } from "../../../../utils/cleanPath"
+
 const deleteFile = async (masterHandle: MasterHandle, dir: string, file: FileEntryMeta) => {
+	dir = cleanPath(dir)
+
 	const meta = await getFolderMeta(masterHandle, dir)
 
 	const existingFile = meta.files.find(f => file === f || file.name === f.name)

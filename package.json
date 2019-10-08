@@ -27,7 +27,7 @@
     ]
   },
   "dependencies": {
-    "@microsoft/api-documenter": "^7.4.7",
+    "@microsoft/api-documenter": "^7.5.0",
     "axios": "^0.19.0",
     "bip39": "^3.0.2",
     "bn.js": "^5.0.0",
@@ -36,13 +36,15 @@
     "ethereumjs-util": "^6.1.0",
     "form-data": "^2.5.1",
     "hdkey": "^1.1.1",
+    "is-buffer": "^2.0.4",
     "mime": "^2.4.4",
     "node-forge": "^0.9.1",
+    "path-browserify": "^1.0.0",
     "readable-stream": "^3.4.0",
     "web3-utils": "^2.0.0-alpha.1"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "^7.4.5",
+    "@microsoft/api-extractor": "^7.5.0",
     "@pika/pack": "^0.5.0",
     "@pika/plugin-build-node": "^0.6.1",
     "@pika/plugin-build-web": "^0.6.1",
@@ -50,8 +52,7 @@
     "@pika/plugin-ts-standard-pkg": "^0.6.1",
     "@types/debounce": "^1.2.0",
     "@types/form-data": "^2.5.0",
-    "@types/is-buffer": "^2.0.0",
-    "@types/readable-stream": "^2.3.4",
+    "@types/readable-stream": "^2.3.5",
     "typescript": "^3.6.3"
   }
 }

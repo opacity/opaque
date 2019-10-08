@@ -9,18 +9,23 @@ import { FolderEntryMeta } from "../../folder-entry"
 import { createMetaQueue } from "./createMetaQueue"
 import { createFolder } from "./createFolder";
 
+import { posix } from "path-browserify"
+import { cleanPath } from "../../../../utils/cleanPath"
+
 type RenameFolderArgs = {
 	folder: FolderEntryMeta,
 	name: string
 }
 
 const renameFolder = async (masterHandle: MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => {
+	dir = cleanPath(dir)
+
 	if (name.indexOf("/") > 0 || name.length > 2 ** 8)
 		throw new Error("Invalid folder name")
 
 	const
-		oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-		newDir = (dir + "/" + name).replace(/\/+/g, "/")
+		oldDir = posix.join(dir, folder.name),
+		newDir = posix.join(dir, name)
 
 	const
 		folderMeta = await getFolderMeta(masterHandle, dir).catch(console.warn),

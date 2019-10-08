@@ -4,7 +4,9 @@ import { getMetadata } from "../../../../core/requests/metadata";
 import { decrypt } from "../../../../core/encryption";
 import { MinifiedFolderMeta } from "../../../../core/account/folder-meta";
 import { createMetaQueue } from "./createMetaQueue";
+import { cleanPath } from "../../../../utils/cleanPath";
 const getFolderMeta = async (masterHandle, dir) => {
+    dir = cleanPath(dir);
     createMetaQueue(masterHandle, dir);
     const folderKey = masterHandle.getFolderHDKey(dir), location = masterHandle.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
     // TODO: verify folder can only be read by the creating account

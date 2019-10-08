@@ -3,8 +3,11 @@ import { setFolderMeta } from "./setFolderMeta";
 import { deleteFolderMeta } from "./deleteFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
 import { createFolderMeta } from "./createFolderMeta";
+import { posix } from "path-browserify";
+import { cleanPath } from "../../../../utils/cleanPath";
 const moveFolder = async (masterHandle, dir, { folder, to }) => {
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"), newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
+    dir = cleanPath(dir);
+    const oldDir = posix.join(dir, folder.name), newDir = posix.join(to, folder.name);
     const folderMeta = await getFolderMeta(masterHandle, oldDir).catch(console.warn), outerMeta = await getFolderMeta(masterHandle, dir).catch(console.warn), toMeta = await getFolderMeta(masterHandle, to).catch(console.warn);
     if (!folderMeta)
         throw new Error("Folder does not exist");

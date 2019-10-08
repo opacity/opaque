@@ -74,9 +74,10 @@ export type FileData = {
 
 // Rudimentary format normalization
 export function getFileData(file: Buffer | FileData, nameFallback = "file"): FileData {
-  if(isBuffer(file)) {
+  if (isBuffer(file)) {
+    file = file as Buffer
     return {
-      data: file as Buffer,
+      data: file,
       size: file.length,
       name: nameFallback,
       type: "application/octet-stream",

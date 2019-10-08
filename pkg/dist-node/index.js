@@ -13,6 +13,7 @@ var mime = _interopDefault(require('mime/lite'));
 var FormDataNode = _interopDefault(require('form-data'));
 var EthUtil = require('ethereumjs-util');
 var web3Utils = require('web3-utils');
+var pathBrowserify = require('path-browserify');
 var debounce = _interopDefault(require('debounce'));
 var bip39 = require('bip39');
 var HDKey = require('hdkey');
@@ -163,6 +164,7 @@ function sanitizeFilename(filename) {
 
 function getFileData(file, nameFallback = "file") {
   if (isBuffer(file)) {
+    file = file;
     return {
       data: file,
       size: file.length,
@@ -1177,15 +1179,32 @@ const generateSubHDKey = (masterHandle, pathString) => {
 
 const getAccountInfo = async masterHandle => (await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account;
 
+// TODO: don't use polyfill
+const posixSep = new RegExp(pathBrowserify.posix.sep + "+", "g");
+const posixSepEnd = new RegExp("(.)" + pathBrowserify.posix.sep + "+$"); // NOTE: win32 isn't included in the polyfill
+
+const win32Sep = new RegExp("\\+", "g");
+
+const trimTrailingSep = path => {
+  return path.replace(posixSepEnd, "$1");
+};
+
+const cleanPath = path => {
+  return trimTrailingSep(path.replace(win32Sep, pathBrowserify.posix.sep).replace(posixSep, pathBrowserify.posix.sep));
+};
+
 const getFolderHDKey = (masterHandle, dir) => {
+  dir = cleanPath(dir);
   return generateSubHDKey(masterHandle, "folder: " + dir);
 };
 
 const getFolderLocation = (masterHandle, dir) => {
+  dir = cleanPath(dir);
   return hash(masterHandle.getFolderHDKey(dir).publicKey.toString("hex"));
 };
 
 const getFolderMeta = async (masterHandle, dir) => {
+  dir = cleanPath(dir);
   const folderKey = masterHandle.getFolderHDKey(dir),
         location = masterHandle.getFolderLocation(dir),
         key = hash(folderKey.privateKey.toString("hex")),
@@ -1551,6 +1570,7 @@ class NetQueue extends events.EventEmitter {
 }
 
 const getFolderMeta$1 = async (masterHandle, dir) => {
+  dir = cleanPath(dir);
   createMetaQueue(masterHandle, dir);
   const folderKey = masterHandle.getFolderHDKey(dir),
         location = masterHandle.getFolderLocation(dir),
@@ -1577,6 +1597,7 @@ const getFolderMeta$1 = async (masterHandle, dir) => {
 };
 
 const setFolderMeta = async (masterHandle, dir, folderMeta) => {
+  dir = cleanPath(dir);
   const folderKey = masterHandle.getFolderHDKey(dir),
         key = hash(folderKey.privateKey.toString("hex")),
         metaString = JSON.stringify(folderMeta.minify()),
@@ -1632,6 +1653,7 @@ const removeFolder = async (metaQueue, meta, folder) => {
 };
 
 const createMetaQueue = (masterHandle, dir) => {
+  dir = cleanPath(dir);
   if (masterHandle.metaQueue[dir]) return;
   const metaQueue = new NetQueue({
     fetch: async () => {
@@ -1670,11 +1692,13 @@ const createMetaQueue = (masterHandle, dir) => {
   masterHandle.metaQueue[dir] = metaQueue;
 };
 
-const createFolder = async (masterHandle, dir, name) => {
-  dir = dir.replace(/\/+/g, "/");
-  const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
-  if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
-  if (await masterHandle.getFolderMeta(fullDir).catch(console.warn)) throw new Error("Folder already exists");
+const createFolderFn = async (masterHandle, dir, name) => {
+  const fullDir = pathBrowserify.posix.join(dir, name);
+  if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name"); // recurively create containing folders first
+
+  if (!(await masterHandle.getFolderMeta(dir).catch(console.warn))) await createFolder(masterHandle, pathBrowserify.posix.dirname(dir), pathBrowserify.posix.basename(dir));
+  if (await masterHandle.getFolderMeta(fullDir).catch(console.warn)) throw new Error("Folder already exists"); // initialize as empty folder
+
   await masterHandle.createFolderMeta(fullDir).catch(console.warn);
   await masterHandle.setFolderMeta(fullDir, new FolderMeta({
     name
@@ -1689,8 +1713,30 @@ const createFolder = async (masterHandle, dir, name) => {
   });
 };
 
+const createFolder = async (masterHandle, dir, name) => {
+  dir = cleanPath(dir);
+  const fullDir = pathBrowserify.posix.join(dir, name);
+
+  if (masterHandle.metaFolderCreating[fullDir]) {
+    // TODO: this is hacky
+    await new Promise(resolve => {
+      const interval = setInterval(() => {
+        if (!masterHandle.metaFolderCreating[fullDir]) {
+          resolve();
+          clearInterval(interval);
+        }
+      }, 250);
+    });
+    return;
+  }
+
+  masterHandle.metaFolderCreating[fullDir] = true;
+  await createFolderFn(masterHandle, dir, name);
+  masterHandle.metaFolderCreating[fullDir] = false;
+};
+
 const createFolderMeta = async (masterHandle, dir) => {
-  dir = dir.replace(/\/+/g, "/");
+  dir = cleanPath(dir);
 
   try {
     // TODO: verify folder can only be changed by the creating account
@@ -1711,6 +1757,7 @@ async function deleteFile(endpoint, hdNode, fileID) {
 }
 
 const deleteVersion = async (masterHandle, dir, version) => {
+  dir = cleanPath(dir);
   await deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, // only send the location, not the private key
   version.handle.slice(0, 64)).catch(err => {
     console.warn("version does not exist");
@@ -1724,6 +1771,7 @@ const deleteVersion = async (masterHandle, dir, version) => {
 };
 
 const deleteFile$1 = async (masterHandle, dir, file) => {
+  dir = cleanPath(dir);
   const meta = await getFolderMeta$1(masterHandle, dir);
   const existingFile = meta.files.find(f => file === f || file.name === f.name); // precondition for if file is no longer in the metadata
 
@@ -1741,8 +1789,8 @@ const deleteFile$1 = async (masterHandle, dir, file) => {
 };
 
 const deleteFolder = async (masterHandle, dir, folder) => {
-  dir = dir.replace(/\/+/g, "/");
-  const fullDir = (dir + "/" + folder.name).replace(/\/+/g, "/");
+  dir = cleanPath(dir);
+  const fullDir = pathBrowserify.posix.join(dir, folder.name);
   if (folder.name.indexOf("/") > 0 || folder.name.length > 2 ** 8) throw new Error("Invalid folder name");
   const meta = await masterHandle.getFolderMeta(fullDir).catch(console.warn);
 
@@ -1783,7 +1831,8 @@ const deleteFolder = async (masterHandle, dir, folder) => {
 };
 
 const deleteFolderMeta = async (masterHandle, dir) => {
-  // TODO: verify folder can only be changed by the creating account
+  dir = cleanPath(dir); // TODO: verify folder can only be changed by the creating account
+
   await deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // masterHandle.getFolderHDKey(dir),
   masterHandle.getFolderLocation(dir));
 };
@@ -1814,6 +1863,7 @@ const moveFile = async (masterHandle, dir, {
   file,
   to
 }) => {
+  dir = cleanPath(dir);
   const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
         toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
   if (!meta) throw new Error("Folder does not exist");
@@ -1837,8 +1887,9 @@ const moveFolder = async (masterHandle, dir, {
   folder,
   to
 }) => {
-  const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-        newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
+  dir = cleanPath(dir);
+  const oldDir = pathBrowserify.posix.join(dir, folder.name),
+        newDir = pathBrowserify.posix.join(to, folder.name);
   const folderMeta = await getFolderMeta$1(masterHandle, oldDir).catch(console.warn),
         outerMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
         toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
@@ -1917,6 +1968,7 @@ const renameFile = async (masterHandle, dir, {
   file,
   name
 }) => {
+  dir = cleanPath(dir);
   const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
   if (!meta) throw new Error("Folder does not exist");
   const existingFile = meta.files.find(f => file === f || file.name === f.name); // file is no longer in the metadata
@@ -1939,9 +1991,10 @@ const renameFolder = async (masterHandle, dir, {
   folder,
   name
 }) => {
+  dir = cleanPath(dir);
   if (name.indexOf("/") > 0 || name.length > 2 ** 8) throw new Error("Invalid folder name");
-  const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-        newDir = (dir + "/" + name).replace(/\/+/g, "/");
+  const oldDir = pathBrowserify.posix.join(dir, folder.name),
+        newDir = pathBrowserify.posix.join(dir, name);
   const folderMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn),
         meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
   if (!folderMeta) throw new Error("Folder does not exist");
@@ -1968,6 +2021,7 @@ const renameFolder = async (masterHandle, dir, {
 };
 
 const uploadFile = (masterHandle, dir, file) => {
+  dir = cleanPath(dir);
   const upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
         ee = new events.EventEmitter();
   Object.assign(ee, {
@@ -1980,6 +2034,7 @@ const uploadFile = (masterHandle, dir, file) => {
     ee.emit("error", err);
   });
   upload.on("finish", async finishedUpload => {
+    if (!(await getFolderMeta$1(masterHandle, dir).catch(console.warn))) await createFolder(masterHandle, pathBrowserify.posix.dirname(dir), pathBrowserify.posix.basename(dir));
     createMetaQueue(masterHandle, dir);
     masterHandle.metaQueue[dir].push({
       type: "add-file",
@@ -2096,6 +2151,7 @@ class MasterHandle extends HDKey__default {
   } = {}) {
     super();
     this.metaQueue = {};
+    this.metaFolderCreating = {};
     /**
      * creates a sub key seed for validating
      *

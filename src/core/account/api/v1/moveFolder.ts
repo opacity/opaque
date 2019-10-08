@@ -9,15 +9,20 @@ import { FolderEntryMeta } from "../../folder-entry"
 import { createMetaQueue } from "./createMetaQueue"
 import { createFolderMeta } from "./createFolderMeta";
 
+import { posix } from "path-browserify"
+import { cleanPath } from "../../../../utils/cleanPath"
+
 type MoveFolderArgs = {
 	folder: FolderEntryMeta,
 	to: string
 }
 
 const moveFolder = async (masterHandle: MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => {
+	dir = cleanPath(dir)
+
 	const
-		oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"),
-		newDir = (to + "/" + folder.name).replace(/\/+/g, "/")
+		oldDir = posix.join(dir, folder.name),
+		newDir = posix.join(to, folder.name)
 
 	const
 		folderMeta = await getFolderMeta(masterHandle, oldDir).catch(console.warn),

@@ -7,6 +7,7 @@ import mime from 'mime/lite';
 import FormDataNode from 'form-data';
 import { keccak256 } from 'ethereumjs-util';
 import { soliditySha3 } from 'web3-utils';
+import { posix } from 'path-browserify';
 import debounce from 'debounce';
 import { validateMnemonic, generateMnemonic, mnemonicToSeedSync } from 'bip39';
 import HDKey, { fromMasterSeed } from 'hdkey';
@@ -145,6 +146,7 @@ function sanitizeFilename(filename) {
 // Rudimentary format normalization
 function getFileData(file, nameFallback = "file") {
     if (isBuffer(file)) {
+        file = file;
         return {
             data: file,
             size: file.length,
@@ -1049,15 +1051,30 @@ const generateSubHDKey = (masterHandle, pathString) => {
 
 const getAccountInfo = async (masterHandle) => ((await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle)).data.account);
 
+// TODO: don't use polyfill
+const posixSep = new RegExp(posix.sep + "+", "g");
+const posixSepEnd = new RegExp("(.)" + posix.sep + "+$");
+// NOTE: win32 isn't included in the polyfill
+const win32Sep = new RegExp("\\+", "g");
+const trimTrailingSep = (path) => {
+    return path.replace(posixSepEnd, "$1");
+};
+const cleanPath = (path) => {
+    return trimTrailingSep(path.replace(win32Sep, posix.sep).replace(posixSep, posix.sep));
+};
+
 const getFolderHDKey = (masterHandle, dir) => {
+    dir = cleanPath(dir);
     return generateSubHDKey(masterHandle, "folder: " + dir);
 };
 
 const getFolderLocation = (masterHandle, dir) => {
+    dir = cleanPath(dir);
     return hash(masterHandle.getFolderHDKey(dir).publicKey.toString("hex"));
 };
 
 const getFolderMeta = async (masterHandle, dir) => {
+    dir = cleanPath(dir);
     const folderKey = masterHandle.getFolderHDKey(dir), location = masterHandle.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
     // TODO: verify folder can only be read by the creating account
     response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, 
@@ -1362,6 +1379,7 @@ class NetQueue extends EventEmitter {
 }
 
 const getFolderMeta$1 = async (masterHandle, dir) => {
+    dir = cleanPath(dir);
     createMetaQueue(masterHandle, dir);
     const folderKey = masterHandle.getFolderHDKey(dir), location = masterHandle.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
     // TODO: verify folder can only be read by the creating account
@@ -1387,6 +1405,7 @@ const getFolderMeta$1 = async (masterHandle, dir) => {
 };
 
 const setFolderMeta = async (masterHandle, dir, folderMeta) => {
+    dir = cleanPath(dir);
     const folderKey = masterHandle.getFolderHDKey(dir), key = hash(folderKey.privateKey.toString("hex")), metaString = JSON.stringify(folderMeta.minify()), encryptedMeta = Buffer.from(encryptString(key, metaString, "utf8").toHex(), "hex").toString("base64");
     // TODO: verify folder can only be changed by the creating account
     await setMetadata(masterHandle.uploadOpts.endpoint, masterHandle, 
@@ -1444,6 +1463,7 @@ const removeFolder = async (metaQueue, meta, folder) => {
 };
 
 const createMetaQueue = (masterHandle, dir) => {
+    dir = cleanPath(dir);
     if (masterHandle.metaQueue[dir])
         return;
     const metaQueue = new NetQueue({
@@ -1472,13 +1492,16 @@ const createMetaQueue = (masterHandle, dir) => {
     masterHandle.metaQueue[dir] = metaQueue;
 };
 
-const createFolder = async (masterHandle, dir, name) => {
-    dir = dir.replace(/\/+/g, "/");
-    const fullDir = (dir + "/" + name).replace(/\/+/g, "/");
+const createFolderFn = async (masterHandle, dir, name) => {
+    const fullDir = posix.join(dir, name);
     if (name.indexOf("/") > 0 || name.length > 2 ** 8)
         throw new Error("Invalid folder name");
+    // recurively create containing folders first
+    if (!await masterHandle.getFolderMeta(dir).catch(console.warn))
+        await createFolder(masterHandle, posix.dirname(dir), posix.basename(dir));
     if (await masterHandle.getFolderMeta(fullDir).catch(console.warn))
         throw new Error("Folder already exists");
+    // initialize as empty folder
     await masterHandle.createFolderMeta(fullDir).catch(console.warn);
     await masterHandle.setFolderMeta(fullDir, new FolderMeta({ name }));
     createMetaQueue(masterHandle, dir);
@@ -1490,9 +1513,28 @@ const createFolder = async (masterHandle, dir, name) => {
         })
     });
 };
+const createFolder = async (masterHandle, dir, name) => {
+    dir = cleanPath(dir);
+    const fullDir = posix.join(dir, name);
+    if (masterHandle.metaFolderCreating[fullDir]) {
+        // TODO: this is hacky
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (!masterHandle.metaFolderCreating[fullDir]) {
+                    resolve();
+                    clearInterval(interval);
+                }
+            }, 250);
+        });
+        return;
+    }
+    masterHandle.metaFolderCreating[fullDir] = true;
+    await createFolderFn(masterHandle, dir, name);
+    masterHandle.metaFolderCreating[fullDir] = false;
+};
 
 const createFolderMeta = async (masterHandle, dir) => {
-    dir = dir.replace(/\/+/g, "/");
+    dir = cleanPath(dir);
     try {
         // TODO: verify folder can only be changed by the creating account
         await createMetadata$1(masterHandle.uploadOpts.endpoint, masterHandle, 
@@ -1513,6 +1555,7 @@ async function deleteFile(endpoint, hdNode, fileID) {
 }
 
 const deleteVersion = async (masterHandle, dir, version) => {
+    dir = cleanPath(dir);
     await deleteFile(masterHandle.uploadOpts.endpoint, masterHandle, 
     // only send the location, not the private key
     version.handle.slice(0, 64)).catch(err => {
@@ -1527,6 +1570,7 @@ const deleteVersion = async (masterHandle, dir, version) => {
 };
 
 const deleteFile$1 = async (masterHandle, dir, file) => {
+    dir = cleanPath(dir);
     const meta = await getFolderMeta$1(masterHandle, dir);
     const existingFile = meta.files.find(f => file === f || file.name === f.name);
     // precondition for if file is no longer in the metadata
@@ -1543,8 +1587,8 @@ const deleteFile$1 = async (masterHandle, dir, file) => {
 };
 
 const deleteFolder = async (masterHandle, dir, folder) => {
-    dir = dir.replace(/\/+/g, "/");
-    const fullDir = (dir + "/" + folder.name).replace(/\/+/g, "/");
+    dir = cleanPath(dir);
+    const fullDir = posix.join(dir, folder.name);
     if (folder.name.indexOf("/") > 0 || folder.name.length > 2 ** 8)
         throw new Error("Invalid folder name");
     const meta = await masterHandle.getFolderMeta(fullDir).catch(console.warn);
@@ -1589,6 +1633,7 @@ const deleteFolder = async (masterHandle, dir, folder) => {
 };
 
 const deleteFolderMeta = async (masterHandle, dir) => {
+    dir = cleanPath(dir);
     // TODO: verify folder can only be changed by the creating account
     await deleteMetadata(masterHandle.uploadOpts.endpoint, masterHandle, 
     // masterHandle.getFolderHDKey(dir),
@@ -1620,6 +1665,7 @@ const login = async (masterHandle) => {
 };
 
 const moveFile = async (masterHandle, dir, { file, to }) => {
+    dir = cleanPath(dir);
     const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn), toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
     if (!meta)
         throw new Error("Folder does not exist");
@@ -1642,7 +1688,8 @@ const moveFile = async (masterHandle, dir, { file, to }) => {
 };
 
 const moveFolder = async (masterHandle, dir, { folder, to }) => {
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"), newDir = (to + "/" + folder.name).replace(/\/+/g, "/");
+    dir = cleanPath(dir);
+    const oldDir = posix.join(dir, folder.name), newDir = posix.join(to, folder.name);
     const folderMeta = await getFolderMeta$1(masterHandle, oldDir).catch(console.warn), outerMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn), toMeta = await getFolderMeta$1(masterHandle, to).catch(console.warn);
     if (!folderMeta)
         throw new Error("Folder does not exist");
@@ -1672,6 +1719,7 @@ const moveFolder = async (masterHandle, dir, { folder, to }) => {
 };
 
 const renameFile = async (masterHandle, dir, { file, name }) => {
+    dir = cleanPath(dir);
     const meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
     if (!meta)
         throw new Error("Folder does not exist");
@@ -1694,9 +1742,10 @@ const renameFile = async (masterHandle, dir, { file, name }) => {
 };
 
 const renameFolder = async (masterHandle, dir, { folder, name }) => {
+    dir = cleanPath(dir);
     if (name.indexOf("/") > 0 || name.length > 2 ** 8)
         throw new Error("Invalid folder name");
-    const oldDir = (dir + "/" + folder.name).replace(/\/+/g, "/"), newDir = (dir + "/" + name).replace(/\/+/g, "/");
+    const oldDir = posix.join(dir, folder.name), newDir = posix.join(dir, name);
     const folderMeta = await getFolderMeta$1(masterHandle, dir).catch(console.warn), meta = await getFolderMeta$1(masterHandle, dir).catch(console.warn);
     if (!folderMeta)
         throw new Error("Folder does not exist");
@@ -1726,6 +1775,7 @@ const renameFolder = async (masterHandle, dir, { folder, name }) => {
 };
 
 const uploadFile = (masterHandle, dir, file) => {
+    dir = cleanPath(dir);
     const upload = new Upload(file, masterHandle, masterHandle.uploadOpts), ee = new EventEmitter();
     Object.assign(ee, { handle: upload.handle });
     upload.on("upload-progress", progress => {
@@ -1735,6 +1785,8 @@ const uploadFile = (masterHandle, dir, file) => {
         ee.emit("error", err);
     });
     upload.on("finish", async (finishedUpload) => {
+        if (!await getFolderMeta$1(masterHandle, dir).catch(console.warn))
+            await createFolder(masterHandle, posix.dirname(dir), posix.basename(dir));
         createMetaQueue(masterHandle, dir);
         masterHandle.metaQueue[dir].push({
             type: "add-file",
@@ -1839,6 +1891,7 @@ class MasterHandle extends HDKey {
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
         this.metaQueue = {};
+        this.metaFolderCreating = {};
         /**
          * creates a sub key seed for validating
          *

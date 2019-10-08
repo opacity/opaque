@@ -54,6 +54,7 @@ class MasterHandle extends HDKey {
     constructor({ account, handle, }, { uploadOpts = {}, downloadOpts = {} } = {}) {
         super();
         this.metaQueue = {};
+        this.metaFolderCreating = {};
         /**
          * creates a sub key seed for validating
          *
