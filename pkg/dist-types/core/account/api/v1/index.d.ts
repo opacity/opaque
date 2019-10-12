@@ -8,6 +8,7 @@ import { getFolderLocation } from "../v0/getFolderLocation";
 import { getHandle } from "../v0/getHandle";
 import { isPaid } from "../v0/isPaid";
 import { register } from "../v0/register";
+import { buildFullTree } from "./buildFullTree";
 import { createFolder } from "./createFolder";
 import { createFolderMeta } from "./createFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
@@ -23,7 +24,7 @@ import { renameFile, RenameFileArgs } from "./renameFile";
 import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, uploadFile };
 /**
  * internal API v1
  *
@@ -40,6 +41,9 @@ declare const v1: {
     register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
         data: any;
         waitForPayment: () => Promise<unknown>;
+    }>;
+    buildFullTree: (masterHandle: import("../../../../account").MasterHandle, dir?: string) => Promise<{
+        [key: string]: import("../../folder-meta").FolderMeta;
     }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;

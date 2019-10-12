@@ -1298,51 +1298,6 @@ const v0 = {
 };
 
 /**
- * metadata to describe where a folder can be found (for root metadata of an account)
- *
- * @public
- */
-class FolderEntryMeta {
-  /**
-   * create metadata entry for a folder
-   *
-   * @param name - a name of the folder shown in the UI
-   * @param location - the public key for the metadata file
-   *   it is how the file will be queried for (using the same system as for the account metadata)
-   */
-  constructor({
-    name,
-    location
-  }) {
-    /** @internal */
-    this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
-
-    this.name = name;
-    this.location = location;
-  }
-
-}
-/**
- * @internal
- */
-
-
-class MinifiedFolderEntryMeta extends Array {
-  constructor([name, location]) {
-    super(2);
-
-    this.unminify = () => new FolderEntryMeta({
-      name: this[0],
-      location: this[1]
-    });
-
-    this[0] = name;
-    this[1] = location;
-  }
-
-}
-
-/**
  * metadata to describe a version of a file as it relates to a filesystem
  *
  * @public
@@ -1447,6 +1402,51 @@ class MinifiedFileEntryMeta extends Array {
     this[1] = created;
     this[2] = modified;
     this[3] = versions;
+  }
+
+}
+
+/**
+ * metadata to describe where a folder can be found (for root metadata of an account)
+ *
+ * @public
+ */
+class FolderEntryMeta {
+  /**
+   * create metadata entry for a folder
+   *
+   * @param name - a name of the folder shown in the UI
+   * @param location - the public key for the metadata file
+   *   it is how the file will be queried for (using the same system as for the account metadata)
+   */
+  constructor({
+    name,
+    location
+  }) {
+    /** @internal */
+    this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
+
+    this.name = name;
+    this.location = location;
+  }
+
+}
+/**
+ * @internal
+ */
+
+
+class MinifiedFolderEntryMeta extends Array {
+  constructor([name, location]) {
+    super(2);
+
+    this.unminify = () => new FolderEntryMeta({
+      name: this[0],
+      location: this[1]
+    });
+
+    this[0] = name;
+    this[1] = location;
   }
 
 }
@@ -1569,33 +1569,6 @@ class NetQueue extends events.EventEmitter {
 
 }
 
-const getFolderMeta$1 = async (masterHandle, dir) => {
-  dir = cleanPath(dir);
-  createMetaQueue(masterHandle, dir);
-  const folderKey = masterHandle.getFolderHDKey(dir),
-        location = masterHandle.getFolderLocation(dir),
-        key = hash(folderKey.privateKey.toString("hex")),
-        // TODO: verify folder can only be read by the creating account
-  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
-  location);
-
-  try {
-    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
-
-    try {
-      const meta = JSON.parse(metaString);
-      return new MinifiedFolderMeta(meta).unminify();
-    } catch (err) {
-      console.error(err);
-      console.info("META STRING:", metaString);
-      throw new Error("metadata corrupted");
-    }
-  } catch (err) {
-    console.error(err);
-    throw new Error("error decrypting meta");
-  }
-};
-
 const setFolderMeta = async (masterHandle, dir, folderMeta) => {
   dir = cleanPath(dir);
   const folderKey = masterHandle.getFolderHDKey(dir),
@@ -1690,6 +1663,43 @@ const createMetaQueue = (masterHandle, dir) => {
   }
 
   masterHandle.metaQueue[dir] = metaQueue;
+};
+
+const getFolderMeta$1 = async (masterHandle, dir) => {
+  dir = cleanPath(dir);
+  createMetaQueue(masterHandle, dir);
+  const folderKey = masterHandle.getFolderHDKey(dir),
+        location = masterHandle.getFolderLocation(dir),
+        key = hash(folderKey.privateKey.toString("hex")),
+        // TODO: verify folder can only be read by the creating account
+  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
+  location);
+
+  try {
+    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
+
+    try {
+      const meta = JSON.parse(metaString);
+      return new MinifiedFolderMeta(meta).unminify();
+    } catch (err) {
+      console.error(err);
+      console.info("META STRING:", metaString);
+      throw new Error("metadata corrupted");
+    }
+  } catch (err) {
+    console.error(err);
+    throw new Error("error decrypting meta");
+  }
+};
+
+const buildFullTree = async (masterHandle, dir = "/") => {
+  dir = cleanPath(dir);
+  const tree = {};
+  tree[dir] = await getFolderMeta$1(masterHandle, dir);
+  await Promise.all(tree[dir].folders.map(async folder => {
+    Object.assign(tree, (await buildFullTree(masterHandle, pathBrowserify.posix.join(dir, folder.name))));
+  }));
+  return tree;
 };
 
 const createFolderFn = async (masterHandle, dir, name) => {
@@ -2070,6 +2080,7 @@ const v1 = {
   getHandle,
   isPaid,
   register,
+  buildFullTree,
   createFolder,
   createFolderMeta,
   createMetaQueue,
@@ -2256,6 +2267,14 @@ class MasterHandle extends HDKey__default {
     this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
 
     this.getFolderMeta = async dir => getFolderMeta$1(this, dir);
+    /**
+     * recursively build full file tree starting from directory {dir}
+     *
+     * @param dir - the starting directory
+     */
+
+
+    this.buildFullTree = async dir => buildFullTree(this, dir);
 
     this.getAccountInfo = async () => getAccountInfo(this);
 

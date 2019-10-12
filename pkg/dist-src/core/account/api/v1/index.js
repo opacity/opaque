@@ -6,6 +6,7 @@ import { getFolderLocation } from "../v0/getFolderLocation";
 import { getHandle } from "../v0/getHandle";
 import { isPaid } from "../v0/isPaid";
 import { register } from "../v0/register";
+import { buildFullTree } from "./buildFullTree";
 import { createFolder } from "./createFolder";
 import { createFolderMeta } from "./createFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
@@ -21,7 +22,7 @@ import { renameFile } from "./renameFile";
 import { renameFolder } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, moveFolder, renameFile, renameFolder, setFolderMeta, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, moveFolder, renameFile, renameFolder, setFolderMeta, uploadFile };
 /**
  * internal API v1
  *
@@ -36,6 +37,7 @@ const v1 = {
     getHandle,
     isPaid,
     register,
+    buildFullTree,
     createFolder,
     createFolderMeta,
     createMetaQueue,

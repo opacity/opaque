@@ -448,6 +448,14 @@ export declare class MasterHandle extends HDKey {
     renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
+    /**
+     * recursively build full file tree starting from directory {dir}
+     *
+     * @param dir - the starting directory
+     */
+    buildFullTree: (dir: string) => Promise<{
+        [dir: string]: FolderMeta;
+    }>;
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
@@ -706,6 +714,9 @@ export declare const v1: {
     register: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
         data: any;
         waitForPayment: () => Promise<unknown>;
+    }>;
+    buildFullTree: (masterHandle: import("../../../../account").MasterHandle, dir?: string) => Promise<{
+        [key: string]: import("../../folder-meta").FolderMeta;
     }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;

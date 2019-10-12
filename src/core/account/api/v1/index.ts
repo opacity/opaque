@@ -7,6 +7,7 @@ import { getHandle } from "../v0/getHandle";
 import { isPaid } from "../v0/isPaid";
 import { register } from "../v0/register";
 
+import { buildFullTree } from "./buildFullTree"
 import { createFolder } from "./createFolder";
 import { createFolderMeta } from "./createFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
@@ -33,6 +34,7 @@ export {
 	isPaid,
 	register,
 
+	buildFullTree,
 	createFolder,
 	createFolderMeta,
 	createMetaQueue,
@@ -69,6 +71,7 @@ const v1 = {
 	isPaid,
 	register,
 
+	buildFullTree,
 	createFolder,
 	createFolderMeta,
 	createMetaQueue,
