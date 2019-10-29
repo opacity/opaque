@@ -21,8 +21,9 @@ import { moveFolder } from "./moveFolder";
 import { renameFile } from "./renameFile";
 import { renameFolder } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
+import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, moveFolder, renameFile, renameFolder, setFolderMeta, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, moveFolder, renameFile, renameFolder, setFolderMeta, upgradeAccount, uploadFile };
 /**
  * internal API v1
  *
@@ -52,6 +53,7 @@ const v1 = {
     renameFile,
     renameFolder,
     setFolderMeta,
+    upgradeAccount,
     uploadFile
 };
 export default v1;

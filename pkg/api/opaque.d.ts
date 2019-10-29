@@ -732,6 +732,10 @@ export declare const v1: {
     renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
     renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
+    upgradeAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
 };
 

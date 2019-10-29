@@ -1,8 +1,5 @@
 import Axios from "axios";
-import HDKey from "hdkey";
-
 import { getPayload } from "../request";
-
 /**
  * check the status of upgrading an account
  *
@@ -15,19 +12,16 @@ import { getPayload } from "../request";
  *
  * @internal
  */
-export async function upgradeAccountStatus(endpoint: string, hdNode: HDKey, metadataKeys: string[], fileHandles: string[], duration = 12, limit = 128) {
-	const payload = {
-		metadataKeys,
-		fileHandles,
-		durationInMonths: duration,
-		storageLimit: limit
-	}
-
-	const signedPayload = getPayload(payload, hdNode);
-
-	return Axios.post(endpoint + "/api/v1/upgrade", signedPayload);
+export async function upgradeAccountStatus(endpoint, hdNode, metadataKeys, fileHandles, duration = 12, limit = 128) {
+    const payload = {
+        metadataKeys,
+        fileHandles,
+        durationInMonths: duration,
+        storageLimit: limit
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/upgrade", signedPayload);
 }
-
 /**
  * request an invoice for upgrading an account
  *
@@ -38,13 +32,11 @@ export async function upgradeAccountStatus(endpoint: string, hdNode: HDKey, meta
  *
  * @internal
  */
-export async function upgradeAccountInvoice(endpoint: string, hdNode: HDKey, duration = 12, limit = 128) {
-	const payload = {
-		durationInMonths: duration,
-		storageLimit: limit
-	}
-
-	const signedPayload = getPayload(payload, hdNode);
-
-	return Axios.post(endpoint + "/api/v1/upgrade/invoice", signedPayload);
+export async function upgradeAccountInvoice(endpoint, hdNode, duration = 12, limit = 128) {
+    const payload = {
+        durationInMonths: duration,
+        storageLimit: limit
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/upgrade/invoice", signedPayload);
 }
