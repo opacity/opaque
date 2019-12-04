@@ -12,7 +12,7 @@ const upgradeAccount = async (masterHandle: MasterHandle, duration?: number, lim
 
 	console.log(metadataKeys, fileHandles)
 
-	const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle)
+	const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle, duration, limit)
 
 	console.log(upgradeAccountInvoiceResponse)
 
