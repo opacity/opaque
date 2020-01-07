@@ -1829,7 +1829,7 @@ const upgradeAccount = async (masterHandle, duration, limit) => {
     const metadataKeys = Object.keys(tree).map(dir => getFolderLocation(masterHandle, dir));
     const fileHandles = Object.values(tree).map(folder => folder.files.map(file => file.versions.map(version => version.handle.slice(0, 64)))).flat(2);
     console.log(metadataKeys, fileHandles);
-    const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle);
+    const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle, duration, limit);
     console.log(upgradeAccountInvoiceResponse);
     const upgradeAccountStatusOpts = [
         masterHandle.uploadOpts.endpoint,
