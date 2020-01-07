@@ -2046,6 +2046,7 @@ class MasterHandle extends HDKey {
         this.isPaid = async () => isPaid(this);
         this.login = async () => login(this);
         this.register = async (duration, limit) => register(this, duration, limit);
+        this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {

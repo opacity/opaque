@@ -2,7 +2,7 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { hashToPath } from "./utils/hashToPath";
-import { buildFullTree, createFolder, createFolderMeta, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getFolderMeta, getHandle, isPaid, login, moveFile, moveFolder, register, renameFile, renameFolder, setFolderMeta, uploadFile } from "./core/account/api/v1/index";
+import { buildFullTree, createFolder, createFolderMeta, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getFolderMeta, getHandle, isPaid, login, moveFile, moveFolder, register, renameFile, renameFolder, setFolderMeta, uploadFile, upgradeAccount } from "./core/account/api/v1/index";
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
  *
@@ -122,6 +122,7 @@ class MasterHandle extends HDKey {
         this.isPaid = async () => isPaid(this);
         this.login = async () => login(this);
         this.register = async (duration, limit) => register(this, duration, limit);
+        this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {

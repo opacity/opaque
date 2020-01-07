@@ -2356,6 +2356,8 @@ class MasterHandle extends HDKey__default {
 
     this.register = async (duration, limit) => register(this, duration, limit);
 
+    this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
+
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;
 

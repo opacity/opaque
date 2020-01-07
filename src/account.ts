@@ -45,7 +45,8 @@ import {
   renameFolder,
   RenameFolderArgs,
   setFolderMeta,
-  uploadFile
+  uploadFile,
+  upgradeAccount
 } from "./core/account/api/v1/index"
 
 import { RequireOnlyOne } from "./types/require-only-one"
@@ -269,6 +270,9 @@ class MasterHandle extends HDKey {
 
   register = async (duration?: number, limit?: number) =>
     register(this, duration, limit)
+
+  upgrade = async (duration?: number, limit?: number) =>
+    upgradeAccount(this, duration, limit)
 }
 
 export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };
