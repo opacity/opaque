@@ -28,6 +28,7 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 
 |  Property | Modifiers | Type | Description |
 |  --- | --- | --- | --- |
+|  [buildFullTree](./opaque.masterhandle.buildfulltree.md) |  | <code>(dir: string) =&gt; Promise&lt;{</code><br/><code>        [dir: string]: FolderMeta;</code><br/><code>    }&gt;</code> | recursively build full file tree starting from directory {<!-- -->dir<!-- -->} |
 |  [createFolder](./opaque.masterhandle.createfolder.md) |  | <code>(dir: string, name: string) =&gt; Promise&lt;void&gt;</code> | create folder {<!-- -->name<!-- -->} inside of {<!-- -->dir<!-- -->} |
 |  [createFolderMeta](./opaque.masterhandle.createfoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;void&gt;</code> | request the creation of a folder metadata |
 |  [deleteFile](./opaque.masterhandle.deletefile.md) |  | <code>(dir: string, file: FileEntryMeta) =&gt; Promise&lt;void&gt;</code> | deletes every version of a file and removes it from the metadata |
@@ -51,6 +52,7 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 |  [renameFile](./opaque.masterhandle.renamefile.md) |  | <code>(dir: string, { file, name }: RenameFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [renameFolder](./opaque.masterhandle.renamefolder.md) |  | <code>(dir: string, { folder, name }: RenameFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [setFolderMeta](./opaque.masterhandle.setfoldermeta.md) |  | <code>(dir: string, folderMeta: FolderMeta) =&gt; Promise&lt;void&gt;</code> |  |
+|  [upgrade](./opaque.masterhandle.upgrade.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
 |  [uploadFile](./opaque.masterhandle.uploadfile.md) |  | <code>(dir: string, file: File) =&gt; import(&quot;events&quot;).EventEmitter</code> |  |
 |  [uploadOpts](./opaque.masterhandle.uploadopts.md) |  | <code>any</code> |  |
 

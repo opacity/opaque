@@ -7,6 +7,7 @@ import { getHandle } from "../v0/getHandle";
 import { isPaid } from "../v0/isPaid";
 import { register } from "../v0/register";
 
+import { buildFullTree } from "./buildFullTree"
 import { createFolder } from "./createFolder";
 import { createFolderMeta } from "./createFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
@@ -21,6 +22,7 @@ import { moveFolder, MoveFolderArgs } from "./moveFolder";
 import { renameFile, RenameFileArgs } from "./renameFile";
 import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
+import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
 
 export {
@@ -33,6 +35,7 @@ export {
 	isPaid,
 	register,
 
+	buildFullTree,
 	createFolder,
 	createFolderMeta,
 	createMetaQueue,
@@ -51,6 +54,7 @@ export {
 	renameFolder,
 	RenameFolderArgs,
 	setFolderMeta,
+	upgradeAccount,
 	uploadFile
 }
 
@@ -69,6 +73,7 @@ const v1 = {
 	isPaid,
 	register,
 
+	buildFullTree,
 	createFolder,
 	createFolderMeta,
 	createMetaQueue,
@@ -83,6 +88,7 @@ const v1 = {
 	renameFile,
 	renameFolder,
 	setFolderMeta,
+	upgradeAccount,
 	uploadFile
 }
 

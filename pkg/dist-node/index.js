@@ -703,7 +703,6 @@ async function createAccount(endpoint, hdNode, metadataKey, duration = 12, limit
   const payload = {
     metadataKey: metadataKey,
     durationInMonths: duration,
-    // TODO: I'm not sure why this is like this, but it doesn't match what was planned
     storageLimit: limit
   };
   const signedPayload = getPayload(payload, hdNode);
@@ -1298,51 +1297,6 @@ const v0 = {
 };
 
 /**
- * metadata to describe where a folder can be found (for root metadata of an account)
- *
- * @public
- */
-class FolderEntryMeta {
-  /**
-   * create metadata entry for a folder
-   *
-   * @param name - a name of the folder shown in the UI
-   * @param location - the public key for the metadata file
-   *   it is how the file will be queried for (using the same system as for the account metadata)
-   */
-  constructor({
-    name,
-    location
-  }) {
-    /** @internal */
-    this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
-
-    this.name = name;
-    this.location = location;
-  }
-
-}
-/**
- * @internal
- */
-
-
-class MinifiedFolderEntryMeta extends Array {
-  constructor([name, location]) {
-    super(2);
-
-    this.unminify = () => new FolderEntryMeta({
-      name: this[0],
-      location: this[1]
-    });
-
-    this[0] = name;
-    this[1] = location;
-  }
-
-}
-
-/**
  * metadata to describe a version of a file as it relates to a filesystem
  *
  * @public
@@ -1447,6 +1401,51 @@ class MinifiedFileEntryMeta extends Array {
     this[1] = created;
     this[2] = modified;
     this[3] = versions;
+  }
+
+}
+
+/**
+ * metadata to describe where a folder can be found (for root metadata of an account)
+ *
+ * @public
+ */
+class FolderEntryMeta {
+  /**
+   * create metadata entry for a folder
+   *
+   * @param name - a name of the folder shown in the UI
+   * @param location - the public key for the metadata file
+   *   it is how the file will be queried for (using the same system as for the account metadata)
+   */
+  constructor({
+    name,
+    location
+  }) {
+    /** @internal */
+    this.minify = () => new MinifiedFolderEntryMeta([this.name, this.location]);
+
+    this.name = name;
+    this.location = location;
+  }
+
+}
+/**
+ * @internal
+ */
+
+
+class MinifiedFolderEntryMeta extends Array {
+  constructor([name, location]) {
+    super(2);
+
+    this.unminify = () => new FolderEntryMeta({
+      name: this[0],
+      location: this[1]
+    });
+
+    this[0] = name;
+    this[1] = location;
   }
 
 }
@@ -1569,33 +1568,6 @@ class NetQueue extends events.EventEmitter {
 
 }
 
-const getFolderMeta$1 = async (masterHandle, dir) => {
-  dir = cleanPath(dir);
-  createMetaQueue(masterHandle, dir);
-  const folderKey = masterHandle.getFolderHDKey(dir),
-        location = masterHandle.getFolderLocation(dir),
-        key = hash(folderKey.privateKey.toString("hex")),
-        // TODO: verify folder can only be read by the creating account
-  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
-  location);
-
-  try {
-    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
-
-    try {
-      const meta = JSON.parse(metaString);
-      return new MinifiedFolderMeta(meta).unminify();
-    } catch (err) {
-      console.error(err);
-      console.info("META STRING:", metaString);
-      throw new Error("metadata corrupted");
-    }
-  } catch (err) {
-    console.error(err);
-    throw new Error("error decrypting meta");
-  }
-};
-
 const setFolderMeta = async (masterHandle, dir, folderMeta) => {
   dir = cleanPath(dir);
   const folderKey = masterHandle.getFolderHDKey(dir),
@@ -1690,6 +1662,43 @@ const createMetaQueue = (masterHandle, dir) => {
   }
 
   masterHandle.metaQueue[dir] = metaQueue;
+};
+
+const getFolderMeta$1 = async (masterHandle, dir) => {
+  dir = cleanPath(dir);
+  createMetaQueue(masterHandle, dir);
+  const folderKey = masterHandle.getFolderHDKey(dir),
+        location = masterHandle.getFolderLocation(dir),
+        key = hash(folderKey.privateKey.toString("hex")),
+        // TODO: verify folder can only be read by the creating account
+  response = await getMetadata(masterHandle.uploadOpts.endpoint, masterHandle, // folderKey,
+  location);
+
+  try {
+    const metaString = decrypt(key, new nodeForge.util.ByteBuffer(Buffer.from(response.data.metadata, "base64"))).toString();
+
+    try {
+      const meta = JSON.parse(metaString);
+      return new MinifiedFolderMeta(meta).unminify();
+    } catch (err) {
+      console.error(err);
+      console.info("META STRING:", metaString);
+      throw new Error("metadata corrupted");
+    }
+  } catch (err) {
+    console.error(err);
+    throw new Error("error decrypting meta");
+  }
+};
+
+const buildFullTree = async (masterHandle, dir = "/") => {
+  dir = cleanPath(dir);
+  const tree = {};
+  tree[dir] = await getFolderMeta$1(masterHandle, dir);
+  await Promise.all(tree[dir].folders.map(async folder => {
+    Object.assign(tree, (await buildFullTree(masterHandle, pathBrowserify.posix.join(dir, folder.name))));
+  }));
+  return tree;
 };
 
 const createFolderFn = async (masterHandle, dir, name) => {
@@ -2020,6 +2029,78 @@ const renameFolder = async (masterHandle, dir, {
   });
 };
 
+/**
+ * check the status of upgrading an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param metadataKeys - all metadata keys from the account to upgrade
+ * @param fileHandles - all file handles from the account to upgrade
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+
+async function upgradeAccountStatus(endpoint, hdNode, metadataKeys, fileHandles, duration = 12, limit = 128) {
+  const payload = {
+    metadataKeys,
+    fileHandles,
+    durationInMonths: duration,
+    storageLimit: limit
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/upgrade", signedPayload);
+}
+/**
+ * request an invoice for upgrading an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+
+async function upgradeAccountInvoice(endpoint, hdNode, duration = 12, limit = 128) {
+  const payload = {
+    durationInMonths: duration,
+    storageLimit: limit
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/upgrade/invoice", signedPayload);
+}
+
+const upgradeAccount = async (masterHandle, duration, limit) => {
+  const tree = await buildFullTree(masterHandle, "/");
+  const metadataKeys = Object.keys(tree).map(dir => getFolderLocation(masterHandle, dir));
+  const fileHandles = Object.values(tree).map(folder => folder.files.map(file => file.versions.map(version => version.handle.slice(0, 64)))).flat(2);
+  console.log(metadataKeys, fileHandles);
+  const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle, duration, limit);
+  console.log(upgradeAccountInvoiceResponse);
+  const upgradeAccountStatusOpts = [masterHandle.uploadOpts.endpoint, masterHandle, metadataKeys, fileHandles, duration, limit];
+  return {
+    data: upgradeAccountInvoiceResponse.data,
+    waitForPayment: () => new Promise(resolve => {
+      const interval = setInterval(async () => {
+        // don't perform run if it takes more than 5 seconds for response
+        const time = Date.now();
+        const upgradeAccountStatusResponse = await upgradeAccountStatus(...upgradeAccountStatusOpts);
+        console.log(upgradeAccountStatusResponse);
+
+        if (upgradeAccountStatusResponse.data.status && upgradeAccountStatusResponse.data.status !== "Incomplete" && time + 5 * 1000 > Date.now()) {
+          clearInterval(interval);
+          await masterHandle.login();
+          resolve({
+            data: upgradeAccountStatusResponse.data
+          });
+        }
+      }, 10 * 1000);
+    })
+  };
+};
+
 const uploadFile = (masterHandle, dir, file) => {
   dir = cleanPath(dir);
   const upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
@@ -2070,6 +2151,7 @@ const v1 = {
   getHandle,
   isPaid,
   register,
+  buildFullTree,
   createFolder,
   createFolderMeta,
   createMetaQueue,
@@ -2084,6 +2166,7 @@ const v1 = {
   renameFile,
   renameFolder,
   setFolderMeta,
+  upgradeAccount,
   uploadFile
 };
 
@@ -2256,6 +2339,14 @@ class MasterHandle extends HDKey__default {
     this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
 
     this.getFolderMeta = async dir => getFolderMeta$1(this, dir);
+    /**
+     * recursively build full file tree starting from directory {dir}
+     *
+     * @param dir - the starting directory
+     */
+
+
+    this.buildFullTree = async dir => buildFullTree(this, dir);
 
     this.getAccountInfo = async () => getAccountInfo(this);
 
@@ -2264,6 +2355,8 @@ class MasterHandle extends HDKey__default {
     this.login = async () => login(this);
 
     this.register = async (duration, limit) => register(this, duration, limit);
+
+    this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
 
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;

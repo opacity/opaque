@@ -8,6 +8,7 @@ import { getFolderLocation } from "../v0/getFolderLocation";
 import { getHandle } from "../v0/getHandle";
 import { isPaid } from "../v0/isPaid";
 import { register } from "../v0/register";
+import { buildFullTree } from "./buildFullTree";
 import { createFolder } from "./createFolder";
 import { createFolderMeta } from "./createFolderMeta";
 import { createMetaQueue } from "./createMetaQueue";
@@ -22,8 +23,9 @@ import { moveFolder, MoveFolderArgs } from "./moveFolder";
 import { renameFile, RenameFileArgs } from "./renameFile";
 import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
+import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, upgradeAccount, uploadFile };
 /**
  * internal API v1
  *
@@ -41,6 +43,9 @@ declare const v1: {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
+    buildFullTree: (masterHandle: import("../../../../account").MasterHandle, dir?: string) => Promise<{
+        [key: string]: import("../../folder-meta").FolderMeta;
+    }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     createMetaQueue: (masterHandle: import("../../../../account").MasterHandle, dir: string) => void;
@@ -55,6 +60,10 @@ declare const v1: {
     renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
     renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
+    upgradeAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
 };
 export default v1;

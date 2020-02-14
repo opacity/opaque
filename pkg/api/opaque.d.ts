@@ -448,10 +448,22 @@ export declare class MasterHandle extends HDKey {
     renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
+    /**
+     * recursively build full file tree starting from directory {dir}
+     *
+     * @param dir - the starting directory
+     */
+    buildFullTree: (dir: string) => Promise<{
+        [dir: string]: FolderMeta;
+    }>;
     getAccountInfo: () => Promise<any>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
+    upgrade: (duration?: number, limit?: number) => Promise<{
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
@@ -707,6 +719,9 @@ export declare const v1: {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
+    buildFullTree: (masterHandle: import("../../../../account").MasterHandle, dir?: string) => Promise<{
+        [key: string]: import("../../folder-meta").FolderMeta;
+    }>;
     createFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, name: string) => Promise<void>;
     createFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     createMetaQueue: (masterHandle: import("../../../../account").MasterHandle, dir: string) => void;
@@ -721,6 +736,10 @@ export declare const v1: {
     renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
     renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
+    upgradeAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
 };
 

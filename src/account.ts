@@ -19,32 +19,34 @@ import {
 } from "./core/account/metadata"
 
 import {
-  getFolderHDKey,
-  uploadFile,
+  buildFullTree,
+  createFolder,
+  createFolderMeta,
   deleteFile,
+  deleteFolder,
+  deleteFolderMeta,
   deleteVersion,
   downloadFile,
-  getFolderLocation,
-  createFolderMeta,
-  createFolder,
-  deleteFolderMeta,
-  deleteFolder,
-  setFolderMeta,
-  getFolderMeta,
+  generateSubHDKey,
   getAccountInfo,
+  getFolderHDKey,
+  getFolderLocation,
+  getFolderMeta,
+  getHandle,
   isPaid,
   login,
-  register,
-  generateSubHDKey,
-  getHandle,
   moveFile,
   MoveFileArgs,
   moveFolder,
   MoveFolderArgs,
+  register,
   renameFile,
   RenameFileArgs,
   renameFolder,
-  RenameFolderArgs
+  RenameFolderArgs,
+  setFolderMeta,
+  uploadFile,
+  upgradeAccount
 } from "./core/account/api/v1/index"
 
 import { RequireOnlyOne } from "./types/require-only-one"
@@ -249,6 +251,14 @@ class MasterHandle extends HDKey {
   getFolderMeta = async (dir: string): Promise<FolderMeta> =>
     getFolderMeta(this, dir)
 
+  /**
+   * recursively build full file tree starting from directory {dir}
+   *
+   * @param dir - the starting directory
+   */
+  buildFullTree = async (dir: string): Promise<{ [dir: string]: FolderMeta }> =>
+    buildFullTree(this, dir)
+
   getAccountInfo = async () =>
     getAccountInfo(this)
 
@@ -260,6 +270,9 @@ class MasterHandle extends HDKey {
 
   register = async (duration?: number, limit?: number) =>
     register(this, duration, limit)
+
+  upgrade = async (duration?: number, limit?: number) =>
+    upgradeAccount(this, duration, limit)
 }
 
 export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };

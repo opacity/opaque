@@ -15,7 +15,6 @@ export async function createAccount(endpoint, hdNode, metadataKey, duration = 12
     const payload = {
         metadataKey: metadataKey,
         durationInMonths: duration,
-        // TODO: I'm not sure why this is like this, but it doesn't match what was planned
         storageLimit: limit
     };
     const signedPayload = getPayload(payload, hdNode);

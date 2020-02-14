@@ -2,7 +2,7 @@ import { generateMnemonic, mnemonicToSeedSync, validateMnemonic, } from "bip39";
 import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { hashToPath } from "./utils/hashToPath";
-import { getFolderHDKey, uploadFile, deleteFile, deleteVersion, downloadFile, getFolderLocation, createFolderMeta, createFolder, deleteFolderMeta, deleteFolder, setFolderMeta, getFolderMeta, getAccountInfo, isPaid, login, register, generateSubHDKey, getHandle, moveFile, moveFolder, renameFile, renameFolder } from "./core/account/api/v1/index";
+import { buildFullTree, createFolder, createFolderMeta, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getFolderMeta, getHandle, isPaid, login, moveFile, moveFolder, register, renameFile, renameFolder, setFolderMeta, uploadFile, upgradeAccount } from "./core/account/api/v1/index";
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
  *
@@ -112,10 +112,17 @@ class MasterHandle extends HDKey {
         this.renameFolder = async (dir, { folder, name }) => renameFolder(this, dir, { folder, name });
         this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
         this.getFolderMeta = async (dir) => getFolderMeta(this, dir);
+        /**
+         * recursively build full file tree starting from directory {dir}
+         *
+         * @param dir - the starting directory
+         */
+        this.buildFullTree = async (dir) => buildFullTree(this, dir);
         this.getAccountInfo = async () => getAccountInfo(this);
         this.isPaid = async () => isPaid(this);
         this.login = async () => login(this);
         this.register = async (duration, limit) => register(this, duration, limit);
+        this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {
