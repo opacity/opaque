@@ -638,7 +638,6 @@ async function createAccount(endpoint, hdNode, metadataKey, duration = 12, limit
     const payload = {
         metadataKey: metadataKey,
         durationInMonths: duration,
-        // TODO: I'm not sure why this is like this, but it doesn't match what was planned
         storageLimit: limit
     };
     const signedPayload = getPayload(payload, hdNode);
@@ -1784,6 +1783,82 @@ const renameFolder = async (masterHandle, dir, { folder, name }) => {
     });
 };
 
+/**
+ * check the status of upgrading an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param metadataKeys - all metadata keys from the account to upgrade
+ * @param fileHandles - all file handles from the account to upgrade
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+async function upgradeAccountStatus(endpoint, hdNode, metadataKeys, fileHandles, duration = 12, limit = 128) {
+    const payload = {
+        metadataKeys,
+        fileHandles,
+        durationInMonths: duration,
+        storageLimit: limit
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/upgrade", signedPayload);
+}
+/**
+ * request an invoice for upgrading an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+async function upgradeAccountInvoice(endpoint, hdNode, duration = 12, limit = 128) {
+    const payload = {
+        durationInMonths: duration,
+        storageLimit: limit
+    };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/upgrade/invoice", signedPayload);
+}
+
+const upgradeAccount = async (masterHandle, duration, limit) => {
+    const tree = await buildFullTree(masterHandle, "/");
+    const metadataKeys = Object.keys(tree).map(dir => getFolderLocation(masterHandle, dir));
+    const fileHandles = Object.values(tree).map(folder => folder.files.map(file => file.versions.map(version => version.handle.slice(0, 64)))).flat(2);
+    console.log(metadataKeys, fileHandles);
+    const upgradeAccountInvoiceResponse = await upgradeAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle, duration, limit);
+    console.log(upgradeAccountInvoiceResponse);
+    const upgradeAccountStatusOpts = [
+        masterHandle.uploadOpts.endpoint,
+        masterHandle,
+        metadataKeys,
+        fileHandles,
+        duration,
+        limit
+    ];
+    return {
+        data: upgradeAccountInvoiceResponse.data,
+        waitForPayment: () => new Promise(resolve => {
+            const interval = setInterval(async () => {
+                // don't perform run if it takes more than 5 seconds for response
+                const time = Date.now();
+                const upgradeAccountStatusResponse = await upgradeAccountStatus(...upgradeAccountStatusOpts);
+                console.log(upgradeAccountStatusResponse);
+                if (upgradeAccountStatusResponse.data.status
+                    && upgradeAccountStatusResponse.data.status !== "Incomplete"
+                    && time + 5 * 1000 > Date.now()) {
+                    clearInterval(interval);
+                    await masterHandle.login();
+                    resolve({ data: upgradeAccountStatusResponse.data });
+                }
+            }, 10 * 1000);
+        })
+    };
+};
+
 const uploadFile = (masterHandle, dir, file) => {
     dir = cleanPath(dir);
     const upload = new Upload(file, masterHandle, masterHandle.uploadOpts), ee = new EventEmitter();
@@ -1848,6 +1923,7 @@ const v1 = {
     renameFile,
     renameFolder,
     setFolderMeta,
+    upgradeAccount,
     uploadFile
 };
 
@@ -1970,6 +2046,7 @@ class MasterHandle extends HDKey {
         this.isPaid = async () => isPaid(this);
         this.login = async () => login(this);
         this.register = async (duration, limit) => register(this, duration, limit);
+        this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
         this.uploadOpts = uploadOpts;
         this.downloadOpts = downloadOpts;
         if (account && account.constructor == Account) {

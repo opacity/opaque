@@ -22,6 +22,7 @@ import { moveFolder, MoveFolderArgs } from "./moveFolder";
 import { renameFile, RenameFileArgs } from "./renameFile";
 import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
+import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
 
 export {
@@ -53,6 +54,7 @@ export {
 	renameFolder,
 	RenameFolderArgs,
 	setFolderMeta,
+	upgradeAccount,
 	uploadFile
 }
 
@@ -86,6 +88,7 @@ const v1 = {
 	renameFile,
 	renameFolder,
 	setFolderMeta,
+	upgradeAccount,
 	uploadFile
 }
 
