@@ -71,3 +71,30 @@ export async function getMetadata(endpoint: string, hdNode: HDKey, metadataKey: 
 
   return Axios.post(endpoint + "/api/v1/metadata/get", signedPayload);
 }
+
+/**
+ * request get of a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
+export async function getMetadataHistory(
+  endpoint: string,
+  hdNode: HDKey,
+  metadataKey: string
+): Promise<{
+  data: {
+    expirationDate: string,
+    metadata: string,
+    metadataHistory: string[]
+  }
+}> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = { timestamp, metadataKey };
+  const signedPayload = getPayload(payload, hdNode);
+
+  return Axios.post(endpoint + "/api/v1/metadata/history", signedPayload);
+}

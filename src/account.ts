@@ -32,6 +32,7 @@ import {
   getFolderHDKey,
   getFolderLocation,
   getFolderMeta,
+  getFolderMetaHistory,
   getHandle,
   isPaid,
   login,
@@ -250,6 +251,9 @@ class MasterHandle extends HDKey {
 
   getFolderMeta = async (dir: string): Promise<FolderMeta> =>
     getFolderMeta(this, dir)
+
+  getFolderMetaHistory = async (dir: string): Promise<(FolderMeta | Error)[]> =>
+    getFolderMetaHistory(this, dir)
 
   /**
    * recursively build full file tree starting from directory {dir}
