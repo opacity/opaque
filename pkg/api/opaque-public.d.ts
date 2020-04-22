@@ -359,6 +359,10 @@ export declare class MasterHandle extends HDKey {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
+    renew: (duration?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 
 export declare type MasterHandleCreator = RequireOnlyOne<{
