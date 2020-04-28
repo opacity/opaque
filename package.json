@@ -11,6 +11,7 @@
   "module": "pkg/dist-web/index.js",
   "scripts": {
     "build": "pika build",
+    "bundle": "webpack -c webpack.config.js",
     "docs": "npm run build && npx api-extractor run --local --verbose && npx api-documenter markdown --input-folder=docs --output-folder=docs"
   },
   "@pika/pack": {

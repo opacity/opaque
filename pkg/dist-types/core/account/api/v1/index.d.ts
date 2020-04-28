@@ -17,6 +17,7 @@ import { deleteFolder } from "./deleteFolder";
 import { deleteFolderMeta } from "./deleteFolderMeta";
 import { deleteVersion } from "./deleteVersion";
 import { getFolderMeta } from "./getFolderMeta";
+import { getFolderMetaHistory } from "./getFolderMetaHistory";
 import { login } from "./login";
 import { moveFile, MoveFileArgs } from "./moveFile";
 import { moveFolder, MoveFolderArgs } from "./moveFolder";
@@ -25,7 +26,7 @@ import { renameFolder, RenameFolderArgs } from "./renameFolder";
 import { setFolderMeta } from "./setFolderMeta";
 import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, upgradeAccount, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, getFolderMetaHistory, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, upgradeAccount, uploadFile };
 /**
  * internal API v1
  *
@@ -54,6 +55,7 @@ declare const v1: {
     deleteFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     deleteVersion: (masterHandle: import("../../../../account").MasterHandle, dir: string, version: import("../../file-version").FileVersion) => Promise<void>;
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
+    getFolderMetaHistory: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<(Error | import("../../folder-meta").FolderMeta)[]>;
     login: (masterHandle: import("../../../../account").MasterHandle) => Promise<void>;
     moveFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, to }: MoveFileArgs) => Promise<void>;
     moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;

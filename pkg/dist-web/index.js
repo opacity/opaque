@@ -705,6 +705,21 @@ async function getMetadata(endpoint, hdNode, metadataKey) {
     const signedPayload = getPayload(payload, hdNode);
     return Axios.post(endpoint + "/api/v1/metadata/get", signedPayload);
 }
+/**
+ * request get of a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
+async function getMetadataHistory(endpoint, hdNode, metadataKey) {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const payload = { timestamp, metadataKey };
+    const signedPayload = getPayload(payload, hdNode);
+    return Axios.post(endpoint + "/api/v1/metadata/history", signedPayload);
+}
 
 const POLYFILL_FORMDATA = typeof FormData === "undefined";
 /**
@@ -1649,6 +1664,34 @@ const deleteFolderMeta = async (masterHandle, dir) => {
     masterHandle.getFolderLocation(dir));
 };
 
+const getFolderMetaHistory = async (masterHandle, dir) => {
+    dir = cleanPath(dir);
+    createMetaQueue(masterHandle, dir);
+    const folderKey = masterHandle.getFolderHDKey(dir), location = masterHandle.getFolderLocation(dir), key = hash(folderKey.privateKey.toString("hex")), 
+    // TODO: verify folder can only be read by the creating account
+    response = await getMetadataHistory(masterHandle.uploadOpts.endpoint, masterHandle, 
+    // folderKey,
+    location);
+    return response.data.metadataHistory.map(raw => {
+        try {
+            const metaString = decrypt(key, new util.ByteBuffer(Buffer.from(raw, "base64"))).toString();
+            try {
+                const meta = JSON.parse(metaString);
+                return new MinifiedFolderMeta(meta).unminify();
+            }
+            catch (err) {
+                console.error(err);
+                console.info("META STRING:", metaString);
+                return new Error("metadata corrupted");
+            }
+        }
+        catch (err) {
+            console.error(err);
+            return new Error("error decrypting meta");
+        }
+    });
+};
+
 const login = async (masterHandle) => {
     // try newer meta
     try {
@@ -1917,6 +1960,7 @@ const v1 = {
     deleteFolderMeta,
     deleteVersion,
     getFolderMeta: getFolderMeta$1,
+    getFolderMetaHistory,
     login,
     moveFile,
     moveFolder,
@@ -2036,6 +2080,7 @@ class MasterHandle extends HDKey {
         this.renameFolder = async (dir, { folder, name }) => renameFolder(this, dir, { folder, name });
         this.setFolderMeta = async (dir, folderMeta) => setFolderMeta(this, dir, folderMeta);
         this.getFolderMeta = async (dir) => getFolderMeta$1(this, dir);
+        this.getFolderMetaHistory = async (dir) => getFolderMetaHistory(this, dir);
         /**
          * recursively build full file tree starting from directory {dir}
          *

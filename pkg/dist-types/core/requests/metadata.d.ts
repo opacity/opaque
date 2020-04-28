@@ -40,3 +40,19 @@ export declare function setMetadata(endpoint: string, hdNode: HDKey, metadataKey
  * @internal
  */
 export declare function getMetadata(endpoint: string, hdNode: HDKey, metadataKey: string): Promise<import("axios").AxiosResponse<any>>;
+/**
+ * request get of a metadata entry
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to access
+ * @param metadataKey - the key associated with the metadata
+ *
+ * @internal
+ */
+export declare function getMetadataHistory(endpoint: string, hdNode: HDKey, metadataKey: string): Promise<{
+    data: {
+        expirationDate: string;
+        metadata: string;
+        metadataHistory: string[];
+    };
+}>;

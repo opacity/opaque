@@ -340,6 +340,7 @@ export declare class MasterHandle extends HDKey {
     renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
+    getFolderMetaHistory: (dir: string) => Promise<(Error | FolderMeta)[]>;
     /**
      * recursively build full file tree starting from directory {dir}
      *

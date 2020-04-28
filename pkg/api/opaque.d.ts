@@ -448,6 +448,7 @@ export declare class MasterHandle extends HDKey {
     renameFolder: (dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
     setFolderMeta: (dir: string, folderMeta: FolderMeta) => Promise<void>;
     getFolderMeta: (dir: string) => Promise<FolderMeta>;
+    getFolderMetaHistory: (dir: string) => Promise<(Error | FolderMeta)[]>;
     /**
      * recursively build full file tree starting from directory {dir}
      *
@@ -730,6 +731,7 @@ export declare const v1: {
     deleteFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     deleteVersion: (masterHandle: import("../../../../account").MasterHandle, dir: string, version: import("../../file-version").FileVersion) => Promise<void>;
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
+    getFolderMetaHistory: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<(Error | import("../../folder-meta").FolderMeta)[]>;
     login: (masterHandle: import("../../../../account").MasterHandle) => Promise<void>;
     moveFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, to }: MoveFileArgs) => Promise<void>;
     moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;

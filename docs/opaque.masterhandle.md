@@ -41,6 +41,7 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 |  [getFolderHDKey](./opaque.masterhandle.getfolderhdkey.md) |  | <code>(dir: string) =&gt; HDKey</code> | creates a dir key seed for validating and folder navigation |
 |  [getFolderLocation](./opaque.masterhandle.getfolderlocation.md) |  | <code>(dir: string) =&gt; string</code> | get the location (ie. metadata id) of a folder |
 |  [getFolderMeta](./opaque.masterhandle.getfoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;FolderMeta&gt;</code> |  |
+|  [getFolderMetaHistory](./opaque.masterhandle.getfoldermetahistory.md) |  | <code>(dir: string) =&gt; Promise&lt;(Error &#124; FolderMeta)[]&gt;</code> |  |
 |  [handle](./opaque.masterhandle.handle.md) |  | <code>string</code> | get the account handle |
 |  [isPaid](./opaque.masterhandle.ispaid.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [login](./opaque.masterhandle.login.md) |  | <code>() =&gt; Promise&lt;void&gt;</code> |  |
