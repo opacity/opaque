@@ -141,5 +141,9 @@ declare class MasterHandle extends HDKey {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
+    renew: (duration?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };

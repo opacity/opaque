@@ -1,6 +1,6 @@
 {
   "name": "opaque",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "files": [
     "dist-*/",
     "bin/"
@@ -34,7 +34,10 @@
     "@types/debounce": "^1.2.0",
     "@types/form-data": "^2.5.0",
     "@types/readable-stream": "^2.3.5",
-    "typescript": "^3.6.3"
+    "ts-loader": "^6.2.2",
+    "typescript": "^3.6.3",
+    "webpack": "^4.42.0",
+    "webpack-cli": "^3.3.11"
   },
   "source": "dist-src/index.js",
   "types": "dist-types/index.d.ts",

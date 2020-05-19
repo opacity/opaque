@@ -22,10 +22,11 @@ import { moveFile, MoveFileArgs } from "./moveFile";
 import { moveFolder, MoveFolderArgs } from "./moveFolder";
 import { renameFile, RenameFileArgs } from "./renameFile";
 import { renameFolder, RenameFolderArgs } from "./renameFolder";
+import { renewAccount } from "./renewAccount";
 import { setFolderMeta } from "./setFolderMeta";
 import { upgradeAccount } from "./upgradeAccount";
 import { uploadFile } from "./uploadFile";
-export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, setFolderMeta, upgradeAccount, uploadFile };
+export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getHandle, isPaid, register, buildFullTree, createFolder, createFolderMeta, createMetaQueue, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, getFolderMeta, login, moveFile, MoveFileArgs, moveFolder, MoveFolderArgs, renameFile, RenameFileArgs, renameFolder, RenameFolderArgs, renewAccount, setFolderMeta, upgradeAccount, uploadFile };
 /**
  * internal API v1
  *
@@ -59,6 +60,10 @@ declare const v1: {
     moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
     renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
     renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
+    renewAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
     upgradeAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
         data: any;

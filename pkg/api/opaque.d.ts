@@ -467,6 +467,10 @@ export declare class MasterHandle extends HDKey {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
+    renew: (duration?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
 }
 
 export declare type MasterHandleCreator = RequireOnlyOne<{
@@ -735,6 +739,10 @@ export declare const v1: {
     moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
     renameFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, name }: RenameFileArgs) => Promise<void>;
     renameFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, name }: RenameFolderArgs) => Promise<void>;
+    renewAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number) => Promise<{
+        data: any;
+        waitForPayment: () => Promise<unknown>;
+    }>;
     setFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string, folderMeta: import("../../folder-meta").FolderMeta) => Promise<void>;
     upgradeAccount: (masterHandle: import("../../../../account").MasterHandle, duration?: number, limit?: number) => Promise<{
         data: any;
