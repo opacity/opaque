@@ -2030,6 +2030,76 @@ const renameFolder = async (masterHandle, dir, {
 };
 
 /**
+ * check the status of renewing an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param metadataKeys - all metadata keys from the account to renew
+ * @param fileHandles - all file handles from the account to renew
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+
+async function renewAccountStatus(endpoint, hdNode, metadataKeys, fileHandles, duration = 12) {
+  const payload = {
+    metadataKeys,
+    fileHandles,
+    durationInMonths: duration
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/renew", signedPayload);
+}
+/**
+ * request an invoice for renewing an account
+ *
+ * @param endpoint - the base url to send the request to
+ * @param hdNode - the account to create
+ * @param duration - account duration in months
+ * @param limit - storage limit in GB
+ *
+ * @internal
+ */
+
+async function renewAccountInvoice(endpoint, hdNode, duration = 12) {
+  const payload = {
+    durationInMonths: duration
+  };
+  const signedPayload = getPayload(payload, hdNode);
+  return Axios.post(endpoint + "/api/v1/renew/invoice", signedPayload);
+}
+
+const renewAccount = async (masterHandle, duration) => {
+  const tree = await buildFullTree(masterHandle, "/");
+  const metadataKeys = Object.keys(tree).map(dir => getFolderLocation(masterHandle, dir));
+  const fileHandles = Object.values(tree).map(folder => folder.files.map(file => file.versions.map(version => version.handle.slice(0, 64)))).flat(2);
+  console.log(metadataKeys, fileHandles);
+  const renewAccountInvoiceResponse = await renewAccountInvoice(masterHandle.uploadOpts.endpoint, masterHandle, duration);
+  console.log(renewAccountInvoiceResponse);
+  const renewAccountStatusOpts = [masterHandle.uploadOpts.endpoint, masterHandle, metadataKeys, fileHandles, duration];
+  return {
+    data: renewAccountInvoiceResponse.data,
+    waitForPayment: () => new Promise(resolve => {
+      const interval = setInterval(async () => {
+        // don't perform run if it takes more than 5 seconds for response
+        const time = Date.now();
+        const renewAccountStatusResponse = await renewAccountStatus(...renewAccountStatusOpts);
+        console.log(renewAccountStatusResponse);
+
+        if (renewAccountStatusResponse.data.status && renewAccountStatusResponse.data.status !== "Incomplete" && time + 5 * 1000 > Date.now()) {
+          clearInterval(interval);
+          await masterHandle.login();
+          resolve({
+            data: renewAccountStatusResponse.data
+          });
+        }
+      }, 10 * 1000);
+    })
+  };
+};
+
+/**
  * check the status of upgrading an account
  *
  * @param endpoint - the base url to send the request to
@@ -2165,6 +2235,7 @@ const v1 = {
   moveFolder,
   renameFile,
   renameFolder,
+  renewAccount,
   setFolderMeta,
   upgradeAccount,
   uploadFile
@@ -2357,6 +2428,8 @@ class MasterHandle extends HDKey__default {
     this.register = async (duration, limit) => register(this, duration, limit);
 
     this.upgrade = async (duration, limit) => upgradeAccount(this, duration, limit);
+
+    this.renew = async duration => renewAccount(this, duration);
 
     this.uploadOpts = uploadOpts;
     this.downloadOpts = downloadOpts;

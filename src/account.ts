@@ -44,6 +44,7 @@ import {
   RenameFileArgs,
   renameFolder,
   RenameFolderArgs,
+  renewAccount,
   setFolderMeta,
   uploadFile,
   upgradeAccount
@@ -273,6 +274,9 @@ class MasterHandle extends HDKey {
 
   upgrade = async (duration?: number, limit?: number) =>
     upgradeAccount(this, duration, limit)
+
+  renew = async (duration?: number) =>
+    renewAccount(this, duration)
 }
 
 export { Account, MasterHandle, MasterHandleCreator, MasterHandleOptions, HDKey };
