@@ -16,6 +16,7 @@ import { deleteFolder } from "./deleteFolder";
 import { deleteFolderMeta } from "./deleteFolderMeta";
 import { deleteVersion } from "./deleteVersion";
 import { getFolderMeta } from "./getFolderMeta";
+import { isExpired } from "./isExpired";
 import { login } from "./login";
 import { moveFile, MoveFileArgs } from "./moveFile";
 import { moveFolder, MoveFolderArgs } from "./moveFolder";
@@ -45,6 +46,7 @@ export {
 	deleteFolderMeta,
 	deleteVersion,
 	getFolderMeta,
+	isExpired,
 	login,
 	moveFile,
 	MoveFileArgs,
@@ -84,6 +86,7 @@ const v1 = {
 	deleteFolderMeta,
 	deleteVersion,
 	getFolderMeta,
+	isExpired,
 	login,
 	moveFile,
 	moveFolder,
