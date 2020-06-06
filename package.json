@@ -1,6 +1,6 @@
 {
   "name": "opaque",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "files": [
     "pkg/dist-*/",
     "pkg/bin/"
@@ -11,7 +11,8 @@
   "module": "pkg/dist-web/index.js",
   "scripts": {
     "build": "pika build",
-    "docs": "npm run build && npx api-extractor run --local --verbose && npx api-documenter markdown --input-folder=docs --output-folder=docs"
+    "docs": "npm run build && npx api-extractor run --local --verbose && npx api-documenter markdown --input-folder=docs --output-folder=docs",
+    "bundle": "npx webpack"
   },
   "@pika/pack": {
     "pipeline": [

@@ -33,6 +33,7 @@ import {
   getFolderLocation,
   getFolderMeta,
   getHandle,
+  isExpired,
   isPaid,
   login,
   moveFile,
@@ -262,6 +263,9 @@ class MasterHandle extends HDKey {
 
   getAccountInfo = async () =>
     getAccountInfo(this)
+
+  isExpired = async () =>
+    isExpired(this)
 
   isPaid = async () =>
     isPaid(this)

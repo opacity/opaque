@@ -457,6 +457,7 @@ export declare class MasterHandle extends HDKey {
         [dir: string]: FolderMeta;
     }>;
     getAccountInfo: () => Promise<any>;
+    isExpired: () => Promise<boolean>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{
@@ -734,6 +735,7 @@ export declare const v1: {
     deleteFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<void>;
     deleteVersion: (masterHandle: import("../../../../account").MasterHandle, dir: string, version: import("../../file-version").FileVersion) => Promise<void>;
     getFolderMeta: (masterHandle: import("../../../../account").MasterHandle, dir: string) => Promise<import("../../folder-meta").FolderMeta>;
+    isExpired: (masterHandle: import("../../../../account").MasterHandle) => Promise<boolean>;
     login: (masterHandle: import("../../../../account").MasterHandle) => Promise<void>;
     moveFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, { file, to }: MoveFileArgs) => Promise<void>;
     moveFolder: (masterHandle: import("../../../../account").MasterHandle, dir: string, { folder, to }: MoveFolderArgs) => Promise<void>;
