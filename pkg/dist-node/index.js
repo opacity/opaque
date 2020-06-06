@@ -1846,8 +1846,22 @@ const deleteFolderMeta = async (masterHandle, dir) => {
   masterHandle.getFolderLocation(dir));
 };
 
+const isExpired = async masterHandle => {
+  try {
+    const accountInfoResponse = await checkPaymentStatus(masterHandle.uploadOpts.endpoint, masterHandle);
+    return accountInfoResponse.data.paymentStatus == "expired";
+  } catch (_unused) {
+    return false;
+  }
+};
+
 const login = async masterHandle => {
-  // try newer meta
+  // only attempt changes if account is paid
+  if (!isPaid(masterHandle)) {
+    return;
+  } // try newer meta
+
+
   try {
     await masterHandle.getFolderMeta("/");
   } catch (err) {
@@ -2230,6 +2244,7 @@ const v1 = {
   deleteFolderMeta,
   deleteVersion,
   getFolderMeta: getFolderMeta$1,
+  isExpired,
   login,
   moveFile,
   moveFolder,
@@ -2420,6 +2435,8 @@ class MasterHandle extends HDKey__default {
     this.buildFullTree = async dir => buildFullTree(this, dir);
 
     this.getAccountInfo = async () => getAccountInfo(this);
+
+    this.isExpired = async () => isExpired(this);
 
     this.isPaid = async () => isPaid(this);
 

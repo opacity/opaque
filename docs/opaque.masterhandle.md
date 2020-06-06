@@ -42,6 +42,7 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 |  [getFolderLocation](./opaque.masterhandle.getfolderlocation.md) |  | <code>(dir: string) =&gt; string</code> | get the location (ie. metadata id) of a folder |
 |  [getFolderMeta](./opaque.masterhandle.getfoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;FolderMeta&gt;</code> |  |
 |  [handle](./opaque.masterhandle.handle.md) |  | <code>string</code> | get the account handle |
+|  [isExpired](./opaque.masterhandle.isexpired.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [isPaid](./opaque.masterhandle.ispaid.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [login](./opaque.masterhandle.login.md) |  | <code>() =&gt; Promise&lt;void&gt;</code> |  |
 |  [metaFolderCreating](./opaque.masterhandle.metafoldercreating.md) |  | <code>{</code><br/><code>        [key: string]: boolean;</code><br/><code>    }</code> |  |

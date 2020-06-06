@@ -349,6 +349,7 @@ export declare class MasterHandle extends HDKey {
         [dir: string]: FolderMeta;
     }>;
     getAccountInfo: () => Promise<any>;
+    isExpired: () => Promise<boolean>;
     isPaid: () => Promise<boolean>;
     login: () => Promise<void>;
     register: (duration?: number, limit?: number) => Promise<{
