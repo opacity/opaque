@@ -1,6 +1,10 @@
 import { FolderMeta } from "../../../../core/account/folder-meta";
-import { getFolderMeta } from "../v0/index";
+import { getFolderMeta, isPaid } from "../v0/index";
 const login = async (masterHandle) => {
+    // only attempt changes if account is paid
+    if (!isPaid(masterHandle)) {
+        return;
+    }
     // try newer meta
     try {
         await masterHandle.getFolderMeta("/");
