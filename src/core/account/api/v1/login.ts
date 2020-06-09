@@ -6,7 +6,7 @@ import { isExpired } from "./isExpired";
 
 const login = async (masterHandle: MasterHandle) => {
 	// only attempt changes if account is paid
-	if (!isPaid(masterHandle)) {
+	if (!await isPaid(masterHandle)) {
 		return
 	}
 

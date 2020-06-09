@@ -1857,7 +1857,7 @@ const isExpired = async masterHandle => {
 
 const login = async masterHandle => {
   // only attempt changes if account is paid
-  if (!isPaid(masterHandle)) {
+  if (!(await isPaid(masterHandle))) {
     return;
   } // try newer meta
 
