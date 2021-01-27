@@ -41,7 +41,7 @@ const createFolder = async (masterHandle: MasterHandle, dir: string, name: strin
 
 	if (masterHandle.metaFolderCreating[fullDir]) {
 		// TODO: this is hacky
-		await new Promise(resolve => {
+		await new Promise<void>(resolve => {
 			const interval = setInterval(() => {
 				if (!masterHandle.metaFolderCreating[fullDir]) {
 					resolve()

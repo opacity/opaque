@@ -13,6 +13,11 @@ module.exports = {
 	},
 	resolve: {
 		extensions: [ '.tsx', '.ts', '.js' ],
+		fallback: {
+			// buffer: require.resolve("buffer/"),
+			stream: require.resolve("stream-browserify"),
+			crypto: require.resolve("crypto-browserify")
+		}
 	},
 	output: {
 		filename: 'bundle.js',
@@ -20,4 +25,3 @@ module.exports = {
 		libraryTarget: "umd"
 	},
 };
-

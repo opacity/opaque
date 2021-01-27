@@ -1,212 +1,351 @@
-import Axios from "axios";
-import { EventEmitter } from "events";
-import { pipeline } from "readable-stream";
-import { decryptMetadata } from "./core/metadata";
-import { getPayload } from "./core/request";
-import {
-  getMimeType,
-  getUploadSize,
-  keysFromHandle
-} from "./core/helpers";
-
+import { CryptoMiddleware, NetworkMiddleware } from "./middleware"
+import { allSettled } from "./utils/allSettled"
+import { bytesToHex } from "./utils/hex"
+import { sizeOnFS, numberOfBlocks, blockSizeOnFS, numberOfBlocksOnFS } from "./utils/blocks"
+import { serializeEncrypted } from "./utils/serializeEncrypted"
 import { FileMeta } from "./core/metadata"
+import { numberOfPartsOnFS, partSizeOnFS, blocksPerPart } from "./utils/parts"
+import { ReadableStream, WritableStream, TransformStream } from "web-streams-polyfill/ponyfill"
+import { OQ } from "./utils/oqueue"
+import { Uint8ArrayChunkStream } from "./utils/chunkStream"
+import { polyfillReadableStream } from "./utils/polyfillStream"
+import { extractPromise } from "./utils/extractPromise"
 
-import DecryptStream from "./streams/decryptStream";
-import DownloadStream from "./streams/downloadStream";
+type DownloadConfig = {
+	storageNode: string
+	metadataNode: string
 
-const METADATA_PATH = "/download/metadata/";
-
-type DownloadOptions = {
-  autoStart?: boolean
-  endpoint?: string
+	crypto: CryptoMiddleware
+	network: NetworkMiddleware
 }
 
-const DEFAULT_OPTIONS: DownloadOptions = Object.freeze({
-  autoStart: true
-});
+type DownloadArgs = {
+	config: DownloadConfig
+	handle: Uint8Array
+}
 
-/**
- * @internal
- */
-export default class Download extends EventEmitter {
-  options: DownloadOptions
-  handle: string
-  hash: string
-  key: string
-  downloadURLRequest
-  metadataRequest
-  downloadURL: string
-  isDownloading: boolean
-  decryptStream: DecryptStream
-  downloadStream: DownloadStream
-  _metadata: FileMeta
+export class Download extends EventTarget {
+	config: DownloadConfig
 
-  private size
+	_location: Uint8Array
+	_key: Uint8Array
 
-  constructor(handle, opts: DownloadOptions = {}) {
-    super();
+	_cancelled = false
+	_errored = false
+	_started = false
+	_done = false
+	_paused = false
 
-    const options = Object.assign({}, DEFAULT_OPTIONS, opts);
-    const { hash, key } = keysFromHandle(handle);
+	get cancelled () { return this._cancelled }
+	get errored () { return this._errored }
+	get started () { return this._started }
+	get done () { return this._done }
 
-    this.options = options;
-    this.handle = handle;
-    this.hash = hash;
-    this.key = key;
-    this.downloadURLRequest = null;
-    this.metadataRequest = null;
-    this.isDownloading = false;
+	_unpaused = Promise.resolve()
+	_unpause: (value: void) => void
 
-    if(options.autoStart) {
-      this.startDownload();
-    }
-  }
+	_finished: Promise<void>
+	_resolve: (value?: void) => void
+	_reject: (reason?: any) => void
 
-  metadata = async () => {
-    if(this._metadata) {
-      return this._metadata;
-    } else {
-      return await this.downloadMetadata();
-    }
-  }
+	_size: number
+	_sizeOnFS: number
+	_numberOfBlocks: number
+	_numberOfParts: number
 
-  toBuffer = async () => {
-    const chunks = [];
-    let totalLength = 0;
+	get size () { return this._size }
+	get sizeOnFS () { return this._sizeOnFS }
 
-    if(typeof Buffer === "undefined") {
-      return false;
-    }
+	_progress = { network: 0, decrypt: 0 }
 
-    await this.startDownload();
+	_downloadUrl: string
+	_metadata: FileMeta
 
-    return new Promise(resolve => {
-      this.decryptStream.on("data", (data) => {
-        chunks.push(data);
-        totalLength += data.length;
-      });
+	_netQueue: OQ<void>
+	_decryptQueue: OQ<Uint8Array>
 
-      this.decryptStream.once("finish", () => {
-        resolve(Buffer.concat(chunks, totalLength));
-      });
-    }).catch(err => {
-      throw err;
-    });
-  }
+	_output: ReadableStream<Uint8Array>
 
-  toFile = async () => {
-    const chunks = [] as BlobPart[];
-    let totalLength = 0;
+	get name () { return this._metadata?.name }
 
-    await this.startDownload();
+	constructor ({ config, handle }: DownloadArgs) {
+		super()
 
-    return new Promise(resolve => {
-      this.decryptStream.on("data", (data) => {
-        chunks.push(data);
-        totalLength += data.length;
-      })
+		this.config = config
 
-      this.decryptStream.once("finish", async () => {
-        const meta = await this.metadata();
-        resolve(new File(chunks, meta.name, {
-          type: getMimeType(meta)
-        }));
-      })
-    }).catch(err => {
-      throw err;
-    })
-  }
+		this._location = handle.slice(0, 32)
+		this._key = handle.slice(32)
 
-  startDownload = async () => {
-    try {
-      await this.getDownloadURL();
-      await this.downloadMetadata();
-      await this.downloadFile();
-    } catch(e) {
-      this.propagateError(e);
-    }
-  }
+		const d = this
 
-  getDownloadURL = async (overwrite = false) => {
-    let req;
+		const [finished, resolve, reject] = extractPromise()
+		this._finished = finished
+		this._resolve = (val) => {
+			d._done = true
 
-    if(!overwrite && this.downloadURLRequest) {
-      req = this.downloadURLRequest;
-    } else {
-      req = Axios.post(this.options.endpoint + "/api/v1/download", {
-        fileID: this.hash
-      });
-      this.downloadURLRequest = req;
-    }
+			resolve(val)
+		}
+		this._reject = (err) => {
+			d._errored = true
 
-    const res = await req;
+			reject(err)
+		}
+	}
 
-    if(res.status === 200) {
-      this.downloadURL = res.data.fileDownloadUrl;
-      return this.downloadURL;
-    }
-  }
+	pause () {
+		const [unpaused, unpause] = extractPromise()
+		this._unpaused = unpaused
+		this._unpause = unpause
+	}
 
-  downloadMetadata = async (overwrite = false) => {
-    let req;
+	unpause () {
+		this._unpause()
+	}
 
-    if(!this.downloadURL) {
-      await this.getDownloadURL();
-    }
+	async downloadUrl (): Promise<string> {
+		if (this._downloadUrl) {
+			return this._downloadUrl
+		}
 
-    if(!overwrite && this.metadataRequest) {
-      req = this.metadataRequest;
-    } else {
-      const endpoint = this.options.endpoint;
-      const path = METADATA_PATH + this.hash;
-      req = Axios.get(this.downloadURL + "/metadata", {
-        responseType: "arraybuffer"
-      });
-      this.metadataRequest = req;
-    }
+		const d = this
 
-    const res = await req;
-    const metadata = decryptMetadata(new Uint8Array(res.data), this.key);
+		const downloadUrlRes = await d.config.network.POST(
+			d.config.storageNode + "/api/v1/download",
+			undefined,
+			JSON.stringify({ fileID: bytesToHex(d._location) }),
+			async (b) => JSON.parse(new TextDecoder("utf8").decode(await new Response(b).arrayBuffer())).fileDownloadUrl
+		).catch(d._reject)
 
-    this._metadata = metadata;
-    this.size = getUploadSize(metadata.size, metadata.p || {});
-    return metadata;
-  }
+		if (!downloadUrlRes) {
+			return
+		}
 
-  downloadFile = async () => {
-    if(this.isDownloading) {
-      return true;
-    }
+		const downloadUrl = downloadUrlRes.data
 
-    this.isDownloading = true;
-    this.downloadStream = new DownloadStream(this.downloadURL, await this.metadata, this.size, this.options);
-    this.decryptStream = new DecryptStream(this.key);
+		this._downloadUrl = downloadUrl
 
-    this.downloadStream.on("progress", progress => {
-      this.emit("download-progress", {
-        target: this,
-        handle: this.handle,
-        progress: progress
-      })
-    });
+		return downloadUrl
+	}
 
-    this.downloadStream
-      .pipe(this.decryptStream)
+	async metadata (): Promise<FileMeta> {
+		if (this._metadata) {
+			return this._metadata
+		}
 
-    this.downloadStream.on("error", this.propagateError);
-    this.decryptStream.on("error", this.propagateError);
-  }
+		const d = this
 
-  finishDownload = (error) => {
-    if(error) {
-      this.propagateError(error);
-    } else {
-      this.emit("finish");
-    }
-  }
+		if (!this._downloadUrl) {
+			await this.downloadUrl()
+		}
 
-  propagateError = (error) => {
-    console.warn("Download error: ", error.message || error);
-    process.nextTick(() => this.emit("error", error.message || error));
-  }
+		const metadataRes = await d.config.network.GET(
+			this._downloadUrl + "/metadata",
+			undefined,
+			undefined,
+			async (b) => await serializeEncrypted<FileMeta>(
+				d.config.crypto,
+				new Uint8Array(await new Response(b).arrayBuffer()),
+				d._key
+			)
+		).catch(d._reject)
+
+		if (!metadataRes) {
+			return
+		}
+
+		// TODO: migrate to new metadata system
+		const metadata = metadataRes.data
+
+		d._metadata = metadata
+
+		return metadata
+	}
+
+	async start (): Promise<ReadableStream<Uint8Array>> {
+		if (this._cancelled || this._errored) {
+			return
+		}
+
+		if (this._started) {
+			return this._output
+		}
+
+		this._started = true
+
+		// ping both servers before starting
+		const arr = await allSettled([
+			this.config.network.GET(this.config.storageNode + "", undefined, undefined, async (d) => new TextDecoder("utf8").decode(await new Response(d).arrayBuffer())),
+			// this.config.network.GET(this.config.metadataNode + "/ping", "", async (d: Uint8Array) => new TextDecoder("utf8").decode(d)),
+		]).catch(this._reject)
+
+		if (!arr) {
+			return
+		}
+
+		for (const v of arr) {
+			const [res, rej] = v
+
+			if (res) {
+				// if (res.data != "pong") {
+				// 	this.#reject(new Error(`Server ${res.url} did not respond to ping`))
+				// 	return
+				// }
+			}
+
+			if (rej) {
+				this._reject(rej)
+				return
+			}
+		}
+
+		const d = this
+
+		// Download started metadata
+		// ...
+
+		await d.downloadUrl().catch(d._reject)
+		await d.metadata().catch(d._reject)
+
+		const downloadUrl = this._downloadUrl
+		const metadata = this._metadata
+
+		d._size = metadata.size
+		d._sizeOnFS = sizeOnFS(metadata.size)
+		d._numberOfBlocks = numberOfBlocks(d._size)
+		d._numberOfParts = numberOfPartsOnFS(d._sizeOnFS)
+
+		d.dispatchEvent(new ProgressEvent("start", { loaded: numberOfBlocksOnFS(this._sizeOnFS) }))
+
+		const netQueue = new OQ<void>(3)
+		const decryptQueue = new OQ<Uint8Array>(blocksPerPart)
+
+		d._netQueue = netQueue
+		d._decryptQueue = decryptQueue
+
+		let partIndex = 0
+
+		d._output = new ReadableStream<Uint8Array>({
+			async pull (controller) {
+				if (d._cancelled || d._errored) {
+					return
+				}
+
+				if (partIndex >= d._numberOfParts) {
+					return
+				}
+
+				netQueue.add(partIndex++, async (partIndex) => {
+					if (d._cancelled || d._errored) {
+						return
+					}
+
+					await d._unpaused
+
+					d.dispatchEvent(new ProgressEvent("part-loaded", { loaded: partIndex }))
+
+					const res = await d.config.network.GET(
+						downloadUrl + "/file",
+						{ range: `bytes=${partIndex * partSizeOnFS}-${Math.min(d._sizeOnFS, (partIndex + 1) * partSizeOnFS) - 1}` },
+						undefined,
+						async (rs) => polyfillReadableStream(rs),
+					).catch(d._reject)
+
+					if (!res) {
+						return
+					}
+
+					let l = 0
+					res.data
+						.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+							// log progress
+							transform (chunk, controller) {
+								for (let i = Math.floor(l / blockSizeOnFS); i < Math.floor((l + chunk.length) / blockSizeOnFS); i++) {
+									d.dispatchEvent(new ProgressEvent("block-loaded", { loaded: partIndex * blocksPerPart + i }))
+								}
+
+								l += chunk.length
+
+								controller.enqueue(chunk)
+							},
+						}))
+						.pipeThrough(new Uint8ArrayChunkStream(partSizeOnFS))
+						.pipeTo(new WritableStream<Uint8Array>({
+							async write (part) {
+								for (let i = 0; i < numberOfBlocksOnFS(part.length); i++) {
+									decryptQueue.add(partIndex * blocksPerPart + i, async (blockIndex) => {
+										if (d._cancelled || d._errored) {
+											return
+										}
+
+										let bi = blockIndex % blocksPerPart
+
+										await d._unpaused
+
+										const block = part.slice(bi * blockSizeOnFS, (bi + 1) * blockSizeOnFS)
+										const decrypted = await d.config.crypto.decrypt(d._key, block).catch(d._reject)
+
+										if (!decrypted) {
+											return
+										}
+
+										return decrypted
+									}, async (decrypted, blockIndex) => {
+										if (!decrypted) {
+											return
+										}
+
+										controller.enqueue(decrypted)
+
+										d.dispatchEvent(new ProgressEvent("download-progress", { loaded: blockIndex, total: d._numberOfBlocks }))
+										d.dispatchEvent(new ProgressEvent("block-finished", { loaded: blockIndex }))
+										d.dispatchEvent(new ProgressEvent("decrypt-progress", { loaded: blockIndex, total: numberOfBlocks(d._size) - 1 }))
+									})
+								}
+							}
+						}))
+
+					await decryptQueue.waitForCommit(Math.min((partIndex + 1) * blocksPerPart, d._numberOfBlocks) - 1)
+
+					d.dispatchEvent(new ProgressEvent("part-finished", { loaded: partIndex }))
+				}, () => {
+
+				})
+			},
+			async start (controller) {
+				netQueue.add(d._numberOfParts, () => {}, async () => {
+					netQueue.close()
+				})
+
+				decryptQueue.add(numberOfBlocks(d._size), () => {}, async () => {
+					decryptQueue.close()
+				})
+
+				Promise.all([
+					netQueue.waitForClose(),
+					decryptQueue.waitForClose(),
+				]).then(() => {
+					d._resolve()
+
+					controller.close()
+				})
+			},
+			cancel () {
+				d._cancelled = true
+			}
+		})
+
+		return d._output
+	}
+
+	async finish () {
+		return this._finished
+	}
+
+	async cancel () {
+		this._cancelled = true
+
+		if (this._output) {
+			this._output.cancel()
+		}
+	}
 }

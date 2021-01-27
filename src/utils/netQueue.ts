@@ -29,7 +29,7 @@ class NetQueue<T> extends EventEmitter {
 
 	private _fetch: () => T | Promise<T>
 	private _update: (obj: T) => void
-	private _timeout: number
+	private _timeout: number = 1000
 
 	constructor ({ fetch, update, data = {}, timeout = 1000 }: NetQueueProps<T>) {
 		super()

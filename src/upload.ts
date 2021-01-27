@@ -1,137 +1,371 @@
-import Axios from "axios";
-import { EventEmitter } from "events";
-import { createMetadata, encryptMetadata, FileMeta, FileMetaOptions } from "./core/metadata";
-import {
-  generateFileKeys,
-  getUploadSize,
-  getFileData,
-  getEndIndex,
-  FileData
-} from "./core/helpers";
-import FormDataNode from "form-data";
-import EncryptStream from "./streams/encryptStream";
-import UploadStream from "./streams/uploadStream";
-import { Readable } from "readable-stream";
-import { getPayloadFD } from "./core/request";
-import HDKey from "hdkey";
+import { CryptoMiddleware, NetworkMiddleware } from "./middleware"
+import { FileMeta } from "./core/metadata"
+import { OQ } from "./utils/oqueue"
+import { allSettled } from "./utils/allSettled"
+import { sizeOnFS, numberOfBlocksOnFS, numberOfBlocks, blockSize, blockSizeOnFS } from "./utils/blocks"
+import { numberOfPartsOnFS, partSizeOnFS, partSize } from "./utils/parts"
+import { getPayloadFD, getPayload } from "./utils/payload"
+import { bytesToHex } from "./utils/hex"
+import { Uint8ArrayChunkStream } from "./utils/chunkStream"
+import { WritableStream, TransformStream } from "web-streams-polyfill/ponyfill"
+import { extractPromise } from "./utils/extractPromise"
+import { Retry } from "./utils/retry"
 
-const PART_MIN_SIZE = 1024 * 1024 * 5;
-const POLYFILL_FORMDATA = typeof FormData === "undefined";
+type UploadConfig = {
+	storageNode: string
+	metadataNode: string
 
-type UploadOptions = {
-  autoStart?: boolean,
-  endpoint?: boolean,
-  params?: FileMetaOptions
-}
-const DEFAULT_OPTIONS: UploadOptions = Object.freeze({
-  autoStart: true
-});
-const DEFAULT_FILE_PARAMS = {
-  blockSize: 64 * 1024, // 64 KiB encryption blocks
+	crypto: CryptoMiddleware
+	network: NetworkMiddleware
 }
 
-/**
- * @internal
- */
-export default class Upload extends EventEmitter {
-  account: HDKey
-  options: UploadOptions
-  data: FileData
-  uploadSize
-  key: string
-  hash: string
-  handle: string
-  metadata: FileMeta
-  readStream: Readable
-  encryptStream: EncryptStream
-  uploadStream: UploadStream
+type UploadArgs = {
+	config: UploadConfig
+	size: number
+	name: string
+	type: string
+}
 
-  constructor(file, account, opts: UploadOptions = {}) {
-    super();
+type UploadInitPayload = {
+	fileHandle: string
+	fileSizeInByte: number
+	endIndex: number
+}
 
-    const options = Object.assign({}, DEFAULT_OPTIONS, opts);
-    options.params = Object.assign({}, DEFAULT_FILE_PARAMS, options.params || {});
+type UploadInitExtraPayload = {
+	metadata: Uint8Array,
+}
 
-    const { handle, hash, key } = generateFileKeys();
-    const data = getFileData(file, handle);
-    const size = getUploadSize(data.size, options.params);
+type UploadPayload = {
+	fileHandle: string
+	partIndex: number
+	endIndex: number
+}
 
-    this.account = account;
-    this.options = options;
-    this.data = data;
-    this.uploadSize = size;
-    this.key = key; // Encryption key
-    this.hash = hash; // Datamap entry hash
-    this.handle = handle; // File handle - hex(hash) + hex(key)
-    this.metadata = createMetadata(data, options.params);
+type UploadExtraPayload = {
+	chunkData: Uint8Array
+}
 
-    if (options.autoStart) {
-      this.startUpload()
-    }
-  }
+type UploadStatusPayload = {
+	fileHandle: string
+}
 
-  startUpload = async () => {
-    try {
-      await this.uploadMetadata();
-      await this.uploadFile();
-    } catch(e) {
-      this.propagateError(e);
-    }
-  }
+export class Upload extends EventTarget {
+	config: UploadConfig
 
-  uploadMetadata = async () => {
-    const meta = createMetadata(this.data, this.options.params);
-    const encryptedMeta = encryptMetadata(meta, this.key);
-    const data = getPayloadFD({
-      fileHandle: this.hash,
-      fileSizeInByte: this.uploadSize,
-      endIndex: getEndIndex(this.uploadSize, this.options.params)
-    }, {
-      metadata: encryptedMeta
-    }, this.account);
+	_location: Uint8Array
+	_key: Uint8Array
 
-    const url = this.options.endpoint + "/api/v1/init-upload";
-    const headers = (data as FormDataNode).getHeaders ? (data as FormDataNode).getHeaders() : {};
-    const req = Axios.post(url, data, { headers });
-    const res = await req;
+	_cancelled = false
+	_errored = false
+	_started = false
+	_done = false
 
-    this.emit("metadata", meta);
-  }
+	get cancelled () { return this._cancelled }
+	get errored () { return this._errored }
+	get started () { return this._started }
+	get done () { return this._done }
 
-  uploadFile = async () => {
-    const readStream = new this.data.reader(this.data, this.options.params);
+	_unpaused = Promise.resolve()
+	_unpause: (value: void) => void
 
-    this.readStream = readStream;
-    this.encryptStream = new EncryptStream(this.key, this.options.params);
-    this.uploadStream = new UploadStream(this.account, this.hash, this.uploadSize, this.options.endpoint, this.options.params);
+	_finished: Promise<void>
+	_resolve: (value?: void) => void
+	_reject: (reason?: any) => void
 
-    this.uploadStream.on("progress", progress => {
-      this.emit("upload-progress", {
-        target: this,
-        handle: this.handle,
-        progress
-      });
-    });
+	_size: number
+	_sizeOnFS: number
+	_numberOfBlocks: number
+	_numberOfParts: number
 
-    this.readStream
-      .pipe(this.encryptStream)
-      .pipe(this.uploadStream)
-      .on("finish", this.finishUpload);
+	get size () { return this._size }
+	get sizeOnFS () { return this._sizeOnFS }
 
-    this.readStream.on("error", this.propagateError);
-    this.encryptStream.on("error", this.propagateError);
-    this.uploadStream.on("error", this.propagateError);
-  }
+	_progress = { network: 0, decrypt: 0 }
 
-  finishUpload = async () => {
-    this.emit("finish", {
-      target: this,
-      handle: this.handle,
-      metadata: this.metadata
-    });
-  }
+	_metadata: FileMeta = {
+		name: undefined,
+		p: undefined,
+		size: undefined,
+		type: undefined
+	}
 
-  propagateError = (error) => {
-    process.nextTick(() => this.emit("error", error));
-  }
+	_netQueue: OQ<Uint8Array>
+	_encryptQueue: OQ<Uint8Array>
+
+	_buffer: number[] = []
+	_dataOffset: number = 0
+	_encryped: number[] = []
+	_partOffset: number = 0
+
+	_output: TransformStream<Uint8Array, Uint8Array>
+
+	pause () {
+		const [unpaused, unpause] = extractPromise()
+		this._unpaused = unpaused
+		this._unpause = unpause
+	}
+
+	unpause () {
+		this._unpause()
+	}
+
+	constructor ({ config, size, name, type }: UploadArgs) {
+		super()
+
+		this.config = config
+
+		this._size = size
+		this._sizeOnFS = sizeOnFS(this._size)
+		this._numberOfBlocks = numberOfBlocks(this._size)
+		this._numberOfParts = numberOfPartsOnFS(this._sizeOnFS)
+
+		this._metadata.name = name
+		this._metadata.size = size
+		this._metadata.type = type
+
+		const u = this
+
+		const [finished, resolve, reject] = extractPromise()
+		this._finished = finished
+		this._resolve = (val) => {
+			u._done = true
+
+			resolve(val)
+		}
+		this._reject = (err) => {
+			u._errored = true
+
+			u.pause()
+
+			reject(err)
+		}
+	}
+
+	async generateHandle () {
+		if (!this._key) {
+			// generate key
+			this._key = new Uint8Array(await crypto.subtle.exportKey("raw", await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"])))
+		}
+
+		if (!this._location) {
+			this._location = crypto.getRandomValues(new Uint8Array(32))
+		}
+	}
+
+	async start (): Promise<TransformStream<Uint8Array, Uint8Array>> {
+		if (this._cancelled || this._errored) {
+			return
+		}
+
+		if (this._started) {
+			return this._output
+		}
+
+		this._started = true
+
+		// ping both servers before starting
+		const arr = await allSettled([
+			this.config.network.GET(this.config.storageNode + "", undefined, undefined, async (d) => new TextDecoder("utf8").decode(await new Response(d).arrayBuffer())),
+			// this.config.network.GET(this.config.metadataNode + "/ping", "", async (d: Uint8Array) => new TextDecoder("utf8").decode(d)),
+		]).catch(this._reject)
+
+		if (!arr) {
+			return
+		}
+
+		for (const v of arr) {
+			const [res, rej] = v
+
+			if (res) {
+				// if (res.data != "pong") {
+				// 	this.#reject(new Error(`Server ${res.url} did not respond to ping`))
+				// 	return
+				// }
+			}
+
+			if (rej) {
+				this._reject(rej)
+				return
+			}
+		}
+
+		await this.generateHandle()
+
+		const u = this
+
+		// upload started metadata
+		// ...
+
+		const encryptedMeta = await u.config.crypto.encrypt(u._key, new TextEncoder().encode(JSON.stringify(u._metadata)))
+
+		const fd = await getPayloadFD<UploadInitPayload, UploadInitExtraPayload>({
+			crypto: u.config.crypto,
+			payload: {
+				fileHandle: bytesToHex(u._location),
+				fileSizeInByte: u._sizeOnFS,
+				endIndex: numberOfPartsOnFS(u._sizeOnFS),
+			},
+			extraPayload: {
+				metadata: encryptedMeta,
+			},
+		})
+
+		await u.config.network.POST(u.config.storageNode + "/api/v1/init-upload", {}, fd).catch(u._reject)
+
+		u.dispatchEvent(new ProgressEvent("start", { loaded: numberOfBlocksOnFS(u._sizeOnFS) }))
+
+		const encryptQueue = new OQ<Uint8Array>(1, Number.MAX_SAFE_INTEGER)
+		const netQueue = new OQ<Uint8Array>(3)
+
+		u._encryptQueue = encryptQueue
+		u._netQueue = netQueue
+
+		let blockIndex = 0
+		let partIndex = 0
+
+		const partCollector = new Uint8ArrayChunkStream(
+			partSize,
+			new ByteLengthQueuingStrategy({ highWaterMark: 3 * partSize + 1 }),
+			new ByteLengthQueuingStrategy({ highWaterMark: 3 * partSize + 1 })
+		)
+
+		u._output = new TransformStream<Uint8Array, Uint8Array>({
+			transform (chunk, controller) {
+				controller.enqueue(chunk)
+			}
+		}, new ByteLengthQueuingStrategy({ highWaterMark: 3 * partSize + 1 }))
+
+		u._output.readable
+			.pipeThrough(partCollector)
+			.pipeTo(new WritableStream<Uint8Array>({
+				async write (part) {
+					// console.log("write part")
+
+					u.dispatchEvent(new ProgressEvent("part-loaded", { loaded: partIndex }))
+
+					const p = new Uint8Array(sizeOnFS(part.length))
+
+					netQueue.add(partIndex++, async (partIndex) => {
+						if (u._cancelled || u._errored) {
+							return
+						}
+
+						for (let i = 0; i < numberOfBlocks(part.length); i++) {
+							const block = part.slice(i * blockSize, (i + 1) * blockSize)
+
+							encryptQueue.add(blockIndex++, async (blockIndex) => {
+								if (u._cancelled || u._errored) {
+									return
+								}
+
+                u.dispatchEvent(new ProgressEvent("block-loaded", { loaded: blockIndex }))
+
+								return await u.config.crypto.encrypt(u._key, block)
+							}, async (encrypted, blockIndex) => {
+								// console.log("write encrypted")
+
+								if (!encrypted) {
+									return
+								}
+
+								let byteIndex = 0
+								for (let byte of encrypted) {
+									p[i * blockSizeOnFS + byteIndex] = byte
+									byteIndex++
+								}
+
+                u.dispatchEvent(new ProgressEvent("upload-progress", { loaded: blockIndex, total: u._numberOfBlocks }))
+
+								u.dispatchEvent(new ProgressEvent("block-finished", { loaded: blockIndex }))
+							})
+						}
+
+						await encryptQueue.waitForCommit(blockIndex - 1)
+
+						const res = await new Retry(async () => {
+							const fd = await getPayloadFD<UploadPayload, UploadExtraPayload>({
+								crypto: u.config.crypto,
+								payload: {
+									fileHandle: bytesToHex(u._location),
+									partIndex: partIndex + 1,
+									endIndex: u._numberOfParts,
+								},
+								extraPayload: {
+									chunkData: p,
+								},
+							})
+
+							return await u.config.network.POST(u.config.storageNode + "/api/v1/upload", {}, fd)
+						}, {
+							firstTimer: 500,
+							handler: (err) => {
+								console.warn(err)
+
+								return false
+							}
+						}).start().catch(u._reject)
+
+						if (!res) {
+							return
+						}
+
+						u.dispatchEvent(new ProgressEvent("part-finished", { loaded: partIndex }))
+
+						// console.log(res)
+
+						// console.log("finished", blockIndex)
+
+						return p
+					}, async (part, partIndex) => {
+						if (!part) {
+							return
+						}
+					})
+				},
+				async close () {
+					await encryptQueue.waitForClose()
+				},
+			}))
+
+		;(async () => {
+			encryptQueue.add(numberOfBlocks(u._size), () => {}, async () => {
+				encryptQueue.close()
+			})
+
+			netQueue.add(u._numberOfParts, () => {}, async () => {
+				const data = await getPayload<UploadStatusPayload>({
+					crypto: u.config.crypto,
+					payload: {
+						fileHandle: bytesToHex(u._location),
+					},
+				})
+
+				const res = await u.config.network.POST(u.config.storageNode + "/api/v1/upload-status", {}, JSON.stringify(data)).catch(u._reject) as void
+
+				// console.log(res)
+
+				netQueue.close()
+			})
+
+			await encryptQueue.waitForClose()
+			await netQueue.waitForClose()
+
+			u._resolve()
+		})()
+
+		return u._output
+	}
+
+	async finish () {
+		return this._finished
+	}
+
+	async cancel () {
+		this._cancelled = true
+
+		// if (this._output) {
+		// 	this._output.cancel()
+		// }
+	}
 }

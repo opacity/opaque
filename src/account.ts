@@ -52,6 +52,9 @@ import {
 } from "./core/account/api/v1/index"
 
 import { RequireOnlyOne } from "./types/require-only-one"
+import { WebAccountMiddleware } from "./core/web/webAccountMiddleware"
+import { CryptoMiddleware, NetworkMiddleware } from "./middleware"
+import { WebNetworkMiddleware } from "./core/web/webNetworkMiddleware"
 
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
@@ -119,6 +122,9 @@ class MasterHandle extends HDKey {
     [key: string]: boolean
   } = {}
 
+  crypto: CryptoMiddleware
+  net: NetworkMiddleware
+
   /**
    * creates a master handle from an account
    *
@@ -153,6 +159,9 @@ class MasterHandle extends HDKey {
     } else {
       throw new Error("master handle was not of expected type");
     }
+
+    this.crypto = new WebAccountMiddleware({ asymmetricKey: new Uint8Array([...this.privateKey, ...this.chainCode]) })
+    this.net = new WebNetworkMiddleware()
   }
 
   /**

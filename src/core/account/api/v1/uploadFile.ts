@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import Upload from "../../../../upload";
+import { Upload } from "../../../../upload";
 
 import { MasterHandle } from "../../../../account";
 import { FileEntryMeta } from "../../file-entry";
@@ -10,25 +10,45 @@ import { createFolder } from "./createFolder";
 
 import { posix } from "path-browserify";
 import { cleanPath } from "../../../../utils/cleanPath";
+import { bytesToHex } from "../../../../utils/hex";
+import { polyfillReadableStream } from "../../../../utils/polyfillStream";
 
-const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
+type EE = EventEmitter & {
+	handle: string
+}
+
+const uploadFile = async (masterHandle: MasterHandle, dir: string, file: File) => {
 	dir = cleanPath(dir)
 
 	const
-		upload = new Upload(file, masterHandle, masterHandle.uploadOpts),
-		ee = new EventEmitter();
+		upload = new Upload({
+			config: {
+				crypto: masterHandle.crypto,
+				network: masterHandle.net,
+				storageNode: masterHandle.uploadOpts.endpoint,
+				metadataNode: masterHandle.uploadOpts.endpoint,
+			},
+			name: file.name,
+			size: file.size,
+			type: file.type,
+		}),
+		ee = new EventEmitter() as EE;
 
-	Object.assign(ee, { handle:  upload.handle });
+	await upload.generateHandle()
 
-	upload.on("upload-progress", progress => {
-		ee.emit("upload-progress", progress);
+	const handle = bytesToHex(new Uint8Array([...upload._location, ...upload._key]))
+
+	ee.handle = handle
+
+	upload.addEventListener("upload-progress", (progress: ProgressEvent) => {
+		ee.emit("upload-progress", { progress: progress.loaded / progress.total });
 	});
 
-	upload.on("error", err => {
+	upload.addEventListener("error", err => {
 		ee.emit("error", err);
 	});
 
-	upload.on("finish", async (finishedUpload: { handle: string, [key: string]: any }) => {
+	upload.finish().then(async () => {
 		if (!await getFolderMeta(masterHandle, dir).catch(console.warn))
 			await createFolder(masterHandle, posix.dirname(dir), posix.basename(dir))
 
@@ -40,7 +60,7 @@ const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 				modified: file.lastModified,
 				versions: [
 					new FileVersion({
-						handle: finishedUpload.handle,
+						handle,
 						size: file.size,
 						modified: file.lastModified
 					})
@@ -49,9 +69,12 @@ const uploadFile = (masterHandle: MasterHandle, dir: string, file: File) => {
 		})
 
 		masterHandle.metaQueue[dir].once("update", meta => {
-			ee.emit("finish", finishedUpload)
+			ee.emit("finish", { handle })
 		})
 	})
+
+	const stream = await upload.start()
+	polyfillReadableStream<Uint8Array>(file.stream()).pipeThrough(stream)
 
 	return ee
 }

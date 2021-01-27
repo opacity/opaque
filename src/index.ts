@@ -1,5 +1,5 @@
-import Download from "./download"
-import Upload from "./upload"
+import { Download } from "./download"
+import { Upload } from "./upload"
 export {
 	Download,
 	Upload
