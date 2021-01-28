@@ -9,11 +9,13 @@
 |  Class | Description |
 |  --- | --- |
 |  [Account](./opaque.account.md) | <b><i>this should never be shared or left in storage</i></b><br />a class for representing the account mnemonic |
+|  [Download](./opaque.download.md) |  |
 |  [FileEntryMeta](./opaque.fileentrymeta.md) | metadata to describe a file as it relates to the UI |
 |  [FileVersion](./opaque.fileversion.md) | metadata to describe a version of a file as it relates to a filesystem |
 |  [FolderEntryMeta](./opaque.folderentrymeta.md) | metadata to describe where a folder can be found (for root metadata of an account) |
 |  [FolderMeta](./opaque.foldermeta.md) | metadata to describe a folder for the UI |
 |  [MasterHandle](./opaque.masterhandle.md) | <b><i>this should never be shared or left in storage</i></b><br />a class for creating a master handle from an account mnemonic |
+|  [Upload](./opaque.upload.md) |  |
 
 ## Type Aliases
 

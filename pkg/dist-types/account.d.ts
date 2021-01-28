@@ -4,6 +4,7 @@ import { NetQueue } from "./utils/netQueue";
 import { FolderMeta, FileEntryMeta, FileVersion, FolderEntryMeta } from "./core/account/metadata";
 import { MoveFileArgs, MoveFolderArgs, RenameFileArgs, RenameFolderArgs } from "./core/account/api/v1/index";
 import { RequireOnlyOne } from "./types/require-only-one";
+import { CryptoMiddleware, NetworkMiddleware } from "./middleware";
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
  *
@@ -13,14 +14,14 @@ import { RequireOnlyOne } from "./types/require-only-one";
  */
 declare class Account {
     private _mnemonic;
-    readonly mnemonic: string[];
+    get mnemonic(): string[];
     /**
      * creates an account from a mnemonic if provided, otherwise from entropy
      *
      * @param mnemonic - the mnemonic to use for the account
      */
     constructor(mnemonic?: string);
-    readonly seed: Buffer;
+    get seed(): Buffer;
 }
 declare type MasterHandleCreator = RequireOnlyOne<{
     account: Account;
@@ -53,6 +54,8 @@ declare class MasterHandle extends HDKey {
     metaFolderCreating: {
         [key: string]: boolean;
     };
+    crypto: CryptoMiddleware;
+    net: NetworkMiddleware;
     /**
      * creates a master handle from an account
      *
@@ -64,15 +67,22 @@ declare class MasterHandle extends HDKey {
     /**
      * get the account handle
      */
-    readonly handle: string;
+    get handle(): string;
     /**
      * creates a sub key seed for validating
      *
      * @param path - the string to use as a sub path
      */
     private generateSubHDKey;
-    uploadFile: (dir: string, file: File) => import("events").EventEmitter;
-    downloadFile: (handle: string) => import("./download").default;
+    uploadFile: (dir: string, file: File) => Promise<import("events").EventEmitter & {
+        handle: string;
+    }>;
+    downloadFile: (handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("./core/metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     /**
      * deletes every version of a file and removes it from the metadata
      *

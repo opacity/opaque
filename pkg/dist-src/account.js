@@ -3,6 +3,8 @@ import HDKey, { fromMasterSeed } from "hdkey";
 import * as namehash from "eth-ens-namehash";
 import { hashToPath } from "./utils/hashToPath";
 import { buildFullTree, createFolder, createFolderMeta, deleteFile, deleteFolder, deleteFolderMeta, deleteVersion, downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFolderLocation, getFolderMeta, getHandle, isExpired, isPaid, login, moveFile, moveFolder, register, renameFile, renameFolder, renewAccount, setFolderMeta, uploadFile, upgradeAccount } from "./core/account/api/v1/index";
+import { WebAccountMiddleware } from "./core/web/webAccountMiddleware";
+import { WebNetworkMiddleware } from "./core/web/webNetworkMiddleware";
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
  *
@@ -139,6 +141,8 @@ class MasterHandle extends HDKey {
         else {
             throw new Error("master handle was not of expected type");
         }
+        this.crypto = new WebAccountMiddleware({ asymmetricKey: new Uint8Array([...this.privateKey, ...this.chainCode]) });
+        this.net = new WebNetworkMiddleware();
     }
     /**
      * get the account handle

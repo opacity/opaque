@@ -30,7 +30,12 @@ declare class FileEntryMeta {
     /** @internal */
     minify: () => MinifiedFileEntryMeta;
 }
-declare type MinifiedFileEntryMetaProps = [string, number, number, MinifiedFileVersion[]];
+declare type MinifiedFileEntryMetaProps = [
+    string,
+    number,
+    number,
+    MinifiedFileVersion[]
+];
 /**
  * @internal
  */

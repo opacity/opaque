@@ -31,17 +31,17 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 |  [buildFullTree](./opaque.masterhandle.buildfulltree.md) |  | <code>(dir: string) =&gt; Promise&lt;{</code><br/><code>        [dir: string]: FolderMeta;</code><br/><code>    }&gt;</code> | recursively build full file tree starting from directory {<!-- -->dir<!-- -->} |
 |  [createFolder](./opaque.masterhandle.createfolder.md) |  | <code>(dir: string, name: string) =&gt; Promise&lt;void&gt;</code> | create folder {<!-- -->name<!-- -->} inside of {<!-- -->dir<!-- -->} |
 |  [createFolderMeta](./opaque.masterhandle.createfoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;void&gt;</code> | request the creation of a folder metadata |
+|  [crypto](./opaque.masterhandle.crypto.md) |  | <code>CryptoMiddleware</code> |  |
 |  [deleteFile](./opaque.masterhandle.deletefile.md) |  | <code>(dir: string, file: FileEntryMeta) =&gt; Promise&lt;void&gt;</code> | deletes every version of a file and removes it from the metadata |
 |  [deleteFolder](./opaque.masterhandle.deletefolder.md) |  | <code>(dir: string, folder: FolderEntryMeta) =&gt; Promise&lt;void&gt;</code> |  |
 |  [deleteFolderMeta](./opaque.masterhandle.deletefoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;void&gt;</code> |  |
 |  [deleteVersion](./opaque.masterhandle.deleteversion.md) |  | <code>(dir: string, version: FileVersion) =&gt; Promise&lt;void&gt;</code> | deletes a single version of a file (ie. delete by handle) |
-|  [downloadFile](./opaque.masterhandle.downloadfile.md) |  | <code>(handle: string) =&gt; import(&quot;./download&quot;).default</code> |  |
+|  [downloadFile](./opaque.masterhandle.downloadfile.md) |  | <code>(handle: string) =&gt; import(&quot;events&quot;).EventEmitter &amp; {</code><br/><code>        toBuffer: () =&gt; Promise&lt;Buffer&gt;;</code><br/><code>        toFile: () =&gt; Promise&lt;File&gt;;</code><br/><code>        metadata: () =&gt; Promise&lt;import(&quot;./core/metadata&quot;).FileMeta&gt;;</code><br/><code>        stream: () =&gt; Promise&lt;ReadableStream&lt;Uint8Array&gt;&gt;;</code><br/><code>    }</code> |  |
 |  [downloadOpts](./opaque.masterhandle.downloadopts.md) |  | <code>any</code> |  |
 |  [getAccountInfo](./opaque.masterhandle.getaccountinfo.md) |  | <code>() =&gt; Promise&lt;any&gt;</code> |  |
 |  [getFolderHDKey](./opaque.masterhandle.getfolderhdkey.md) |  | <code>(dir: string) =&gt; HDKey</code> | creates a dir key seed for validating and folder navigation |
 |  [getFolderLocation](./opaque.masterhandle.getfolderlocation.md) |  | <code>(dir: string) =&gt; string</code> | get the location (ie. metadata id) of a folder |
 |  [getFolderMeta](./opaque.masterhandle.getfoldermeta.md) |  | <code>(dir: string) =&gt; Promise&lt;FolderMeta&gt;</code> |  |
-|  [handle](./opaque.masterhandle.handle.md) |  | <code>string</code> | get the account handle |
 |  [isExpired](./opaque.masterhandle.isexpired.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [isPaid](./opaque.masterhandle.ispaid.md) |  | <code>() =&gt; Promise&lt;boolean&gt;</code> |  |
 |  [login](./opaque.masterhandle.login.md) |  | <code>() =&gt; Promise&lt;void&gt;</code> |  |
@@ -49,12 +49,13 @@ a master handle is responsible for: <br /> - logging in to an account <br /> - s
 |  [metaQueue](./opaque.masterhandle.metaqueue.md) |  | <code>{</code><br/><code>        [key: string]: NetQueue&lt;FolderMeta&gt;;</code><br/><code>    }</code> |  |
 |  [moveFile](./opaque.masterhandle.movefile.md) |  | <code>(dir: string, { file, to }: MoveFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [moveFolder](./opaque.masterhandle.movefolder.md) |  | <code>(dir: string, { folder, to }: MoveFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
+|  [net](./opaque.masterhandle.net.md) |  | <code>NetworkMiddleware</code> |  |
 |  [register](./opaque.masterhandle.register.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
 |  [renameFile](./opaque.masterhandle.renamefile.md) |  | <code>(dir: string, { file, name }: RenameFileArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [renameFolder](./opaque.masterhandle.renamefolder.md) |  | <code>(dir: string, { folder, name }: RenameFolderArgs) =&gt; Promise&lt;void&gt;</code> |  |
 |  [renew](./opaque.masterhandle.renew.md) |  | <code>(duration?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
 |  [setFolderMeta](./opaque.masterhandle.setfoldermeta.md) |  | <code>(dir: string, folderMeta: FolderMeta) =&gt; Promise&lt;void&gt;</code> |  |
 |  [upgrade](./opaque.masterhandle.upgrade.md) |  | <code>(duration?: number, limit?: number) =&gt; Promise&lt;{</code><br/><code>        data: any;</code><br/><code>        waitForPayment: () =&gt; Promise&lt;unknown&gt;;</code><br/><code>    }&gt;</code> |  |
-|  [uploadFile](./opaque.masterhandle.uploadfile.md) |  | <code>(dir: string, file: File) =&gt; import(&quot;events&quot;).EventEmitter</code> |  |
+|  [uploadFile](./opaque.masterhandle.uploadfile.md) |  | <code>(dir: string, file: File) =&gt; Promise&lt;import(&quot;events&quot;).EventEmitter &amp; {</code><br/><code>        handle: string;</code><br/><code>    }&gt;</code> |  |
 |  [uploadOpts](./opaque.masterhandle.uploadopts.md) |  | <code>any</code> |  |
 

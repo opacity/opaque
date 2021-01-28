@@ -1,11 +1,10 @@
 /// <reference types="node" />
-import { Buffer } from 'safe-buffer';
 import { EventEmitter } from 'events';
 import FormDataNode from 'form-data';
 import HDKey from 'hdkey';
-import { Readable } from 'readable-stream';
-import { Transform } from 'readable-stream';
-import { Writable } from 'readable-stream';
+import { Mutex } from 'async-mutex';
+import { ReadableStream } from 'web-streams-polyfill/ponyfill';
+import { TransformStream } from 'web-streams-polyfill/ponyfill';
 
 /**
  * <b><i>this should never be shared or left in storage</i></b><br />
@@ -16,23 +15,14 @@ import { Writable } from 'readable-stream';
  */
 export declare class Account {
     private _mnemonic;
-    readonly mnemonic: string[];
+    get mnemonic(): string[];
     /**
      * creates an account from a mnemonic if provided, otherwise from entropy
      *
      * @param mnemonic - the mnemonic to use for the account
      */
     constructor(mnemonic?: string);
-    readonly seed: Buffer;
-}
-
-declare class BufferSourceStream extends Readable {
-    offset: any;
-    options: any;
-    buffer: any;
-    constructor(data: any, options: any);
-    _read(): void;
-    _readChunkFromBuffer(): any;
+    get seed(): Buffer;
 }
 
 /**
@@ -69,13 +59,12 @@ export declare function createAccount(endpoint: string, hdNode: HDKey, metadataK
  */
 export declare function createMetadata(endpoint: string, hdNode: HDKey, metadataKey: string): Promise<import("axios").AxiosResponse<any>>;
 
-declare class DecryptStream extends Transform {
-    options: any;
-    blockSize: any;
-    key: any;
-    iter: any;
-    constructor(key: any, options?: any);
-    _transform(chunk: any, encoding: any, callback: any): void;
+declare interface CryptoMiddleware {
+    getPublicKey(k: Uint8Array): Promise<Uint8Array>;
+    derive(k: Uint8Array, p: string): Promise<Uint8Array>;
+    sign(k: Uint8Array, b: Uint8Array): Promise<Uint8Array>;
+    encrypt(k: Uint8Array, b: Uint8Array): Promise<Uint8Array>;
+    decrypt(k: Uint8Array, ct: Uint8Array): Promise<Uint8Array>;
 }
 
 /**
@@ -89,71 +78,60 @@ declare class DecryptStream extends Transform {
  */
 export declare function deleteMetadata(endpoint: string, hdNode: HDKey, metadataKey: string): Promise<import("axios").AxiosResponse<any>>;
 
-/**
- * @internal
- */
-export declare class Download extends EventEmitter {
-    options: DownloadOptions;
-    handle: string;
-    hash: string;
-    key: string;
-    downloadURLRequest: any;
-    metadataRequest: any;
-    downloadURL: string;
-    isDownloading: boolean;
-    decryptStream: DecryptStream;
-    downloadStream: DownloadStream;
+export declare class Download extends EventTarget {
+    config: DownloadConfig;
+    _location: Uint8Array;
+    _key: Uint8Array;
+    _cancelled: boolean;
+    _errored: boolean;
+    _started: boolean;
+    _done: boolean;
+    _paused: boolean;
+    get cancelled(): boolean;
+    get errored(): boolean;
+    get started(): boolean;
+    get done(): boolean;
+    _unpaused: Promise<void>;
+    _unpause: (value: void) => void;
+    _finished: Promise<void>;
+    _resolve: (value?: void) => void;
+    _reject: (reason?: any) => void;
+    _size: number;
+    _sizeOnFS: number;
+    _numberOfBlocks: number;
+    _numberOfParts: number;
+    get size(): number;
+    get sizeOnFS(): number;
+    _progress: {
+        network: number;
+        decrypt: number;
+    };
+    _downloadUrl: string;
     _metadata: FileMeta;
-    private size;
-    constructor(handle: any, opts?: DownloadOptions);
-    metadata: () => Promise<FileMeta>;
-    toBuffer: () => Promise<unknown>;
-    toFile: () => Promise<unknown>;
-    startDownload: () => Promise<void>;
-    getDownloadURL: (overwrite?: boolean) => Promise<string>;
-    downloadMetadata: (overwrite?: boolean) => Promise<FileMeta>;
-    downloadFile: () => Promise<boolean>;
-    finishDownload: (error: any) => void;
-    propagateError: (error: any) => void;
+    _netQueue: OQ<void>;
+    _decryptQueue: OQ<Uint8Array>;
+    _output: ReadableStream<Uint8Array>;
+    get name(): string;
+    constructor({ config, handle }: DownloadArgs);
+    pause(): void;
+    unpause(): void;
+    downloadUrl(): Promise<string>;
+    metadata(): Promise<FileMeta>;
+    start(): Promise<ReadableStream<Uint8Array>>;
+    finish(): Promise<void>;
+    cancel(): Promise<void>;
 }
 
-declare type DownloadOptions = {
-    autoStart?: boolean;
-    endpoint?: string;
+declare type DownloadArgs = {
+    config: DownloadConfig;
+    handle: Uint8Array;
 };
 
-declare class DownloadStream extends Readable {
-    options: any;
-    url: any;
-    size: any;
-    metadata: any;
-    chunks: any;
-    chunkId: any;
-    pushId: any;
-    bytesDownloaded: any;
-    isDownloadFinished: any;
-    ongoingDownloads: any;
-    pushChunk: any;
-    constructor(url: any, metadata: any, size: any, options?: {});
-    _read(): void;
-    _download(chunkIndex?: any): Promise<void>;
-    _afterDownload(): Promise<void>;
-    _pushChunk(): void;
-}
-
-declare class EncryptStream extends Transform {
-    options: any;
-    key: any;
-    constructor(key: any, options: any);
-    _transform(data: any, encoding: any, callback: any): void;
-}
-
-declare type FileData = {
-    data: Buffer;
-    size: number;
-    name: string;
-    type: string;
-    reader: typeof Readable | typeof BufferSourceStream | typeof FileSourceStream;
+declare type DownloadConfig = {
+    storageNode: string;
+    metadataNode: string;
+    crypto: CryptoMiddleware;
+    network: NetworkMiddleware;
 };
 
 /**
@@ -199,17 +177,6 @@ declare type FileMetaOptions = {
     blockSize?: number;
     chunkSize?: number;
 };
-
-declare class FileSourceStream extends Readable {
-    offset: any;
-    options: any;
-    blob: any;
-    reader: any;
-    constructor(blob: any, options: any);
-    _read(): void;
-    _readChunkFromBlob(): boolean;
-    _onChunkRead(event: any): void;
-}
 
 /**
  * metadata to describe a version of a file as it relates to a filesystem
@@ -344,7 +311,7 @@ export declare function getPayload(rawPayload: any, hdNode: HDKey, key?: string)
  */
 export declare function getPayloadFD(rawPayload: {
     [key: string]: any;
-}, extraPayload: any, hdNode: HDKey, key?: string): FormDataNode | FormData;
+}, extraPayload: any, hdNode: HDKey, key?: string): FormData | FormDataNode;
 
 /**
  * get a list of available plans
@@ -379,6 +346,8 @@ export declare class MasterHandle extends HDKey {
     metaFolderCreating: {
         [key: string]: boolean;
     };
+    crypto: CryptoMiddleware;
+    net: NetworkMiddleware;
     /**
      * creates a master handle from an account
      *
@@ -390,15 +359,22 @@ export declare class MasterHandle extends HDKey {
     /**
      * get the account handle
      */
-    readonly handle: string;
+    get handle(): string;
     /**
      * creates a sub key seed for validating
      *
      * @param path - the string to use as a sub path
      */
     private generateSubHDKey;
-    uploadFile: (dir: string, file: File) => import("events").EventEmitter;
-    downloadFile: (handle: string) => import("./download").default;
+    uploadFile: (dir: string, file: File) => Promise<import("events").EventEmitter & {
+        handle: string;
+    }>;
+    downloadFile: (handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("./core/metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     /**
      * deletes every version of a file and removes it from the metadata
      *
@@ -500,7 +476,12 @@ export declare class MinifiedFileEntryMeta extends Array {
     unminify: () => FileEntryMeta;
 }
 
-declare type MinifiedFileEntryMetaProps = [string, number, number, MinifiedFileVersion[]];
+declare type MinifiedFileEntryMetaProps = [
+    string,
+    number,
+    number,
+    MinifiedFileVersion[]
+];
 
 /**
  * @internal
@@ -511,14 +492,15 @@ export declare class MinifiedFileVersion extends Array {
 }
 
 declare type MinifiedFileVersionProps = [
-/** the shareable handle of the file */
-string, 
-/** the size of the file in bytes */
-number, 
-/** the date in `ms` that this version was uploaded */
-number, 
-/** the date in `ms` that the filesystem marked as last modified */
-number];
+    /** the shareable handle of the file */
+    string,
+    /** the size of the file in bytes */
+    number,
+    /** the date in `ms` that this version was uploaded */
+    number,
+    /** the date in `ms` that the filesystem marked as last modified */
+    number
+];
 
 /**
  * @internal
@@ -535,7 +517,10 @@ export declare class MinifiedFolderEntryMeta extends Array {
     unminify: () => FolderEntryMeta;
 }
 
-declare type MinifiedFolderEntryMetaProps = [string, string];
+declare type MinifiedFolderEntryMetaProps = [
+    string,
+    string
+];
 
 /**
  * @internal
@@ -555,7 +540,13 @@ export declare class MinifiedFolderMeta extends Array {
     unminify: () => FolderMeta;
 }
 
-declare type MinifiedFolderMetaProps = [string, MinifiedFileEntryMeta[], MinifiedFolderEntryMeta[], number, number];
+declare type MinifiedFolderMetaProps = [
+    string,
+    MinifiedFileEntryMeta[],
+    MinifiedFolderEntryMeta[],
+    number,
+    number
+];
 
 declare type MoveFileArgs = {
     file: FileEntryMeta;
@@ -605,6 +596,51 @@ declare type NetQueueType<T> = {
     handler: (obj: T, payload: any) => T | Promise<T>;
 };
 
+declare interface NetworkMiddleware {
+    GET<T = Uint8Array>(address: string, headers?: HeadersInit, body?: undefined, mapReturn?: NetworkMiddlewareMapReturn<T>): Promise<NetworkMiddlewareResponse<T>>;
+    POST<T = Uint8Array>(address: string, headers?: HeadersInit, body?: string | FormData, mapReturn?: NetworkMiddlewareMapReturn<T>): Promise<NetworkMiddlewareResponse<T>>;
+}
+
+declare type NetworkMiddlewareMapReturn<T> = (body: ReadableStream<Uint8Array>) => Promise<T>;
+
+declare interface NetworkMiddlewareResponse<T> {
+    readonly headers: Headers;
+    readonly ok: boolean;
+    readonly redirected: boolean;
+    readonly status: number;
+    readonly statusText: string;
+    readonly url: string;
+    readonly data: T;
+}
+
+declare class OQ<S, T = void> {
+    _e: EventTarget;
+    _n: number;
+    _o: number;
+    _u: number;
+    _c: number;
+    _cl: number;
+    _ct: number;
+    _isClosed: boolean;
+    _closed: Promise<void>;
+    _resolveClosed: () => void;
+    _queue: [number, (v?: void) => void][];
+    _m: Mutex;
+    get concurrency(): number;
+    waitForClose(): Promise<void>;
+    waitForLine(size: number): Promise<void>;
+    waitForWork(n: number): Promise<void>;
+    waitForWorkFinish(n: number): Promise<void>;
+    waitForCommit(n: number): Promise<void>;
+    constructor(concurrency?: number, tolerance?: number);
+    add(n: number, wfn: OQWorkFn<S>, cfn: OQCommitFn<S, T>): Promise<T>;
+    close(): void;
+}
+
+declare type OQCommitFn<S, T> = (wret: S | void, n: number) => Promise<T> | T;
+
+declare type OQWorkFn<S> = (n: number) => Promise<S> | S | void;
+
 declare type RenameFileArgs = {
     file: FileEntryMeta;
     name: string;
@@ -631,61 +667,63 @@ declare type RequireOnlyOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude
  */
 export declare function setMetadata(endpoint: string, hdNode: HDKey, metadataKey: string, metadata: string): Promise<import("axios").AxiosResponse<any>>;
 
-/**
- * @internal
- */
-export declare class Upload extends EventEmitter {
-    account: HDKey;
-    options: UploadOptions;
-    data: FileData;
-    uploadSize: any;
-    key: string;
-    hash: string;
-    handle: string;
-    metadata: FileMeta;
-    readStream: Readable;
-    encryptStream: EncryptStream;
-    uploadStream: UploadStream;
-    constructor(file: any, account: any, opts?: UploadOptions);
-    startUpload: () => Promise<void>;
-    uploadMetadata: () => Promise<void>;
-    uploadFile: () => Promise<void>;
-    finishUpload: () => Promise<void>;
-    propagateError: (error: any) => void;
+export declare class Upload extends EventTarget {
+    config: UploadConfig;
+    _location: Uint8Array;
+    _key: Uint8Array;
+    _cancelled: boolean;
+    _errored: boolean;
+    _started: boolean;
+    _done: boolean;
+    get cancelled(): boolean;
+    get errored(): boolean;
+    get started(): boolean;
+    get done(): boolean;
+    _unpaused: Promise<void>;
+    _unpause: (value: void) => void;
+    _finished: Promise<void>;
+    _resolve: (value?: void) => void;
+    _reject: (reason?: any) => void;
+    _size: number;
+    _sizeOnFS: number;
+    _numberOfBlocks: number;
+    _numberOfParts: number;
+    get size(): number;
+    get sizeOnFS(): number;
+    _progress: {
+        network: number;
+        decrypt: number;
+    };
+    _metadata: FileMeta;
+    _netQueue: OQ<Uint8Array>;
+    _encryptQueue: OQ<Uint8Array>;
+    _buffer: number[];
+    _dataOffset: number;
+    _encryped: number[];
+    _partOffset: number;
+    _output: TransformStream<Uint8Array, Uint8Array>;
+    pause(): void;
+    unpause(): void;
+    constructor({ config, size, name, type }: UploadArgs);
+    generateHandle(): Promise<void>;
+    start(): Promise<TransformStream<Uint8Array, Uint8Array>>;
+    finish(): Promise<void>;
+    cancel(): Promise<void>;
 }
 
-declare type UploadOptions = {
-    autoStart?: boolean;
-    endpoint?: boolean;
-    params?: FileMetaOptions;
+declare type UploadArgs = {
+    config: UploadConfig;
+    size: number;
+    name: string;
+    type: string;
 };
 
-declare class UploadStream extends Writable {
-    account: any;
-    hash: Buffer;
-    endpoint: any;
-    options: any;
-    size: number;
-    endIndex: number;
-    private bytesUploaded;
-    private blockBuffer;
-    private partBuffer;
-    private bufferSize;
-    private ongoingUploads;
-    private retries;
-    private partIndex;
-    private finalCallback;
-    constructor(account: any, hash: any, size: any, endpoint: any, options: any);
-    _write(data: any, encoding: any, callback: any): void;
-    _final(callback: any): void;
-    _addPart(): void;
-    _attemptUpload(): void;
-    _upload(part: any): void;
-    _afterUpload(part: any): void;
-    _finishUpload(): Promise<void>;
-    _confirmUpload(data: any): Promise<boolean>;
-    _uploadError(error: any, part: any): void;
-}
+declare type UploadConfig = {
+    storageNode: string;
+    metadataNode: string;
+    crypto: CryptoMiddleware;
+    network: NetworkMiddleware;
+};
 
 /**
  * internal API v0
@@ -693,7 +731,12 @@ declare class UploadStream extends Writable {
  * @internal
  */
 export declare const v0: {
-    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("../../../..").Download;
+    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("../../../metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     generateSubHDKey: (masterHandle: import("../../../../account").MasterHandle, pathString: string) => import("hdkey").default;
     getAccountInfo: (masterHandle: import("../../../../account").MasterHandle) => Promise<any>;
     getFolderHDKey: (masterHandle: import("../../../../account").MasterHandle, dir: string) => import("hdkey").default;
@@ -713,7 +756,12 @@ export declare const v0: {
  * @internal
  */
 export declare const v1: {
-    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("../../../..").Download;
+    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("../../../metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     generateSubHDKey: (masterHandle: import("../../../../account").MasterHandle, pathString: string) => import("hdkey").default;
     getAccountInfo: (masterHandle: import("../../../../account").MasterHandle) => Promise<any>;
     getFolderHDKey: (masterHandle: import("../../../../account").MasterHandle, dir: string) => import("hdkey").default;
@@ -750,7 +798,9 @@ export declare const v1: {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
-    uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
+    uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => Promise<import("events").EventEmitter & {
+        handle: string;
+    }>;
 };
 
 export { }

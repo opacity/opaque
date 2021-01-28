@@ -1,4 +1,5 @@
 /// <reference path="../../../../../../src/types/hdkey.d.ts" />
+/// <reference types="node" />
 import { downloadFile } from "../v0/downloadFile";
 import { generateSubHDKey } from "../v0/generateSubHDKey";
 import { getAccountInfo } from "../v0/getAccountInfo";
@@ -15,7 +16,12 @@ export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFold
  * @internal
  */
 declare const v0: {
-    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("../../../..").Download;
+    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("../../../metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     generateSubHDKey: (masterHandle: import("../../../../account").MasterHandle, pathString: string) => import("hdkey").default;
     getAccountInfo: (masterHandle: import("../../../../account").MasterHandle) => Promise<any>;
     getFolderHDKey: (masterHandle: import("../../../../account").MasterHandle, dir: string) => import("hdkey").default;

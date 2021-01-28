@@ -1,36 +1,60 @@
-/// <reference types="node" />
-import { EventEmitter } from "events";
-import { FileMeta, FileMetaOptions } from "./core/metadata";
-import { FileData } from "./core/helpers";
-import EncryptStream from "./streams/encryptStream";
-import UploadStream from "./streams/uploadStream";
-import { Readable } from "readable-stream";
-import HDKey from "hdkey";
-declare type UploadOptions = {
-    autoStart?: boolean;
-    endpoint?: boolean;
-    params?: FileMetaOptions;
+import { CryptoMiddleware, NetworkMiddleware } from "./middleware";
+import { FileMeta } from "./core/metadata";
+import { OQ } from "./utils/oqueue";
+import { TransformStream } from "web-streams-polyfill/ponyfill";
+declare type UploadConfig = {
+    storageNode: string;
+    metadataNode: string;
+    crypto: CryptoMiddleware;
+    network: NetworkMiddleware;
 };
-/**
- * @internal
- */
-export default class Upload extends EventEmitter {
-    account: HDKey;
-    options: UploadOptions;
-    data: FileData;
-    uploadSize: any;
-    key: string;
-    hash: string;
-    handle: string;
-    metadata: FileMeta;
-    readStream: Readable;
-    encryptStream: EncryptStream;
-    uploadStream: UploadStream;
-    constructor(file: any, account: any, opts?: UploadOptions);
-    startUpload: () => Promise<void>;
-    uploadMetadata: () => Promise<void>;
-    uploadFile: () => Promise<void>;
-    finishUpload: () => Promise<void>;
-    propagateError: (error: any) => void;
+declare type UploadArgs = {
+    config: UploadConfig;
+    size: number;
+    name: string;
+    type: string;
+};
+export declare class Upload extends EventTarget {
+    config: UploadConfig;
+    _location: Uint8Array;
+    _key: Uint8Array;
+    _cancelled: boolean;
+    _errored: boolean;
+    _started: boolean;
+    _done: boolean;
+    get cancelled(): boolean;
+    get errored(): boolean;
+    get started(): boolean;
+    get done(): boolean;
+    _unpaused: Promise<void>;
+    _unpause: (value: void) => void;
+    _finished: Promise<void>;
+    _resolve: (value?: void) => void;
+    _reject: (reason?: any) => void;
+    _size: number;
+    _sizeOnFS: number;
+    _numberOfBlocks: number;
+    _numberOfParts: number;
+    get size(): number;
+    get sizeOnFS(): number;
+    _progress: {
+        network: number;
+        decrypt: number;
+    };
+    _metadata: FileMeta;
+    _netQueue: OQ<Uint8Array>;
+    _encryptQueue: OQ<Uint8Array>;
+    _buffer: number[];
+    _dataOffset: number;
+    _encryped: number[];
+    _partOffset: number;
+    _output: TransformStream<Uint8Array, Uint8Array>;
+    pause(): void;
+    unpause(): void;
+    constructor({ config, size, name, type }: UploadArgs);
+    generateHandle(): Promise<void>;
+    start(): Promise<TransformStream<Uint8Array, Uint8Array>>;
+    finish(): Promise<void>;
+    cancel(): Promise<void>;
 }
 export {};

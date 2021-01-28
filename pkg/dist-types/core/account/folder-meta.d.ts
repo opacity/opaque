@@ -34,7 +34,13 @@ declare class FolderMeta {
     /** @internal */
     minify: () => MinifiedFolderMeta;
 }
-declare type MinifiedFolderMetaProps = [string, MinifiedFileEntryMeta[], MinifiedFolderEntryMeta[], number, number];
+declare type MinifiedFolderMetaProps = [
+    string,
+    MinifiedFileEntryMeta[],
+    MinifiedFolderEntryMeta[],
+    number,
+    number
+];
 /**
  * @internal
  */

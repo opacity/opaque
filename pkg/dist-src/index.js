@@ -1,5 +1,5 @@
-import Download from "./download";
-import Upload from "./upload";
+import { Download } from "./download";
+import { Upload } from "./upload";
 export { Download, Upload };
 import v0 from "./core/account/api/v0/index";
 import v1 from "./core/account/api/v1/index";

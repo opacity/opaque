@@ -34,7 +34,12 @@ export { downloadFile, generateSubHDKey, getAccountInfo, getFolderHDKey, getFold
  * @internal
  */
 declare const v1: {
-    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("../../../..").Download;
+    downloadFile: (masterHandle: import("../../../../account").MasterHandle, handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("../../../metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
     generateSubHDKey: (masterHandle: import("../../../../account").MasterHandle, pathString: string) => import("hdkey").default;
     getAccountInfo: (masterHandle: import("../../../../account").MasterHandle) => Promise<any>;
     getFolderHDKey: (masterHandle: import("../../../../account").MasterHandle, dir: string) => import("hdkey").default;
@@ -71,6 +76,8 @@ declare const v1: {
         data: any;
         waitForPayment: () => Promise<unknown>;
     }>;
-    uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => import("events").EventEmitter;
+    uploadFile: (masterHandle: import("../../../../account").MasterHandle, dir: string, file: File) => Promise<import("events").EventEmitter & {
+        handle: string;
+    }>;
 };
 export default v1;

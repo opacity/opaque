@@ -7,5 +7,7 @@
 <b>Signature:</b>
 
 ```typescript
-uploadFile: (dir: string, file: File) => import("events").EventEmitter;
+uploadFile: (dir: string, file: File) => Promise<import("events").EventEmitter & {
+        handle: string;
+    }>;
 ```

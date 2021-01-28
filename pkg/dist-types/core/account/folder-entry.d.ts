@@ -25,7 +25,10 @@ declare class FolderEntryMeta {
     /** @internal */
     minify: () => MinifiedFolderEntryMeta;
 }
-declare type MinifiedFolderEntryMetaProps = [string, string];
+declare type MinifiedFolderEntryMetaProps = [
+    string,
+    string
+];
 /**
  * @internal
  */

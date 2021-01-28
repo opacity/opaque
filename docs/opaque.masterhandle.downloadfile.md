@@ -7,5 +7,10 @@
 <b>Signature:</b>
 
 ```typescript
-downloadFile: (handle: string) => import("./download").default;
+downloadFile: (handle: string) => import("events").EventEmitter & {
+        toBuffer: () => Promise<Buffer>;
+        toFile: () => Promise<File>;
+        metadata: () => Promise<import("./core/metadata").FileMeta>;
+        stream: () => Promise<ReadableStream<Uint8Array>>;
+    };
 ```

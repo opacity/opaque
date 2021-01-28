@@ -30,14 +30,15 @@ declare class FileVersion {
     minify: () => MinifiedFileVersion;
 }
 declare type MinifiedFileVersionProps = [
-/** the shareable handle of the file */
-string, 
-/** the size of the file in bytes */
-number, 
-/** the date in `ms` that this version was uploaded */
-number, 
-/** the date in `ms` that the filesystem marked as last modified */
-number];
+    /** the shareable handle of the file */
+    string,
+    /** the size of the file in bytes */
+    number,
+    /** the date in `ms` that this version was uploaded */
+    number,
+    /** the date in `ms` that the filesystem marked as last modified */
+    number
+];
 /**
  * @internal
  */

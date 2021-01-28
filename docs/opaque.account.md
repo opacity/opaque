@@ -20,10 +20,3 @@ declare class Account
 |  --- | --- | --- |
 |  [(constructor)(mnemonic)](./opaque.account._constructor_.md) |  | creates an account from a mnemonic if provided, otherwise from entropy |
 
-## Properties
-
-|  Property | Modifiers | Type | Description |
-|  --- | --- | --- | --- |
-|  [mnemonic](./opaque.account.mnemonic.md) |  | <code>string[]</code> |  |
-|  [seed](./opaque.account.seed.md) |  | <code>Buffer</code> |  |
-

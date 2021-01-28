@@ -7,6 +7,7 @@ class NetQueue extends EventEmitter {
         this.queue = [];
         this.types = {};
         this.data = {};
+        this._timeout = 1000;
         this.push = ({ type, payload }) => {
             this.queue.push({ type, payload });
             this._process();

@@ -26,7 +26,7 @@ export declare function getPayload(rawPayload: any, hdNode: HDKey, key?: string)
  */
 export declare function getPayloadFD(rawPayload: {
     [key: string]: any;
-}, extraPayload: any, hdNode: HDKey, key?: string): FormDataNode | FormData;
+}, extraPayload: any, hdNode: HDKey, key?: string): FormData | FormDataNode;
 export { getPlans } from "./requests/getPlans";
 export { checkPaymentStatus } from "./requests/checkPaymentStatus";
 export { createAccount } from "./requests/createAccount";
