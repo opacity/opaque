@@ -51,6 +51,9 @@ const downloadFile = (masterHandle, handle) => {
             return;
         }
         started = true;
+        d.addEventListener("finish", () => {
+            ee.emit("finish");
+        });
         return d.start();
     };
     ee.metadata = metadata;

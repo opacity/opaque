@@ -361,6 +361,7 @@ class Download extends EventTarget {
             return this._output;
         }
         this._started = true;
+        this._startTime = Date.now();
         // ping both servers before starting
         const arr = await allSettled([
             this.config.network.GET(this.config.storageNode + "", undefined, undefined, async (d) => new TextDecoder("utf8").decode(await new Response(d).arrayBuffer())),
@@ -468,6 +469,8 @@ class Download extends EventTarget {
                 ]).then(() => {
                     d._resolve();
                     controller.close();
+                    d._finishTime = Date.now();
+                    d.dispatchEvent(new ProgressEvent("finish", { total: d._finishTime - d._startTime }));
                 });
             },
             cancel() {
@@ -843,6 +846,9 @@ const downloadFile = (masterHandle, handle) => {
             return;
         }
         started = true;
+        d.addEventListener("finish", () => {
+            ee.emit("finish");
+        });
         return d.start();
     };
     ee.metadata = metadata;

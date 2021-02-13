@@ -85,6 +85,10 @@ const downloadFile = (masterHandle: MasterHandle, handle: string): EE => {
 
 		started = true
 
+		d.addEventListener("finish", () => {
+			ee.emit("finish")
+		})
+
 		return d.start()
 	}
 

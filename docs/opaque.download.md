@@ -26,6 +26,7 @@ export declare class Download extends EventTarget
 |  [\_downloadUrl](./opaque.download._downloadurl.md) |  | <code>string</code> |  |
 |  [\_errored](./opaque.download._errored.md) |  | <code>boolean</code> |  |
 |  [\_finished](./opaque.download._finished.md) |  | <code>Promise&lt;void&gt;</code> |  |
+|  [\_finishTime](./opaque.download._finishtime.md) |  | <code>number</code> |  |
 |  [\_key](./opaque.download._key.md) |  | <code>Uint8Array</code> |  |
 |  [\_location](./opaque.download._location.md) |  | <code>Uint8Array</code> |  |
 |  [\_metadata](./opaque.download._metadata.md) |  | <code>FileMeta</code> |  |
@@ -40,6 +41,7 @@ export declare class Download extends EventTarget
 |  [\_size](./opaque.download._size.md) |  | <code>number</code> |  |
 |  [\_sizeOnFS](./opaque.download._sizeonfs.md) |  | <code>number</code> |  |
 |  [\_started](./opaque.download._started.md) |  | <code>boolean</code> |  |
+|  [\_startTime](./opaque.download._starttime.md) |  | <code>number</code> |  |
 |  [\_unpause](./opaque.download._unpause.md) |  | <code>(value: void) =&gt; void</code> |  |
 |  [\_unpaused](./opaque.download._unpaused.md) |  | <code>Promise&lt;void&gt;</code> |  |
 |  [config](./opaque.download.config.md) |  | <code>DownloadConfig</code> |  |

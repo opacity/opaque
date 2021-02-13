@@ -36,6 +36,9 @@ export class Download extends EventTarget {
 	_done = false
 	_paused = false
 
+	_startTime: number
+	_finishTime: number
+
 	get cancelled () { return this._cancelled }
 	get errored () { return this._errored }
 	get started () { return this._started }
@@ -171,6 +174,7 @@ export class Download extends EventTarget {
 		}
 
 		this._started = true
+		this._startTime = Date.now()
 
 		// ping both servers before starting
 		const arr = await allSettled([
@@ -327,6 +331,9 @@ export class Download extends EventTarget {
 					d._resolve()
 
 					controller.close()
+
+					d._finishTime = Date.now()
+					d.dispatchEvent(new ProgressEvent("finish", { total: d._finishTime - d._startTime }))
 				})
 			},
 			cancel () {

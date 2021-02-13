@@ -50,6 +50,8 @@ export declare class Download extends EventTarget {
     _started: boolean;
     _done: boolean;
     _paused: boolean;
+    _startTime: number;
+    _finishTime: number;
     get cancelled(): boolean;
     get errored(): boolean;
     get started(): boolean;
